@@ -148,6 +148,11 @@ const envSchema = z.object({
     // documented requests send no auth header, so the endpoints launch open and
     // close the moment this is set on both sides.
     SHIPROCKET_API_KEY: z.string().optional(),
+    // Shiprocket shipping API (AWB, labels, pickups, manifests) for seller
+    // orders. Use a dedicated Shiprocket "API user" (Settings → API). Unset =
+    // sellers self-ship and enter the courier + AWB themselves.
+    SHIPROCKET_EMAIL: z.string().optional(),
+    SHIPROCKET_PASSWORD: z.string().optional(),
     // -------------------------------------------------------------------
     // Shiprocket Checkout (Fastrr)
     //

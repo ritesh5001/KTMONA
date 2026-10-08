@@ -3,722 +3,362 @@
 import * as React from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { motion, AnimatePresence } from "framer-motion";
 import useSWR from "swr";
-import { Button } from "@/components/ui/button";
 import {
-  Ban,
+  AlertTriangle,
   Boxes,
+  CheckCircle2,
+  ChevronRight,
+  Circle,
+  Clock,
+  Headset,
   IndianRupee,
+  Megaphone,
   Package,
+  PackageCheck,
   PlusCircle,
-  ReceiptText,
-  RotateCcw,
+  ShieldCheck,
   ShoppingBag,
-  TrendingUp,
-  Undo2,
+  Star,
+  Truck,
   Wallet,
-  type LucideIcon,
 } from "lucide-react";
+import { sellerCenter, inr, fmtDate, shortId } from "@/services/seller-center";
+import { Btn, Empty, ErrorNote, Panel, StatCard, StatusBadge, Thumb, errorMessage } from "@/components/seller/kit";
+import { cn } from "@/lib/utils";
 
-const RevenueChart = dynamic(() => import("./_components/RevenueChart"), {
+const SalesOverviewChart = dynamic(() => import("./_components/SalesOverviewChart"), {
   ssr: false,
-  loading: () => <div className="h-72 sm:h-80 animate-pulse rounded bg-border-soft dark:bg-border" />,
+  loading: () => <div className="h-full animate-pulse rounded-xl bg-mist" />,
 });
 
-const RefundBarChart = dynamic(() => import("./_components/RefundBarChart"), {
-  ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded bg-border-soft dark:bg-border" />,
-});
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { toast } from "sonner";
-import {
-  getAnalyticsSummary,
-  getRevenueChart,
-  getTopProducts,
-  getInventoryHealth,
-  getRefundImpact,
-  type AnalyticsSummary,
-  type ChartPoint,
-  type TopProduct,
-  type InventoryHealth,
-  type RefundImpact,
-} from "@/services/sellerAnalytics";
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const currency = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
-
-const compact = new Intl.NumberFormat("en-IN", {
-  notation: "compact",
-  compactDisplay: "short",
-  maximumFractionDigits: 1,
-});
-
-function pct(v: number) {
-  return `${v.toFixed(1)}%`;
-}
-
-const EASE = [0.25, 0.1, 0.25, 1] as const;
-
-/** Icon chip colours for the KPI cards. */
-const STAT_TONES = {
-  orange: "bg-brand/12 text-brand-strong",
-  navy: "bg-ink/8 text-ink dark:bg-white/10 dark:text-white",
-  blue: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  red: "bg-red-500/10 text-red-700 dark:text-red-300",
-} as const;
-
-const QUICK_ACTIONS: { href: string; title: string; description: string; icon: LucideIcon }[] = [
-  { href: "/seller/products", title: "Add New Product", description: "List your products and reach more buyers", icon: PlusCircle },
-  { href: "/seller/products", title: "Manage Inventory", description: "Update stock and avoid running out", icon: Package },
-  { href: "/seller/orders", title: "View Orders", description: "Check and manage your orders", icon: ShoppingBag },
-  { href: "/seller/settlements", title: "Track Payments", description: "View your earnings and payouts", icon: Wallet },
+const RANGES = [
+  { days: 7, label: "Last 7 Days" },
+  { days: 30, label: "Last 30 Days" },
+  { days: 90, label: "Last 90 Days" },
 ];
-const SKELETON_BAR_HEIGHTS = [42, 68, 51, 84, 37, 73, 58, 91, 46, 79, 62, 88] as const;
-
-// ─── Skeleton Primitives ─────────────────────────────────────────────────────
-
-function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
-  return (
-    <div
-      className={`animate-pulse rounded bg-border-soft dark:bg-border ${className}`}
-      style={style}
-    />
-  );
-}
-
-function StatSkeleton() {
-  return (
-    <div className="flex items-start gap-4 rounded-2xl border border-border-soft bg-card p-5">
-      <Skeleton className="h-12 w-12 rounded-full" />
-      <div className="flex-1 space-y-2">
-        <Skeleton className="h-3 w-20" />
-        <Skeleton className="h-7 w-24" />
-      </div>
-    </div>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-4 w-40" />
-      <div className="flex items-end gap-2 h-64">
-        {SKELETON_BAR_HEIGHTS.map((height, i) => (
-          <Skeleton
-            key={i}
-            className="flex-1"
-            style={{ height: `${height}%` }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TableSkeleton() {
-  return (
-    <div className="space-y-3 p-6">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Skeleton key={i} className="h-12 w-full" />
-      ))}
-    </div>
-  );
-}
-
-// ─── Empty / Error states ────────────────────────────────────────────────────
-
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="h-12 w-12 rounded-full bg-border-soft dark:bg-border flex items-center justify-center mb-4">
-        <svg
-          className="h-6 w-6 text-muted-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
-          />
-        </svg>
-      </div>
-      <p className="text-sm text-muted-foreground max-w-xs">{message}</p>
-    </div>
-  );
-}
-
-function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
-  return (
-    <div className="border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 rounded-md p-4 flex items-center justify-between">
-      <p className="text-sm text-red-700 dark:text-red-300">{message}</p>
-      {onRetry && (
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Retry
-        </Button>
-      )}
-    </div>
-  );
-}
-
-// ─── SWR Fetcher wrappers ────────────────────────────────────────────────────
-
-const summaryFetcher = () => getAnalyticsSummary();
-const topProductsFetcher = () => getTopProducts(10);
-const inventoryFetcher = () => getInventoryHealth();
-const refundFetcher = () => getRefundImpact();
-
-// ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function SellerDashboardPage() {
-  const [chartInterval, setChartInterval] = React.useState<
-    "daily" | "weekly" | "monthly"
-  >("daily");
-  const [topSortKey, setTopSortKey] = React.useState<keyof TopProduct>("unitsSold");
-  const [topSortDir, setTopSortDir] = React.useState<"asc" | "desc">("desc");
-  const [topPage, setTopPage] = React.useState(0);
-  const TOP_PER_PAGE = 5;
-
-  // ── SWR hooks ────────────────────────────────────────────────────────
-  const {
-    data: summary,
-    error: summaryErr,
-    isLoading: summaryLoading,
-    mutate: retrySummary,
-  } = useSWR<AnalyticsSummary>("seller-analytics-summary", summaryFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-    onError: (e: Error) => toast.error(e.message ?? "Failed to load summary"),
+  const [days, setDays] = React.useState(7);
+  const { data, error, isLoading, mutate } = useSWR(["seller-overview", days], () => sellerCenter.overview(days), {
+    keepPreviousData: true,
+    revalidateOnFocus: true,
   });
 
-  const chartKey = `seller-analytics-chart-${chartInterval}`;
-  const {
-    data: chartData,
-    error: chartErr,
-    isLoading: chartLoading,
-    mutate: retryChart,
-  } = useSWR<ChartPoint[]>(chartKey, () => getRevenueChart(chartInterval), {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
+  if (error && !data) {
+    return (
+      <div className="p-6">
+        <ErrorNote message={errorMessage(error, "Could not load your dashboard")} onRetry={() => mutate()} />
+      </div>
+    );
+  }
 
-  const {
-    data: topProducts,
-    error: topErr,
-    isLoading: topLoading,
-    mutate: retryTop,
-  } = useSWR<TopProduct[]>("seller-analytics-top", topProductsFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
+  const o = data;
+  const storeName = o?.seller.storeName ?? "Seller";
+  const pendingChecklist = o?.checklist.filter((c) => !c.done) ?? [];
 
-  const {
-    data: inventory,
-    error: inventoryErr,
-    isLoading: inventoryLoading,
-    mutate: retryInventory,
-  } = useSWR<InventoryHealth>("seller-analytics-inventory", inventoryFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
-
-  const {
-    data: refundData,
-    error: refundErr,
-    isLoading: refundLoading,
-    mutate: retryRefund,
-  } = useSWR<RefundImpact>("seller-analytics-refund", refundFetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 60_000,
-  });
-
-  // ── Derived data ─────────────────────────────────────────────────────
-  const sortedProducts = React.useMemo(() => {
-    if (!topProducts) return [];
-    const copy = [...topProducts];
-    copy.sort((a, b) => {
-      const av = a[topSortKey] as number;
-      const bv = b[topSortKey] as number;
-      return topSortDir === "desc" ? bv - av : av - bv;
-    });
-    return copy;
-  }, [topProducts, topSortKey, topSortDir]);
-
-  const pagedProducts = sortedProducts.slice(
-    topPage * TOP_PER_PAGE,
-    (topPage + 1) * TOP_PER_PAGE,
-  );
-  const totalPages = Math.ceil(sortedProducts.length / TOP_PER_PAGE);
-
-  const handleSort = (key: keyof TopProduct) => {
-    if (key === topSortKey) {
-      setTopSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setTopSortKey(key);
-      setTopSortDir("desc");
-    }
-    setTopPage(0);
-  };
-
-  // ── KPI stat cards config ────────────────────────────────────────────
-  const statCards = React.useMemo(() => {
-    if (!summary) return [];
-    return [
-      { label: "Total Revenue", value: currency.format(summary.totalRevenue), icon: IndianRupee, tone: "blue" },
-      { label: "Net Revenue", value: currency.format(summary.netRevenue), icon: TrendingUp, tone: "green" },
-      { label: "Orders", value: compact.format(summary.totalOrders), icon: ShoppingBag, tone: "orange" },
-      { label: "Units Sold", value: compact.format(summary.totalUnitsSold), icon: Boxes, tone: "navy" },
-      { label: "Avg Order Value", value: currency.format(summary.averageOrderValue), icon: ReceiptText, tone: "blue" },
-      { label: "Refund Impact", value: currency.format(summary.totalRefundAmount), icon: RotateCcw, tone: "red" },
-      { label: "Return Rate", value: pct(summary.returnRate), icon: Undo2, tone: "orange" },
-      { label: "Cancellation Rate", value: pct(summary.cancellationRate), icon: Ban, tone: "red" },
-    ] satisfies { label: string; value: string; icon: LucideIcon; tone: keyof typeof STAT_TONES }[];
-  }, [summary]);
-
-  // ── Render ───────────────────────────────────────────────────────────
   return (
-    <div className="bg-background">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: EASE }}
-        className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8"
-      >
-        {/* ── Welcome banner ─────────────────────────────────────── */}
-        <section className="relative overflow-hidden rounded-2xl border border-border-soft bg-gradient-to-r from-[#EAF1FF] via-[#F3F6FD] to-[#FFF1E0] p-6 dark:from-[#12224D] dark:via-[#0E1A3A] dark:to-[#2A1A08] sm:p-8">
-          <div className="relative z-10 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-                Welcome back 👋
-              </h1>
-              <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-                Grow your business with KTMONA. Live insights into your revenue, inventory, top
-                products and refunds.
-              </p>
-            </div>
-            <div className="hidden text-right text-lg font-semibold leading-snug text-ink dark:text-white md:block">
-              <p>More Sellers</p>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
+      {/* Welcome banner */}
+      <section className="relative overflow-hidden rounded-2xl border border-border-soft bg-gradient-to-r from-[#EAF1FF] via-[#F3F6FD] to-[#FFF1E0] px-6 py-6 dark:from-[#12224D] dark:via-[#0E1A3A] dark:to-[#2A1A08] sm:px-8">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Welcome back, {storeName}! 👋</h1>
+            <p className="mt-1 text-sm text-muted-foreground">Grow your business with KTMONA</p>
+          </div>
+          <div className="hidden items-center gap-5 md:flex">
+            <StoreIllustration />
+            <div className="text-right text-lg font-semibold leading-snug">
+              <p className="text-ink dark:text-white">More Sellers</p>
               <p className="text-brand-strong">More Customers</p>
-              <p>Bigger Growth</p>
+              <p className="text-ink dark:text-white">Bigger Growth</p>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── Quick actions ──────────────────────────────────────── */}
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {QUICK_ACTIONS.map(({ href, title, description, icon: Icon }) => (
+      {/* Alerts */}
+      {o && o.alerts.length > 0 ? (
+        <div className="grid gap-2 md:grid-cols-2">
+          {o.alerts.map((a) => (
             <Link
-              key={title}
-              href={href}
-              className="group flex items-start gap-4 rounded-2xl border border-border-soft bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/50"
+              key={a.text}
+              href={a.href}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors",
+                a.tone === "danger" && "border-red-500/25 bg-red-500/5 text-red-700 hover:bg-red-500/10 dark:text-red-300",
+                a.tone === "warning" && "border-brand/30 bg-brand/8 text-brand-strong hover:bg-brand/12",
+                a.tone === "info" && "border-border-soft bg-card text-foreground hover:bg-mist"
+              )}
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/12 text-brand-strong transition-colors group-hover:bg-brand group-hover:text-ink">
-                <Icon className="h-5 w-5" strokeWidth={1.8} />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold text-foreground">{title}</span>
-                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
-              </span>
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span className="flex-1">{a.text}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 opacity-60" />
             </Link>
           ))}
-        </section>
+        </div>
+      ) : null}
 
-        {/* ── KPI Cards ──────────────────────────────────────────── */}
-        {summaryErr ? (
-          <ErrorBanner
-            message="Unable to load summary metrics"
-            onRetry={() => retrySummary()}
-          />
-        ) : summaryLoading ? (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <StatSkeleton key={i} />
+      {/* Onboarding checklist */}
+      {pendingChecklist.length > 0 ? (
+        <Panel title={`Finish setting up your store (${o!.checklist.length - pendingChecklist.length}/${o!.checklist.length})`}>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {o!.checklist.map((c) => (
+              <Link
+                key={c.key}
+                href={c.href}
+                className={cn(
+                  "flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm",
+                  c.done ? "border-emerald-500/25 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300" : "border-border-soft hover:border-brand/50"
+                )}
+              >
+                {c.done ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                <span className="font-medium">{c.label}</span>
+              </Link>
             ))}
-          </section>
-        ) : (
-          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {statCards.map((stat, i) => {
-              const Icon = stat.icon;
-              return (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.05 + i * 0.03, duration: 0.5, ease: EASE }}
-                  className="flex items-start gap-4 rounded-2xl border border-border-soft bg-card p-5"
-                >
-                  <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${STAT_TONES[stat.tone]}`}>
-                    <Icon className="h-5 w-5" strokeWidth={1.8} />
-                  </span>
-                  <div className="min-w-0 space-y-1">
-                    <p className="text-sm text-muted-foreground">{stat.label}</p>
-                    <p className="truncate text-2xl font-semibold tracking-tight text-foreground">
-                      {stat.value}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </section>
-        )}
+          </div>
+        </Panel>
+      ) : null}
 
-        {/* ── Revenue Chart ──────────────────────────────────────── */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Revenue Over Time</CardTitle>
-                <CardDescription>
-                  Gross revenue from confirmed &amp; delivered orders
-                </CardDescription>
-              </div>
-              <div className="flex gap-1 rounded-sm border border-border-soft p-0.5">
-                {(["daily", "weekly", "monthly"] as const).map((iv) => (
-                  <button
-                    key={iv}
-                    onClick={() => setChartInterval(iv)}
-                    className={`rounded-sm px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-all duration-300 ${
-                      chartInterval === iv
-                        ? "bg-ink text-paper dark:bg-brand dark:text-ink"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {iv}
-                  </button>
-                ))}
-              </div>
+      {/* Stat cards */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={Package} tone="orange" label="Total Orders" value={o ? o.stats.totalOrders.value.toLocaleString("en-IN") : "—"} change={o?.stats.totalOrders.change} href="/seller/orders?tab=all" />
+        <StatCard icon={IndianRupee} tone="blue" label="Total Sales" value={o ? inr.format(o.stats.totalSales.value) : "—"} change={o?.stats.totalSales.change} href="/seller/settlements" />
+        <StatCard
+          icon={ShoppingBag}
+          tone="blue"
+          label="Active Products"
+          value={o ? o.stats.activeProducts.value : "—"}
+          sub={o ? `${o.stats.activeProducts.addedInRange} went live in this period` : undefined}
+          href="/seller/products?tab=live"
+        />
+        <StatCard
+          icon={Star}
+          tone="amber"
+          label="Rating"
+          value={o?.stats.rating.value ? `${o.stats.rating.value} / 5` : "—"}
+          sub={o ? `(from ${o.stats.rating.reviews} reviews)` : undefined}
+          href="/seller/performance"
+        />
+      </section>
+
+      {/* Sales overview + order status */}
+      <section className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
+        <div className="rounded-2xl border border-border-soft bg-card p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">Sales Overview</h2>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-foreground">{o ? inr.format(o.stats.totalSales.value) : "—"}</p>
+              {o && o.stats.totalSales.change !== null ? (
+                <p className="mt-1 text-xs">
+                  <span className={cn("font-semibold", o.stats.totalSales.change >= 0 ? "text-emerald-600" : "text-red-600")}>
+                    {o.stats.totalSales.change >= 0 ? "↑" : "↓"} {Math.abs(o.stats.totalSales.change)}%
+                  </span>{" "}
+                  <span className="text-muted-foreground">(vs. previous {days} days)</span>
+                </p>
+              ) : null}
             </div>
-          </CardHeader>
-          <CardContent>
-            {chartErr ? (
-              <ErrorBanner
-                message="Unable to load chart data"
-                onRetry={() => retryChart()}
-              />
-            ) : chartLoading ? (
-              <ChartSkeleton />
-            ) : !chartData || chartData.length === 0 ? (
-              <EmptyState message="No revenue data available yet. Revenue will appear here once orders are confirmed." />
-            ) : (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={chartInterval}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.35, ease: EASE }}
-                  className="h-72 sm:h-80"
-                >
-                  <RevenueChart data={chartData} interval={chartInterval} />
-                </motion.div>
-              </AnimatePresence>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Two-column: Top Products + Inventory ───────────────── */}
-        <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-          {/* Top Products */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Products</CardTitle>
-              <CardDescription>Best sellers by units sold. Click column headers to sort.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              {topErr ? (
-                <div className="p-6">
-                  <ErrorBanner message="Unable to load products" onRetry={() => retryTop()} />
-                </div>
-              ) : topLoading ? (
-                <TableSkeleton />
-              ) : !topProducts || topProducts.length === 0 ? (
-                <EmptyState message="No product data yet. Sell some products to see analytics here." />
-              ) : (
-                <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border-soft text-left">
-                          <th className="px-6 py-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                            Product
-                          </th>
-                          {([
-                            ["unitsSold", "Units"],
-                            ["revenue", "Revenue"],
-                            ["returnCount", "Returns"],
-                            ["ratingAverage", "Rating"],
-                          ] as const).map(([key, label]) => (
-                            <th
-                              key={key}
-                              onClick={() => handleSort(key)}
-                              className="px-4 py-3 text-[10px] font-medium uppercase tracking-wider text-muted-foreground cursor-pointer hover:text-foreground transition-colors whitespace-nowrap"
-                            >
-                              <span className="inline-flex items-center gap-1">
-                                {label}
-                                {topSortKey === key && (
-                                  <span className="text-brand-strong">{topSortDir === "desc" ? "↓" : "↑"}</span>
-                                )}
-                              </span>
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <AnimatePresence>
-                          {pagedProducts.map((p, i) => (
-                            <motion.tr
-                              key={p.productId}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={{ delay: i * 0.03, duration: 0.3 }}
-                              className="border-b border-border-soft last:border-0 hover:bg-mist/40 dark:hover:bg-navy/10 transition-colors"
-                            >
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  {p.image ? (
-                                    <img
-                                      src={p.image}
-                                      alt={p.title}
-                                      className="h-9 w-9 rounded object-cover bg-border-soft"
-                                    />
-                                  ) : (
-                                    <div className="h-9 w-9 rounded bg-border-soft dark:bg-border flex items-center justify-center text-[10px] text-muted-foreground">
-                                      N/A
-                                    </div>
-                                  )}
-                                  <span className="font-medium text-foreground line-clamp-1 max-w-[180px]">
-                                    {p.title}
-                                  </span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4 tabular-nums">{p.unitsSold}</td>
-                              <td className="px-4 py-4 tabular-nums">{currency.format(p.revenue)}</td>
-                              <td className="px-4 py-4 tabular-nums">{p.returnCount}</td>
-                              <td className="px-4 py-4">
-                                <span className="inline-flex items-center gap-1 text-xs">
-                                  <span className="text-brand-strong">★</span>
-                                  {p.ratingAverage.toFixed(1)}
-                                </span>
-                              </td>
-                            </motion.tr>
-                          ))}
-                        </AnimatePresence>
-                      </tbody>
-                    </table>
-                  </div>
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between border-t border-border-soft px-6 py-3">
-                      <p className="text-[11px] text-muted-foreground">
-                        Page {topPage + 1} of {totalPages}
-                      </p>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={topPage <= 0}
-                          onClick={() => setTopPage((p) => p - 1)}
-                        >
-                          Prev
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={topPage >= totalPages - 1}
-                          onClick={() => setTopPage((p) => p + 1)}
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Inventory Health */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Inventory Health</CardTitle>
-              <CardDescription>Stock status and fast-moving items</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {inventoryErr ? (
-                <ErrorBanner message="Unable to load inventory" onRetry={() => retryInventory()} />
-              ) : inventoryLoading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              ) : !inventory ? (
-                <EmptyState message="No inventory data available." />
-              ) : (
-                <div className="space-y-6">
-                  {/* Badges row */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="rounded-md border border-border-soft p-3 text-center">
-                      <p className="font-serif text-xl font-light text-foreground">
-                        {inventory.totalVariants}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                        Total SKUs
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-md border p-3 text-center ${
-                        inventory.lowStockProducts > 0
-                          ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30"
-                          : "border-border-soft"
-                      }`}
-                    >
-                      <p className="font-serif text-xl font-light text-foreground">
-                        {inventory.lowStockProducts}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                        Low Stock
-                      </p>
-                    </div>
-                    <div
-                      className={`rounded-md border p-3 text-center ${
-                        inventory.outOfStockProducts > 0
-                          ? "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30"
-                          : "border-border-soft"
-                      }`}
-                    >
-                      <p className="font-serif text-xl font-light text-foreground">
-                        {inventory.outOfStockProducts}
-                      </p>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
-                        Out of Stock
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Fast movers */}
-                  {inventory.fastMovingProducts.length > 0 && (
-                    <div>
-                      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-brand-strong mb-3">
-                        Fast Moving (30 days)
-                      </p>
-                      <div className="space-y-2">
-                        {inventory.fastMovingProducts.map((p) => (
-                          <div
-                            key={p.productId}
-                            className="flex items-center gap-3 rounded border border-border-soft px-3 py-2 hover:bg-mist/40 dark:hover:bg-navy/10 transition-colors"
-                          >
-                            {p.image ? (
-                              <img
-                                src={p.image}
-                                alt={p.title}
-                                className="h-7 w-7 rounded object-cover bg-border-soft"
-                              />
-                            ) : (
-                              <div className="h-7 w-7 rounded bg-border-soft" />
-                            )}
-                            <span className="text-xs font-medium text-foreground flex-1 line-clamp-1">
-                              {p.title}
-                            </span>
-                            <span className="text-[11px] tabular-nums text-muted-foreground">
-                              {p.unitsSold} sold
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {inventory.fastMovingProducts.length === 0 &&
-                    inventory.totalVariants === 0 && (
-                      <EmptyState message="Add products to track inventory health." />
-                    )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            <select
+              value={days}
+              onChange={(e) => setDays(Number(e.target.value))}
+              className="h-9 rounded-lg border border-border-soft bg-card px-3 text-sm text-foreground focus:border-brand focus:outline-none"
+              aria-label="Date range"
+            >
+              {RANGES.map((r) => (
+                <option key={r.days} value={r.days}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-4 h-64">{o ? <SalesOverviewChart data={o.series} /> : <div className="h-full animate-pulse rounded-xl bg-mist" />}</div>
         </div>
 
-        {/* ── Refund Impact ──────────────────────────────────────── */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>Refund Impact</CardTitle>
-                <CardDescription>
-                  Financial impact of returns and refunds on your store
-                </CardDescription>
-              </div>
-              {refundData && (
-                <div className="flex gap-4 text-right">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Total Refunds
-                    </p>
-                    <p className="font-serif text-lg font-light text-foreground">
-                      {refundData.totalRefunds}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Revenue Impact
-                    </p>
-                    <p className="font-serif text-lg font-light text-foreground">
-                      {currency.format(refundData.refundRevenueImpact)}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {refundErr ? (
-              <ErrorBanner message="Unable to load refund data" onRetry={() => retryRefund()} />
-            ) : refundLoading ? (
-              <ChartSkeleton />
-            ) : !refundData || refundData.mostReturnedProducts.length === 0 ? (
-              <EmptyState message="No returns or refunds recorded yet — great news for your store!" />
-            ) : (
-              <div className="h-64">
-                <RefundBarChart data={refundData.mostReturnedProducts} />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* ── Quick Links Footer ─────────────────────────────────── */}
-        <section className="border-t border-border-soft pt-6">
-          <div className="flex flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-brand" />
-              Real-time Data
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-brand" />
-              Cached for 5 min
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 rounded-full bg-brand" />
-              Rate Limited
-            </span>
+        <div className="rounded-2xl border border-border-soft bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-foreground">Order Status</h2>
+            <Link href="/seller/orders" className="text-sm font-medium text-brand-strong hover:underline">
+              View All
+            </Link>
           </div>
-        </section>
-      </motion.div>
+          <div className="mt-4 space-y-3">
+            {[
+              { label: "Pending", value: o?.orderStatus.pending, icon: Clock, tone: "bg-brand/12 text-brand-strong", tab: "pending" },
+              { label: "Ready to Ship", value: o?.orderStatus.readyToShip, icon: Package, tone: "bg-blue-500/10 text-blue-700 dark:text-blue-300", tab: "ready_to_ship" },
+              { label: "Shipped", value: o?.orderStatus.shipped, icon: Truck, tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", tab: "shipped" },
+              { label: "Delivered", value: o?.orderStatus.delivered, icon: PackageCheck, tone: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300", tab: "delivered" },
+            ].map((s) => (
+              <Link key={s.label} href={`/seller/orders?tab=${s.tab}`} className="flex items-center gap-3 rounded-xl border border-border-soft px-3 py-3 transition-colors hover:border-brand/40 hover:bg-mist/50">
+                <span className={cn("flex h-10 w-10 items-center justify-center rounded-lg", s.tone)}>
+                  <s.icon className="h-5 w-5" strokeWidth={1.8} />
+                </span>
+                <span className="flex-1 text-sm font-medium text-foreground">{s.label}</span>
+                <span className="text-base font-semibold tabular-nums text-foreground">{s.value ?? "—"}</span>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Quick actions */}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { href: "/seller/products/new", title: "Add New Product", text: "List your products and reach more buyers", icon: PlusCircle },
+          { href: "/seller/inventory", title: "Manage Inventory", text: "Update stock and avoid out of stock", icon: Boxes },
+          { href: "/seller/orders", title: "View Orders", text: "Check and manage your orders", icon: ShoppingBag },
+          { href: "/seller/settlements", title: "Track Payments", text: "View your earnings and payouts", icon: Wallet },
+        ].map((q) => (
+          <Link key={q.title} href={q.href} className="group flex items-start gap-4 rounded-2xl border border-border-soft bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-brand/50">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/12 text-brand-strong transition-colors group-hover:bg-brand group-hover:text-ink">
+              <q.icon className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <span>
+              <span className="block text-sm font-semibold text-foreground">{q.title}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{q.text}</span>
+            </span>
+          </Link>
+        ))}
+      </section>
+
+      {/* Recent orders + top products */}
+      <section className="grid gap-5 lg:grid-cols-[1.7fr_1fr]">
+        <div className="overflow-hidden rounded-2xl border border-border-soft bg-card">
+          <div className="flex items-center justify-between px-5 py-4">
+            <h2 className="text-base font-semibold text-foreground">Recent Orders</h2>
+            <Link href="/seller/orders?tab=all" className="text-sm font-medium text-brand-strong hover:underline">
+              View All Orders
+            </Link>
+          </div>
+          {isLoading && !o ? (
+            <div className="space-y-2 px-5 pb-5">{[0, 1, 2].map((i) => <div key={i} className="h-12 animate-pulse rounded-lg bg-mist" />)}</div>
+          ) : o && o.recentOrders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-y border-border-soft bg-mist/60 text-xs text-muted-foreground">
+                    <th className="px-5 py-3 font-semibold">Order ID</th>
+                    <th className="px-3 py-3 font-semibold">Product</th>
+                    <th className="px-3 py-3 font-semibold">Customer</th>
+                    <th className="px-3 py-3 font-semibold">Amount</th>
+                    <th className="px-3 py-3 font-semibold">Status</th>
+                    <th className="px-5 py-3 font-semibold">Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {o.recentOrders.map((r) => {
+                    const first = r.items[0];
+                    return (
+                      <tr key={r.orderId} className="border-b border-border-soft last:border-0">
+                        <td className="whitespace-nowrap px-5 py-3 font-semibold text-foreground">
+                          <Link href={`/seller/orders?order=${r.orderId}`} className="hover:text-brand-strong">
+                            {shortId(r.orderId)}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-3">
+                            <Thumb src={first?.image ?? null} alt={first?.title ?? ""} />
+                            <div className="min-w-0">
+                              <p className="max-w-[160px] truncate font-medium text-foreground">{first?.title}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {r.units} × {[first?.size !== "Default" ? first?.size : null, first?.color].filter(Boolean).join(", ") || "Standard"}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">{r.customer.name ?? "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold tabular-nums">{inr.format(r.sellerAmount)}</td>
+                        <td className="px-3 py-3">
+                          <StatusBadge status={r.status} />
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3 text-xs text-muted-foreground">{fmtDate(r.orderDate)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty title="No orders yet" text="Your orders will show up here as soon as customers buy." />
+          )}
+        </div>
+
+        <div className="rounded-2xl border border-border-soft bg-card">
+          <div className="flex items-center justify-between px-5 py-4">
+            <h2 className="text-base font-semibold text-foreground">Top Selling Products</h2>
+            <Link href="/seller/performance" className="text-sm font-medium text-brand-strong hover:underline">
+              View All
+            </Link>
+          </div>
+          {o && o.topProducts.length > 0 ? (
+            <ul className="divide-y divide-border-soft">
+              {o.topProducts.map((p, i) => (
+                <li key={p.id} className="flex items-center gap-3 px-5 py-3">
+                  <span className="w-5 text-center text-sm font-semibold text-muted-foreground">{i + 1}</span>
+                  <Thumb src={p.image} alt={p.title} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{p.title}</p>
+                    <p className="text-sm font-semibold text-foreground">{p.price != null ? inr.format(p.price) : "—"}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{p.sold} sold</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <Empty title="No sales yet" text="Your bestsellers will appear here." />
+          )}
+        </div>
+      </section>
+
+      {/* Bottom cards */}
+      <section className="grid gap-4 md:grid-cols-3">
+        {[
+          { icon: Megaphone, title: "Grow Your Sales", text: "Use offers, discounts, ads and better product images to get more orders.", cta: "Explore Marketing Tools", href: "/seller/ads", primary: true },
+          { icon: ShieldCheck, title: "Seller Protection", text: "Safe payments, easy returns and claims for damaged returns.", cta: "Know More", href: "/seller/returns?view=claims" },
+          { icon: Headset, title: "Need Help?", text: "Get quick answers to your queries from our support team.", cta: "Contact Support", href: "/seller/support" },
+        ].map((c) => (
+          <div key={c.title} className="flex items-start gap-4 rounded-2xl border border-border-soft bg-gradient-to-br from-card to-mist/60 p-5">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/12 text-brand-strong">
+              <c.icon className="h-5 w-5" strokeWidth={1.8} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">{c.title}</p>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{c.text}</p>
+              <Link href={c.href} className="mt-3 inline-block">
+                <Btn size="sm" variant={c.primary ? "primary" : "outline"}>
+                  {c.cta}
+                </Btn>
+              </Link>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {o?.payments.nextPayout.date ? (
+        <p className="text-center text-xs text-muted-foreground">
+          Next payout: <span className="font-semibold text-foreground">{inr.format(o.payments.nextPayout.amount)}</span> on {fmtDate(o.payments.nextPayout.date)} ·{" "}
+          <Link href="/seller/settlements" className="text-brand-strong hover:underline">
+            Payments
+          </Link>
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+function StoreIllustration() {
+  return (
+    <svg width="110" height="78" viewBox="0 0 110 78" aria-hidden className="shrink-0">
+      <rect x="14" y="30" width="82" height="44" rx="4" fill="#fff" stroke="#0C1B42" strokeWidth="2" />
+      <path d="M8 30 L18 10 H92 L102 30 Z" fill="#FF8A00" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <path key={i} d={`M${8 + i * 18.8} 30 q9.4 10 18.8 0`} fill={i % 2 ? "#fff" : "#FFAA02"} stroke="#0C1B42" strokeWidth="1.5" />
+      ))}
+      <rect x="44" y="46" width="22" height="28" rx="2" fill="#2A3D7A" />
+      <rect x="22" y="44" width="16" height="14" rx="2" fill="#DDE5F4" stroke="#0C1B42" strokeWidth="1.5" />
+      <rect x="72" y="44" width="16" height="14" rx="2" fill="#DDE5F4" stroke="#0C1B42" strokeWidth="1.5" />
+      <rect x="0" y="62" width="14" height="12" rx="1.5" fill="#FFAA02" />
+      <rect x="96" y="58" width="14" height="16" rx="1.5" fill="#FF8A00" />
+    </svg>
   );
 }

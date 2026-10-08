@@ -1,421 +1,239 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import useSWR from "swr";
 import { toast } from "sonner";
-import { useHydratedSWR } from "@/hooks/use-hydrated-swr";
+import { CalendarClock, CheckCircle2, Clock, Download, IndianRupee, Wallet } from "lucide-react";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { sellerCenter, inr, inr2, fmtDate, shortId } from "@/services/seller-center";
 import {
-  listSellerSettlements,
-  type SellerSettlement,
-} from "@/services/seller-settlements";
+  Btn,
+  Empty,
+  ErrorNote,
+  Field,
+  Loading,
+  PageHeader,
+  PageShell,
+  Pager,
+  Panel,
+  SearchBox,
+  StatCard,
+  StatusBadge,
+  Tabs,
+  errorMessage,
+  inputCls,
+  useDebounced,
+} from "@/components/seller/kit";
+import { cn } from "@/lib/utils";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type View = "upcoming" | "outstanding" | "paid" | "all" | "ledger";
+const VIEWS: { key: View; label: string }[] = [
+  { key: "upcoming", label: "Upcoming" },
+  { key: "outstanding", label: "In pipeline" },
+  { key: "paid", label: "Paid" },
+  { key: "all", label: "All orders" },
+  { key: "ledger", label: "Ads, claims & penalties" },
+];
 
-const currency = new Intl.NumberFormat("en-IN", {
-  style: "currency",
-  currency: "INR",
-  maximumFractionDigits: 0,
-});
+const LEDGER_LABEL = { AD_SPEND: "Ads spend", PENALTY: "Penalty", CLAIM_CREDIT: "Claim credit", ADJUSTMENT: "Adjustment" } as const;
 
-const dateFmt = new Intl.DateTimeFormat("en-IN", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
-function statusBadge(status: SellerSettlement["status"]) {
-  switch (status) {
-    case "SETTLED":
-      return {
-        label: "SETTLED",
-        className:
-          "border-[#7B9971]/30 text-[#5A7352] bg-[#7B9971]/5",
-      };
-    case "FAILED":
-      return {
-        label: "FAILED",
-        className:
-          "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5",
-      };
-    default:
-      return {
-        label: "PENDING",
-        className:
-          "border-[#FF8A00]/30 text-[#B84A00] bg-[#FF8A00]/5",
-      };
-  }
+function isoDay(d: Date) {
+  return d.toISOString().slice(0, 10);
 }
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
+export default function PaymentsPage() {
+  const [view, setView] = React.useState<View>("upcoming");
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState("");
+  const q = useDebounced(search);
+  const [from, setFrom] = React.useState(isoDay(new Date(Date.now() - 30 * 86_400_000)));
+  const [to, setTo] = React.useState(isoDay(new Date()));
+  const [downloading, setDownloading] = React.useState(false);
 
-function RowSkeleton() {
-  return (
-    <div className="grid grid-cols-7 gap-4 border-b border-border-soft px-6 py-4">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-4 animate-pulse bg-border-soft dark:bg-border"
-        />
-      ))}
-    </div>
-  );
-}
+  const { data: s, error: sErr, mutate: sMutate } = useSWR("seller-payments-summary", () => sellerCenter.paymentsSummary());
+  const { data: rows, isLoading } = useSWR(view !== "ledger" ? ["seller-payment-rows", view, page, q] : null, () =>
+    sellerCenter.paymentOrders({ bucket: view === "all" ? undefined : view, page, search: q })
+  , { keepPreviousData: true });
+  const { data: ledger, isLoading: ledgerLoading } = useSWR(view === "ledger" ? ["seller-ledger", page] : null, () => sellerCenter.ledger({ page }), { keepPreviousData: true });
 
-const EASE = [0.25, 0.1, 0.25, 1] as const;
-const PER_PAGE = 10;
-
-// ─── Page ────────────────────────────────────────────────────────────────────
-
-export default function SellerSettlementsPage() {
-  // Cached across navigations: this list is paginated and sorted entirely on the
-  // client, so re-fetching it on every mount bought nothing but a cold request.
-  const {
-    data: settlements = [],
-    isLoading: loading,
-  } = useHydratedSWR<SellerSettlement[]>({
-    key: "seller-settlements",
-    fetcher: listSellerSettlements,
-    onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to load settlements"
-      );
-    },
-  });
-  const [searchQuery, setSearchQuery] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<string>("ALL");
-  const [page, setPage] = React.useState(0);
-  const [sortKey, setSortKey] = React.useState<
-    "createdAt" | "grossAmount" | "netAmount"
-  >("createdAt");
-  const [sortDir, setSortDir] = React.useState<"asc" | "desc">("desc");
-
-  // ── Filtering ─────────────────────────────────────────────────────────
-  const filtered = React.useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    return settlements.filter((s) => {
-      if (statusFilter !== "ALL" && s.status !== statusFilter) return false;
-      if (!q) return true;
-      const haystack = [
-        s.id,
-        s.orderId,
-        s.order?.invoiceNumber,
-        s.order?.id,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return haystack.includes(q);
-    });
-  }, [settlements, searchQuery, statusFilter]);
-
-  // ── Sorting ───────────────────────────────────────────────────────────
-  const sorted = React.useMemo(() => {
-    const copy = [...filtered];
-    copy.sort((a, b) => {
-      let av: number;
-      let bv: number;
-      if (sortKey === "createdAt") {
-        av = new Date(a.createdAt).getTime();
-        bv = new Date(b.createdAt).getTime();
-      } else {
-        av = a[sortKey];
-        bv = b[sortKey];
-      }
-      return sortDir === "desc" ? bv - av : av - bv;
-    });
-    return copy;
-  }, [filtered, sortKey, sortDir]);
-
-  const totalPages = Math.ceil(sorted.length / PER_PAGE);
-  const paged = sorted.slice(page * PER_PAGE, (page + 1) * PER_PAGE);
-
-  const handleSort = (key: typeof sortKey) => {
-    if (key === sortKey) {
-      setSortDir((d) => (d === "desc" ? "asc" : "desc"));
-    } else {
-      setSortKey(key);
-      setSortDir("desc");
+  const download = async () => {
+    setDownloading(true);
+    try {
+      await sellerCenter.downloadStatement(from, to);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setDownloading(false);
     }
-    setPage(0);
   };
 
-  // ── Aggregates ────────────────────────────────────────────────────────
-  const totals = React.useMemo(() => {
-    let gross = 0;
-    let fee = 0;
-    let net = 0;
-    for (const s of settlements) {
-      gross += s.grossAmount;
-      fee += s.platformFee;
-      net += s.netAmount;
-    }
-    return { gross, fee, net };
-  }, [settlements]);
+  const ledgerNet = s ? s.ledger.adSpend + s.ledger.penalties + s.ledger.claimCredits + s.ledger.adjustments : 0;
 
-  // ── Render ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-background">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: EASE }}
-        className="mx-auto flex max-w-7xl flex-col gap-10 px-4 py-12 sm:px-6 lg:px-8 lg:py-16"
-      >
-        {/* Header */}
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-brand-strong">
-            Settlements &amp; Payouts
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Financial Overview
-          </h1>
-          <p className="max-w-lg text-sm leading-relaxed text-muted-foreground">
-            Track your earnings, platform fees, and net payouts
-            across all fulfilled orders.
-          </p>
-        </div>
+    <PageShell>
+      <PageHeader
+        title="Payments"
+        description={`You are paid ${s?.paymentCycleDays ?? 7} days after each order is delivered, straight to your bank account. Ads spend and penalties are deducted; approved claims are added.`}
+      />
+      {sErr && !s ? <ErrorNote message={errorMessage(sErr)} onRetry={() => sMutate()} /> : null}
 
-        {/* KPI Cards */}
-        <section className="grid gap-px bg-border-soft sm:grid-cols-2 lg:grid-cols-3 overflow-hidden">
-          {[
-            { label: "Gross Sales", value: currency.format(totals.gross) },
-            { label: "Platform Fee", value: currency.format(totals.fee) },
-            { label: "Net Payout", value: currency.format(totals.net) },
-          ].map((stat, i) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: 0.05 + i * 0.03,
-                duration: 0.5,
-                ease: EASE,
-              }}
-              className="bg-card p-5 lg:p-6 space-y-3 transition-colors duration-300 hover:bg-mist/60 dark:hover:bg-navy/20"
-            >
-              <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-brand-strong">
-                {stat.label}
-              </p>
-              <p className="font-serif text-2xl font-light tracking-tight text-foreground">
-                {stat.value}
-              </p>
-            </motion.div>
-          ))}
-        </section>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={CalendarClock}
+          tone="orange"
+          label="Next payout"
+          value={s ? inr.format(s.nextPayout.amount) : "—"}
+          sub={s?.nextPayout.date ? `on ${fmtDate(s.nextPayout.date)}` : "No payout scheduled yet"}
+        />
+        <StatCard icon={Clock} tone="blue" label="Upcoming (delivered)" value={s ? inr.format(s.upcoming.amount) : "—"} sub={s ? `${s.upcoming.orders} orders` : undefined} />
+        <StatCard icon={Wallet} tone="navy" label="In pipeline (not delivered)" value={s ? inr.format(s.outstanding.amount) : "—"} sub={s ? `${s.outstanding.orders} orders` : undefined} />
+        <StatCard icon={CheckCircle2} tone="green" label="Total paid" value={s ? inr.format(s.paid.amount) : "—"} sub={s?.paid.lastPaidAt ? `Last paid ${fmtDate(s.paid.lastPaidAt)}` : undefined} />
+      </section>
 
-        {/* Filters */}
-        <div className="border border-border-soft bg-card p-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3 md:max-w-md flex-1">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(0);
-              }}
-              placeholder="Search by order ID, invoice number..."
-              className="border-0 bg-transparent focus-visible:ring-0 h-10"
-            />
+      <section className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <Panel title="Weekly payouts">
+          <div className="relative h-56">
+            {s && s.weeklyPayouts.every((w) => w.amount === 0) ? (
+              <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">No payouts in the last 6 weeks yet</p>
+            ) : null}
+            {s ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={s.weeklyPayouts.map((w) => ({ ...w, label: new Date(w.weekStart).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) }))}>
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                  <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                  <Tooltip formatter={(v) => [inr.format(Number(v)), "Paid"]} contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)", fontSize: 12 }} />
+                  <Bar dataKey="amount" fill="var(--color-brand)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full animate-pulse rounded-xl bg-mist" />
+            )}
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Status
-            </span>
-            <select
-              className="h-10 px-4 border border-border-soft bg-card text-sm text-foreground outline-none transition focus:border-brand"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="ALL">All</option>
-              <option value="PENDING">Pending</option>
-              <option value="SETTLED">Settled</option>
-              <option value="FAILED">Failed</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="border border-border-soft bg-card overflow-x-auto">
-          {/* Table head */}
-          <div className="border-b border-border-soft">
-            <div className="grid grid-cols-[1.4fr_1fr_1fr_1.5fr_0.8fr_0.8fr] gap-4 px-6 py-3">
+        </Panel>
+        <Panel title="Settlement breakdown">
+          {s ? (
+            <dl className="space-y-2 text-sm">
               {[
-                { key: null, label: "Order" },
-                {
-                  key: "grossAmount" as const,
-                  label: "Gross",
-                },
-                { key: null, label: "Platform Fee" },
-                {
-                  key: "netAmount" as const,
-                  label: "Net Payout",
-                },
-                { key: null, label: "Status" },
-                {
-                  key: "createdAt" as const,
-                  label: "Date",
-                },
-              ].map(({ key, label }) => (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() =>
-                    key && handleSort(key)
-                  }
-                  className={`text-left text-[10px] font-medium uppercase tracking-wider text-muted-foreground ${
-                    key
-                      ? "cursor-pointer hover:text-foreground transition-colors"
-                      : "cursor-default"
-                  }`}
-                >
-                  <span className="inline-flex items-center gap-1">
-                    {label}
-                    {key && sortKey === key && (
-                      <span className="text-brand-strong">
-                        {sortDir === "desc" ? "↓" : "↑"}
-                      </span>
-                    )}
-                  </span>
-                </button>
+                ["Gross sales (your price)", s.totals.gross],
+                ["KTMONA commission", -s.totals.commission || 0],
+                ["Platform fees", -s.totals.platformFee || 0],
+                ["Ads spend (open)", s.ledger.adSpend],
+                ["Penalties (open)", s.ledger.penalties],
+                ["Claim credits (open)", s.ledger.claimCredits],
+              ].map(([label, value]) => (
+                <div key={label as string} className="flex justify-between">
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className={cn("font-semibold tabular-nums", (value as number) < 0 && "text-red-600")}>{inr2.format(value as number)}</dd>
+                </div>
               ))}
-            </div>
-          </div>
-
-          {/* Rows */}
-          {loading ? (
-            <div>
-              {Array.from({ length: 6 }).map((_, i) => (
-                <RowSkeleton key={i} />
-              ))}
-            </div>
-          ) : paged.length === 0 ? (
-            <div className="py-16 text-center">
-              <p className="text-sm text-muted-foreground">
-                {settlements.length === 0
-                  ? "No settlement records yet. Settlements are created when orders are confirmed."
-                  : "No results match your filters."}
-              </p>
-            </div>
-          ) : (
-            <AnimatePresence>
-              {paged.map((s, i) => {
-                const badge = statusBadge(s.status);
-                return (
-                  <motion.div
-                    key={s.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{
-                      delay: i * 0.02,
-                      duration: 0.3,
-                    }}
-                    className="grid grid-cols-[1.4fr_1fr_1fr_1.5fr_0.8fr_0.8fr] gap-4 border-b border-border-soft px-6 py-4 hover:bg-mist/40 dark:hover:bg-navy/10 transition-colors text-sm"
-                  >
-                    {/* Order */}
-                    <div className="space-y-0.5 min-w-0">
-                      <p className="font-medium text-foreground truncate">
-                        {s.order?.invoiceNumber ??
-                          s.orderId.slice(0, 12) + "…"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {s.orderId.slice(0, 16)}
-                      </p>
-                    </div>
-
-                    {/* Gross */}
-                    <p className="tabular-nums text-foreground self-center">
-                      {currency.format(s.grossAmount)}
-                    </p>
-
-
-
-                    {/* Platform Fee */}
-                    <p className="tabular-nums text-muted-foreground self-center">
-                      −{currency.format(s.platformFee)}
-                    </p>
-
-                    {/* Net */}
-                    <p className="tabular-nums font-medium text-foreground self-center">
-                      {currency.format(s.netAmount)}
-                    </p>
-
-                    {/* Status */}
-                    <div className="self-center">
-                      <span
-                        className={`inline-flex px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider border ${badge.className}`}
-                      >
-                        {badge.label}
-                      </span>
-                    </div>
-
-                    {/* Date */}
-                    <p className="text-xs text-muted-foreground self-center">
-                      {dateFmt.format(new Date(s.createdAt))}
-                      {s.settledAt && (
-                        <>
-                          <br />
-                          <span className="text-[10px] text-brand-strong">
-                            Settled{" "}
-                            {dateFmt.format(new Date(s.settledAt))}
-                          </span>
-                        </>
-                      )}
-                    </p>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          )}
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between border-t border-border-soft px-6 py-3">
-              <p className="text-[11px] text-muted-foreground">
-                Page {page + 1} of {totalPages} · {sorted.length} records
-              </p>
-              <div className="flex gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page <= 0}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Prev
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
+              <div className="flex justify-between border-t border-border-soft pt-2 text-base">
+                <dt className="font-semibold">Net payable now</dt>
+                <dd className="font-semibold tabular-nums">{inr2.format(s.netPayable)}</dd>
               </div>
-            </div>
+              {ledgerNet !== 0 ? <p className="text-xs text-muted-foreground">Ads, penalties and claims are settled with your next payout.</p> : null}
+            </dl>
+          ) : (
+            <Loading rows={3} />
           )}
+        </Panel>
+      </section>
+
+      <Panel title="Download statement">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <Field label="From">
+            <input type="date" className={inputCls} value={from} max={to} onChange={(e) => setFrom(e.target.value)} />
+          </Field>
+          <Field label="To">
+            <input type="date" className={inputCls} value={to} min={from} onChange={(e) => setTo(e.target.value)} />
+          </Field>
+          <Btn variant="primary" loading={downloading} onClick={download}>
+            <Download className="h-4 w-4" /> Download CSV
+          </Btn>
+        </div>
+      </Panel>
+
+      <div className="rounded-2xl border border-border-soft bg-card">
+        <div className="flex flex-col gap-3 px-4 pt-2 lg:flex-row lg:items-end lg:justify-between">
+          <Tabs tabs={VIEWS} value={view} onChange={(v) => { setView(v); setPage(1); }} />
+          {view !== "ledger" ? (
+            <div className="pb-3">
+              <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search order ID" />
+            </div>
+          ) : null}
         </div>
 
-        {/* Footer note */}
-        <section className="border-t border-border-soft pt-6">
-          <div className="flex flex-wrap items-center justify-center gap-8 text-xs text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 bg-brand" />
-              Settlements auto-created on order confirmation
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="h-1 w-1 bg-brand" />
-              Net = Gross − Platform Fee
-            </span>
+        {view === "ledger" ? (
+          ledgerLoading && !ledger ? (
+            <Loading />
+          ) : !ledger || ledger.entries.length === 0 ? (
+            <Empty icon={IndianRupee} title="No adjustments" text="Ads spend, penalties and claim credits will appear here." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-y border-border-soft bg-mist/60 text-xs text-muted-foreground">
+                    <th className="px-4 py-3 font-semibold">Date</th>
+                    <th className="px-3 py-3 font-semibold">Type</th>
+                    <th className="px-3 py-3 font-semibold">Details</th>
+                    <th className="px-3 py-3 font-semibold">Amount</th>
+                    <th className="px-4 py-3 font-semibold">Settled</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ledger.entries.map((e) => (
+                    <tr key={e.id} className="border-b border-border-soft last:border-0">
+                      <td className="px-4 py-3">{fmtDate(e.entryDate)}</td>
+                      <td className="px-3 py-3">{LEDGER_LABEL[e.type]}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{e.note ?? "—"}{e.orderId ? ` · ${shortId(e.orderId)}` : ""}</td>
+                      <td className={cn("px-3 py-3 font-semibold tabular-nums", e.amount < 0 ? "text-red-600" : "text-emerald-600")}>{inr2.format(e.amount)}</td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">{e.settledAt ? fmtDate(e.settledAt) : "With next payout"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : isLoading && !rows ? (
+          <Loading />
+        ) : !rows || rows.rows.length === 0 ? (
+          <Empty icon={Wallet} title="Nothing here yet" text="Order payouts will appear here once customers pay." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] text-left text-sm">
+              <thead>
+                <tr className="border-y border-border-soft bg-mist/60 text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-semibold">Order</th>
+                  <th className="px-3 py-3 font-semibold">Your price</th>
+                  <th className="px-3 py-3 font-semibold">Commission</th>
+                  <th className="px-3 py-3 font-semibold">Fee</th>
+                  <th className="px-3 py-3 font-semibold">You get</th>
+                  <th className="px-3 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold">Payout date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.rows.map((r) => (
+                  <tr key={r.settlementId} className="border-b border-border-soft last:border-0">
+                    <td className="px-4 py-3">
+                      <p className="font-semibold">{shortId(r.orderId)}</p>
+                      <p className="text-xs text-muted-foreground">{fmtDate(r.orderDate)}</p>
+                    </td>
+                    <td className="px-3 py-3 tabular-nums">{inr2.format(r.gross)}</td>
+                    <td className="px-3 py-3 tabular-nums text-red-600">−{inr2.format(r.commission)}</td>
+                    <td className="px-3 py-3 tabular-nums text-red-600">{r.platformFee ? `−${inr2.format(r.platformFee)}` : "—"}</td>
+                    <td className="px-3 py-3 font-semibold tabular-nums">{inr2.format(r.net)}</td>
+                    <td className="px-3 py-3"><StatusBadge status={r.bucket} /></td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {r.paidAt ? `Paid ${fmtDate(r.paidAt)}` : r.payableOn ? fmtDate(r.payableOn) : r.bucket === "outstanding" ? "7 days after delivery" : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </section>
-      </motion.div>
-    </div>
+        )}
+        <Pager page={page} totalPages={(view === "ledger" ? ledger?.pagination.totalPages : rows?.pagination.totalPages) ?? 1} onPage={setPage} />
+      </div>
+    </PageShell>
   );
 }

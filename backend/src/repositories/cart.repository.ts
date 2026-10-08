@@ -22,6 +22,8 @@ export interface CheckoutCartRow {
     taxRate: number | null;
     productStatus: string | null;
     productDeleted: boolean | null;
+    /** Seller paused the listing (or holiday mode); not purchasable. */
+    productPaused: boolean | null;
     variantPrice: number | null;
     variantSellerPrice: number | null;
     variantAdminPrice: number | null;
@@ -263,6 +265,7 @@ export class CartRepository {
                 p."tax_rate"                  AS "taxRate",
                 p."status"::text              AS "productStatus",
                 p."deleted_by_admin"          AS "productDeleted",
+                (p."paused_by_seller" OR p."paused_for_vacation") AS "productPaused",
                 v."price"                     AS "variantPrice",
                 v."seller_price"              AS "variantSellerPrice",
                 v."admin_listing_price"       AS "variantAdminPrice",

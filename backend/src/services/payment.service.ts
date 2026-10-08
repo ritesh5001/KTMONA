@@ -14,6 +14,7 @@ import { CACHE_TAGS, orderTag } from '../live/cache-tags.js';
 import { phonepeService } from './phonepe.service.js';
 import { isPhonePeConfigured } from './phonepe.client.js';
 import { env } from '../config/env.js';
+import { sellerAdsService } from './seller-center/ads.service.js';
 
 // =====================================================================
 // Payment service.
@@ -615,6 +616,10 @@ export class PaymentService {
 
         await commissionService.calculateAndStoreSellerSettlement(orderId);
         await emitPaymentSuccess(orderId);
+        // Credit the sale to any ad click that led to it (best-effort).
+        await sellerAdsService.attributeOrder(orderId).catch((err) =>
+            paymentLogger.warn({ err, orderId }, 'Ad attribution failed'),
+        );
 
         await dispatchFreshness({
             type: 'payment.updated',

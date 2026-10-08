@@ -191,6 +191,11 @@ model Product {
   approvedAt           DateTime?                @map("approved_at")
   approvedById         String?                  @map("approved_by_id")
   isPublished          Boolean                  @default(false) @map("is_published")
+  /// Seller turned the listing off (Meesho "pause"). Resuming re-publishes it
+  /// only while the product is still APPROVED.
+  pausedBySeller       Boolean                  @default(false) @map("paused_by_seller")
+  /// Paused by holiday mode (resumed automatically when holiday mode ends).
+  pausedForVacation    Boolean                  @default(false) @map("paused_for_vacation")
   deletedByAdmin       Boolean                  @default(false) @map("deleted_by_admin")
   deletedByAdminAt     DateTime?                @map("deleted_by_admin_at")
   deletedByAdminReason String?                  @map("deleted_by_admin_reason")
@@ -371,26 +376,26 @@ model CartItem {
 
 /// Orders placed by buyers
 model Order {
-  id                   String               @id @default(cuid())
-  userId               String               @map("user_id")
-  status               OrderStatus          @default(PLACED)
-  totalAmount          Float                @map("total_amount")
-  subTotalAmount       Float                @default(0) @map("sub_total_amount")
-  totalTaxAmount       Float                @default(0) @map("total_tax_amount")
-  grandTotal           Float                @default(0) @map("grand_total")
-  couponCode           String?              @map("coupon_code")
-  discountAmount       Decimal              @default(0) @map("discount_amount") @db.Decimal(10, 2)
-  invoiceNumber        String?              @unique @map("invoice_number")
-  invoiceIssuedAt      DateTime?            @map("invoice_issued_at")
-  shippingName         String?              @map("shipping_name")
-  shippingPhone        String?              @map("shipping_phone")
-  shippingEmail        String?              @map("shipping_email")
-  shippingAddressLine1 String?              @map("shipping_address_line_1")
-  shippingAddressLine2 String?              @map("shipping_address_line_2")
-  shippingCity         String?              @map("shipping_city")
-  shippingPincode      String?              @map("shipping_pincode")
-  shippingNotes        String?              @map("shipping_notes")
-  createdAt            DateTime             @default(now()) @map("created_at")
+  id                   String                 @id @default(cuid())
+  userId               String                 @map("user_id")
+  status               OrderStatus            @default(PLACED)
+  totalAmount          Float                  @map("total_amount")
+  subTotalAmount       Float                  @default(0) @map("sub_total_amount")
+  totalTaxAmount       Float                  @default(0) @map("total_tax_amount")
+  grandTotal           Float                  @default(0) @map("grand_total")
+  couponCode           String?                @map("coupon_code")
+  discountAmount       Decimal                @default(0) @map("discount_amount") @db.Decimal(10, 2)
+  invoiceNumber        String?                @unique @map("invoice_number")
+  invoiceIssuedAt      DateTime?              @map("invoice_issued_at")
+  shippingName         String?                @map("shipping_name")
+  shippingPhone        String?                @map("shipping_phone")
+  shippingEmail        String?                @map("shipping_email")
+  shippingAddressLine1 String?                @map("shipping_address_line_1")
+  shippingAddressLine2 String?                @map("shipping_address_line_2")
+  shippingCity         String?                @map("shipping_city")
+  shippingPincode      String?                @map("shipping_pincode")
+  shippingNotes        String?                @map("shipping_notes")
+  createdAt            DateTime               @default(now()) @map("created_at")
   movements            InventoryMovement[]
   items                OrderItem[]
   payment              Payment?
@@ -567,7 +572,7 @@ model FastrrCheckoutSession {
   /// only key their webhook sends back.
   fastrrOrderId String @unique @map("fastrr_order_id")
 
-  userId String @map("user_id")
+  userId String  @map("user_id")
   /// Cart the selection came from. Null for a buy-now that never touched a cart.
   cartId String? @map("cart_id")
 
@@ -803,6 +808,22 @@ model seller_profiles {
   gstin                String?
   state                String                 @default("")
   pan_number           String?
+  /// false = non-GST seller (sells with an enrolment ID instead of a GSTIN).
+  gst_registered       Boolean                @default(true)
+  enrolment_id         String?
+  store_description    String?
+  store_logo           String?
+  support_email        String?
+  support_phone        String?
+  pickup_contact_name  String?
+  pickup_phone         String?
+  pickup_address_line1 String?
+  pickup_address_line2 String?
+  pickup_city          String?
+  pickup_state         String?
+  pickup_pincode       String?
+  /// Holiday mode: every live listing is paused until the seller turns it off.
+  vacation_mode        Boolean                @default(false)
   kyc_status           KycStatus              @default(PENDING)
   created_at           DateTime               @default(now())
   updated_at           DateTime
@@ -824,19 +845,32 @@ model shipment_events {
 }
 
 model shipments {
-  id              String            @id
-  order_id        String
-  seller_id       String
-  carrier         String
-  tracking_number String
-  status          ShipmentStatus    @default(CREATED)
-  shipped_at      DateTime?
-  delivered_at    DateTime?
-  created_at      DateTime          @default(now())
-  updated_at      DateTime
-  shipment_events shipment_events[]
-  orders          Order             @relation(fields: [order_id], references: [id])
-  users           User              @relation(fields: [seller_id], references: [id])
+  id                     String            @id
+  order_id               String
+  seller_id              String
+  carrier                String
+  tracking_number        String
+  status                 ShipmentStatus    @default(CREATED)
+  shipped_at             DateTime?
+  delivered_at           DateTime?
+  /// SHIPROCKET = AWB, label and pickup booked through the platform's
+  /// Shiprocket account; SELF_SHIP = seller enters courier + AWB.
+  fulfillment_mode       FulfillmentMode   @default(SELF_SHIP)
+  shiprocket_order_id    String?
+  shiprocket_shipment_id String?
+  label_url              String?
+  label_generated_at     DateTime?
+  manifest_id            String?
+  manifested_at          DateTime?
+  pickup_requested_at    DateTime?
+  rto_initiated_at       DateTime?
+  rto_delivered_at       DateTime?
+  rto_reason             String?
+  created_at             DateTime          @default(now())
+  updated_at             DateTime
+  shipment_events        shipment_events[]
+  orders                 Order             @relation(fields: [order_id], references: [id])
+  users                  User              @relation(fields: [seller_id], references: [id])
 
   @@index([order_id])
   @@index([seller_id])
@@ -1041,6 +1075,8 @@ enum ShipmentStatus {
   CREATED
   SHIPPED
   DELIVERED
+  RTO_INITIATED
+  RTO_DELIVERED
 }
 
 enum OtpPurpose {
@@ -1430,4 +1466,197 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+// =============================================================================
+// SELLER CENTER (Meesho-style supplier panel)
+// =============================================================================
+
+enum FulfillmentMode {
+  SHIPROCKET
+  SELF_SHIP
+}
+
+/// Seller-side cancellation of their part of an order (e.g. out of stock).
+model SellerOrderCancellation {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  sellerId  String   @map("seller_id")
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([orderId, sellerId])
+  @@index([sellerId, createdAt])
+  @@map("seller_order_cancellations")
+}
+
+enum SellerClaimType {
+  DAMAGED_RETURN
+  WRONG_RETURN
+  MISSING_ITEM_IN_RETURN
+  RTO_DAMAGED
+  RTO_NOT_RECEIVED
+  PAYMENT_ISSUE
+  OTHER
+}
+
+enum SellerClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+/// Seller raises a claim for a bad return / RTO / payment problem.
+model SellerClaim {
+  id             String            @id @default(cuid())
+  claimNumber    String            @unique @map("claim_number")
+  sellerId       String            @map("seller_id")
+  orderId        String            @map("order_id")
+  returnId       String?           @map("return_id")
+  type           SellerClaimType
+  description    String
+  images         String[]          @default([])
+  amountClaimed  Float?            @map("amount_claimed")
+  status         SellerClaimStatus @default(OPEN)
+  amountApproved Float?            @map("amount_approved")
+  resolutionNote String?           @map("resolution_note")
+  reviewedBy     String?           @map("reviewed_by")
+  reviewedAt     DateTime?         @map("reviewed_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@index([sellerId, createdAt])
+  @@index([status])
+  @@index([orderId])
+  @@map("seller_claims")
+}
+
+enum SellerOfferStatus {
+  SCHEDULED
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
+/// Seller-funded discount on their own variants for a date range. The rupee
+/// discount comes out of the seller price, so the platform margin is unchanged.
+model SellerOffer {
+  id              String            @id @default(cuid())
+  sellerId        String            @map("seller_id")
+  name            String
+  discountPercent Float             @map("discount_percent")
+  startsAt        DateTime          @map("starts_at")
+  endsAt          DateTime          @map("ends_at")
+  status          SellerOfferStatus @default(SCHEDULED)
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  items           SellerOfferItem[]
+
+  @@index([sellerId, status])
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+  @@map("seller_offers")
+}
+
+/// One variant in an offer, with the prices to restore when it ends.
+model SellerOfferItem {
+  id                  String      @id @default(cuid())
+  offerId             String      @map("offer_id")
+  productId           String      @map("product_id")
+  variantId           String      @map("variant_id")
+  originalPrice       Float?      @map("original_price")
+  originalSellerPrice Float?      @map("original_seller_price")
+  originalCompareAt   Float?      @map("original_compare_at")
+  appliedPrice        Float?      @map("applied_price")
+  appliedSellerPrice  Float?      @map("applied_seller_price")
+  offer               SellerOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, variantId])
+  @@index([variantId])
+  @@map("seller_offer_items")
+}
+
+enum AdCampaignStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+/// Sponsored-product campaign. Cost-per-click, capped by a daily budget.
+model AdCampaign {
+  id          String              @id @default(cuid())
+  sellerId    String              @map("seller_id")
+  name        String
+  dailyBudget Float               @map("daily_budget")
+  bidPerClick Float               @map("bid_per_click")
+  startsAt    DateTime            @map("starts_at")
+  endsAt      DateTime?           @map("ends_at")
+  status      AdCampaignStatus    @default(ACTIVE)
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+  products    AdCampaignProduct[]
+  stats       AdDailyStat[]
+
+  @@index([sellerId, status])
+  @@index([status])
+  @@map("ad_campaigns")
+}
+
+model AdCampaignProduct {
+  id         String     @id @default(cuid())
+  campaignId String     @map("campaign_id")
+  productId  String     @map("product_id")
+  campaign   AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, productId])
+  @@index([productId])
+  @@map("ad_campaign_products")
+}
+
+/// Per campaign, product and day: impressions, clicks, spend and the orders
+/// that followed a click.
+model AdDailyStat {
+  id          String     @id @default(cuid())
+  campaignId  String     @map("campaign_id")
+  productId   String     @map("product_id")
+  date        DateTime   @db.Date
+  impressions Int        @default(0)
+  clicks      Int        @default(0)
+  spend       Float      @default(0)
+  orders      Int        @default(0)
+  revenue     Float      @default(0)
+  campaign    AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, productId, date])
+  @@index([campaignId, date])
+  @@map("ad_daily_stats")
+}
+
+enum SellerLedgerType {
+  AD_SPEND
+  PENALTY
+  CLAIM_CREDIT
+  ADJUSTMENT
+}
+
+/// Money in/out of a seller's payout that is not an order settlement:
+/// negative = deduction (ads, penalties), positive = credit (approved claims).
+model SellerLedgerEntry {
+  id          String           @id @default(cuid())
+  sellerId    String           @map("seller_id")
+  type        SellerLedgerType
+  amount      Float
+  referenceId String?          @map("reference_id")
+  orderId     String?          @map("order_id")
+  note        String?
+  /// Day the entry belongs to (one AD_SPEND row per campaign per day).
+  entryDate   DateTime         @default(now()) @map("entry_date") @db.Date
+  settledAt   DateTime?        @map("settled_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  @@unique([sellerId, type, referenceId, entryDate])
+  @@index([sellerId, createdAt])
+  @@index([sellerId, settledAt])
+  @@map("seller_ledger_entries")
 }

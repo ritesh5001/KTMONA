@@ -10,6 +10,9 @@ import { reelRepository } from './repositories/reel.repository.js';
 import { warmCatalogCaches } from './services/catalog-warmup.service.js';
 import { appointmentService } from './services/appointment.service.js';
 import { fastrrOrderService } from './services/fastrr-order.service.js';
+import { sellerPricingService } from './services/seller-center/pricing.service.js';
+import { sellerAdsService } from './services/seller-center/ads.service.js';
+import { sellerInsightsService } from './services/seller-center/insights.service.js';
 
 /**
  * How often the consolidated maintenance sweep runs (30 minutes by default).
@@ -357,6 +360,16 @@ async function bootstrap(): Promise<void> {
                 await fastrrOrderService.reconcilePendingSessions();
             } catch (err) {
                 logger.warn({ err }, 'Fastrr reconciliation error');
+            }
+
+            // Seller center: start/end discount offers, bill ad spend into the
+            // seller ledger, record late-dispatch penalties (if configured).
+            try {
+                await sellerPricingService.runOfferSchedule();
+                await sellerAdsService.rollupSpendToLedger();
+                await sellerInsightsService.runLateDispatchPenalties();
+            } catch (err) {
+                logger.warn({ err }, 'Seller center sweep error');
             }
         };
 

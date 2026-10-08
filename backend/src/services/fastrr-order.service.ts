@@ -45,6 +45,7 @@ import {
 } from '../utils/cache.util.js';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS, orderTag, productTag } from '../live/cache-tags.js';
+import { sellerAdsService } from './seller-center/ads.service.js';
 
 const round2 = (value: Prisma.Decimal) =>
     value.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
@@ -612,6 +613,10 @@ export class FastrrOrderService {
 
         await commissionService.calculateAndStoreSellerSettlement(orderId);
         await emitOrderPlaced(orderId);
+        // Credit the sale to any ad click that led to it (best-effort).
+        await sellerAdsService.attributeOrder(orderId).catch((err) =>
+            paymentLogger.warn({ err, orderId }, 'Ad attribution failed'),
+        );
     }
 
     /**

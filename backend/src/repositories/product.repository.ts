@@ -70,6 +70,8 @@ export class ProductRepository {
             select: {
                 id: true,
                 deletedByAdmin: true,
+                pausedBySeller: true,
+                pausedForVacation: true,
                 variants: {
                     select: {
                         id: true,
@@ -115,7 +117,13 @@ export class ProductRepository {
                 rejectionReason: product.deletedByAdmin ? rejectionReason : rejectionReason,
                 approvedAt: approvedVariants.length > 0 ? approvedVariants[0]?.approvedAt ?? null : null,
                 approvedById: approvedVariants.length > 0 ? approvedVariants[0]?.approvedById ?? null : null,
-                isPublished: !product.deletedByAdmin && approvedVariants.length > 0,
+                // A seller-paused (or holiday-mode) listing stays unpublished
+                // until the seller resumes it, whatever its variants say.
+                isPublished:
+                    !product.deletedByAdmin &&
+                    !product.pausedBySeller &&
+                    !product.pausedForVacation &&
+                    approvedVariants.length > 0,
             },
         });
 
@@ -272,6 +280,9 @@ export class ProductRepository {
                 id,
                 status: 'APPROVED',
                 deletedByAdmin: false,
+                // Paused by the seller or by holiday mode: hidden from shoppers.
+                pausedBySeller: false,
+                pausedForVacation: false,
                 variants: {
                     some: {
                         status: 'APPROVED',

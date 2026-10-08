@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { EarningsHint } from "@/components/seller/EarningsHint";
 import Image from "next/image";
 import ImageKit from "imagekit-javascript";
 import { motion, AnimatePresence } from "framer-motion";
@@ -232,8 +233,14 @@ const getApprovalBadge = (product: any) => {
 
 export default function SellerProductsClient({
   initialData,
+  initialMode = null,
+  focusProductId = null,
 }: {
   initialData?: SellerProductsInitialData | null;
+  /** "create" opens the add-product form straight away (/seller/products/new). */
+  initialMode?: "create" | null;
+  /** Open this product's edit form (/seller/products/manage?edit=<id>). */
+  focusProductId?: string | null;
 }) {
   const router = useRouter();
   const [categories, setCategories] = React.useState<
@@ -538,6 +545,9 @@ export default function SellerProductsClient({
       setCreateColorImages({});
       setImages([]);
       setShowCreateModal(false);
+      if (initialMode === "create") {
+        router.push("/seller/products?tab=under_review");
+      }
 
       setProducts((prev) => [
         {
@@ -612,6 +622,26 @@ export default function SellerProductsClient({
       [product.id]: getColorImageMapFromVariants(product.variants ?? []),
     }));
   };
+
+  // Deep links: /seller/products/new opens the add form, ?edit=<id> opens
+  // that product's edit form (filtered so it is the only card shown).
+  const deepLinkHandled = React.useRef(false);
+  React.useEffect(() => {
+    if (deepLinkHandled.current) return;
+    if (initialMode === "create") {
+      deepLinkHandled.current = true;
+      setShowCreateModal(true);
+      return;
+    }
+    if (focusProductId) {
+      const product = products.find((p: any) => p.id === focusProductId);
+      if (!product) return;
+      deepLinkHandled.current = true;
+      setSearchQuery(product.title ?? "");
+      handleEditProduct(product);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMode, focusProductId, products]);
 
   const handleSaveProduct = async () => {
     if (!editingProductId) return;
@@ -1226,10 +1256,10 @@ export default function SellerProductsClient({
             Product Catalog
           </p>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Manage Your Listings
+            {initialMode === "create" ? "Add a Product" : "Edit Listings"}
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Create, edit, and organize your fashion products with care and precision.
+            Add photos, variants (size, colour), stock and your price. Every listing is reviewed by KTMONA before it goes live.
           </p>
         </div>
 
@@ -1761,6 +1791,7 @@ export default function SellerProductsClient({
                                     placeholder="Seller price"
                                     disabled={product.deletedByAdmin}
                                   />
+                                  <EarningsHint price={variantEdits[variant.id]?.sellerPrice} />
                                 </div>
                                 <div className="space-y-1">
                                   <Label className="text-xs">Compare at</Label>
@@ -1910,6 +1941,7 @@ export default function SellerProductsClient({
                               }
                               disabled={product.deletedByAdmin}
                             />
+                            <EarningsHint price={variantForm.sellerPrice} />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Compare At</Label>
@@ -2269,6 +2301,7 @@ export default function SellerProductsClient({
                               }
                               placeholder="Seller price"
                             />
+                            <EarningsHint price={variant.sellerPrice} />
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Compare-at Price</Label>

@@ -9,6 +9,7 @@ import {
   CalendarClock,
   Clapperboard,
   CreditCard,
+  FileWarning,
   FolderTree,
   Headset,
   LayoutDashboard,
@@ -44,6 +45,7 @@ const NAV_ITEMS: PanelNavItem[] = [
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/cancellations", label: "Cancellations", icon: XCircle },
   { href: "/admin/returns", label: "Returns", icon: Undo2 },
+  { href: "/admin/seller-claims", label: "Seller Claims", icon: FileWarning },
   { href: "/admin/refunds", label: "Refunds", icon: RotateCcw },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
   { href: "/admin/settlements", label: "Settlements", icon: Wallet },
@@ -72,13 +74,18 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     keepPreviousData: true,
   });
 
-  const topLinks = React.useMemo(
-    () => [
+  // Storefront URLs depend on the current host (window), so resolve them after
+  // mount; rendering them on the server caused a hydration mismatch.
+  const [topLinks, setTopLinks] = React.useState([
+    { href: "/", label: "Visit Store" },
+    { href: "/marketplace", label: "Marketplace" },
+  ]);
+  React.useEffect(() => {
+    setTopLinks([
       { href: getStorefrontUrl("home"), label: "Visit Store" },
       { href: getStorefrontUrl("shop"), label: "Marketplace" },
-    ],
-    []
-  );
+    ]);
+  }, []);
 
   return (
     <PanelShell

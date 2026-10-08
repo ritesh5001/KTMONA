@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketplaceProductCard, type MarketplaceCardProduct } from "@/components/marketplace-product-card";
+import { SponsoredProducts } from "@/components/sponsored-products";
 import { Button } from "@/components/ui/button";
 import { SITE_URL } from "@/lib/site-config";
 import { CACHE_TAGS } from "@/lib/cache-tags";
@@ -188,6 +189,7 @@ export default async function SearchPage({
           </div>
         ) : (
           <>
+            <SponsoredProducts search={query} excludeIds={items.map((product) => product.id)} />
             <section className="grid grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-4">
               {items.map((product) => (
                 <MarketplaceProductCard key={product.id} product={product} />

@@ -62,6 +62,7 @@ import {
 import { searchController } from './controllers/search.controller.js';
 import { apiReference } from "@scalar/express-api-reference";
 import { openApiSpec } from "./docs/openapi.js";
+import { sellerCenterRouter, adsRouter, adminSellerClaimsRouter } from './routes/seller-center.routes.js';
 
 const HOT_ENDPOINT_SLOW_THRESHOLD_MS = 400;
 
@@ -364,6 +365,11 @@ export function createApp(): Application {
     app.use('/v1/payments/webhook', webhookRouter); // before /v1/payments to skip auth
     app.use('/v1/payments', paymentRouter);
     app.use('/v1/seller/settlements', sellerSettlementRouter);
+
+    // Seller center (Meesho-style supplier panel), storefront ads, claim review
+    app.use('/v1/seller/center', sellerCenterRouter);
+    app.use('/v1/ads', adsRouter);
+    app.use('/v1/admin/seller-claims', adminSellerClaimsRouter);
 
     // Reviews domain
     app.use('/v1/reviews', reviewRouter);

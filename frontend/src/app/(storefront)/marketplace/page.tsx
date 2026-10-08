@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarketplaceProductCard } from "@/components/marketplace-product-card";
+import { SponsoredProducts } from "@/components/sponsored-products";
 import { SITE_URL } from "@/lib/site-config";
 import { CACHE_TAGS, collectionTag, occasionTag } from "@/lib/cache-tags";
 
@@ -649,6 +650,12 @@ export default async function MarketplacePage({
             ) : null}
           </div>
         </section>
+
+        {/* Sponsored (KTMONA Ads) — renders nothing when no campaign is eligible */}
+        <SponsoredProducts
+          categoryId={selectedCategory?.id}
+          excludeIds={products.map((product: any) => product.id)}
+        />
 
         {/* Products Grid */}
         <section className="grid grid-cols-2 gap-5 md:grid-cols-3 lg:grid-cols-4">

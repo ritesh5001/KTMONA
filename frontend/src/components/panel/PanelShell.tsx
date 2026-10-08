@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { getSessionUser } from "@/lib/session";
 import { signOut } from "@/services/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Toaster } from "@/components/ui/sonner";
 
 export interface PanelNavItem {
   href: string;
@@ -29,6 +30,10 @@ interface PanelShellProps {
   supportHref: string;
   /** Extra links rendered in the top bar (e.g. storefront shortcuts). */
   topLinks?: { href: string; label: string }[];
+  /** Overrides the signed-in email in the top bar (e.g. store name). */
+  accountName?: string | null;
+  /** Second line under the account name (defaults to the role label). */
+  accountSub?: string | null;
   children: React.ReactNode;
 }
 
@@ -49,6 +54,8 @@ export function PanelShell({
   unreadCount = 0,
   supportHref,
   topLinks = [],
+  accountName,
+  accountSub,
   children,
 }: PanelShellProps) {
   const pathname = usePathname();
@@ -83,7 +90,18 @@ export function PanelShell({
     }
   };
 
-  const initial = (account || roleLabel).charAt(0).toUpperCase();
+  // Highlight only the most specific matching item (e.g. "Add Product" on
+  // /seller/products/new, not "My Products" as well).
+  const activeHref = React.useMemo(
+    () =>
+      navItems
+        .filter((item) => isActivePath(pathname, item.href))
+        .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null,
+    [navItems, pathname]
+  );
+
+  const displayName = accountName || account || roleLabel;
+  const initial = displayName.charAt(0).toUpperCase();
 
   const sidebar = (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -113,7 +131,7 @@ export function PanelShell({
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label={panelLabel}>
         {navItems.map((item) => {
-          const active = isActivePath(pathname, item.href);
+          const active = item.href === activeHref;
           const Icon = item.icon;
           return (
             <Link
@@ -260,9 +278,9 @@ export function PanelShell({
                   </span>
                   <span className="hidden text-left sm:block">
                     <span className="block max-w-40 truncate text-sm font-semibold text-foreground">
-                      {account || roleLabel}
+                      {displayName}
                     </span>
-                    <span className="block text-xs text-muted-foreground">{roleLabel}</span>
+                    <span className="block text-xs text-muted-foreground">{accountSub || roleLabel}</span>
                   </span>
                   <ChevronDown className="hidden h-4 w-4 text-muted-foreground sm:block" />
                 </button>
@@ -298,6 +316,7 @@ export function PanelShell({
         </header>
 
         <main className="min-h-[calc(100vh-64px-48px)]">{children}</main>
+        <Toaster />
 
         <footer className="border-t border-border-soft">
           <div className="flex h-12 items-center justify-between px-4 text-xs text-muted-foreground sm:px-6">
