@@ -65,9 +65,10 @@ class SellerPaymentsService {
     }
 
     async summary(sellerId: string) {
-        const [rows, ledger] = await Promise.all([
+        const [rows, ledger, profile] = await Promise.all([
             this.rows(sellerId),
-            prisma.sellerLedgerEntry.findMany({ where: { sellerId }, orderBy: { createdAt: 'desc' } }),
+            prisma.sellerLedgerEntry.findMany({ where: { sellerId, waivedAt: null }, orderBy: { createdAt: 'desc' } }),
+            prisma.seller_profiles.findUnique({ where: { user_id: sellerId }, select: { payout_hold: true, payout_hold_reason: true } }),
         ]);
         const sum = (list: Row[]) => round2(list.reduce((s, r) => s + r.net, 0));
         const upcoming = rows.filter((r) => r.bucket === 'upcoming');
@@ -102,6 +103,7 @@ class SellerPaymentsService {
         }).reverse();
 
         return {
+            payoutHold: profile?.payout_hold ? { reason: profile.payout_hold_reason } : null,
             paymentCycleDays: PAYMENT_CYCLE_DAYS,
             upcoming: { amount: sum(upcoming), orders: upcoming.length },
             dueNow: { amount: sum(due), orders: due.length },
@@ -149,7 +151,7 @@ class SellerPaymentsService {
         const range = { gte: startOfDay(from), lt: addDays(startOfDay(to), 1) };
         const [rows, ledger] = await Promise.all([
             this.rows(sellerId, { createdAt: range }),
-            prisma.sellerLedgerEntry.findMany({ where: { sellerId, createdAt: range }, orderBy: { createdAt: 'asc' } }),
+            prisma.sellerLedgerEntry.findMany({ where: { sellerId, createdAt: range, waivedAt: null }, orderBy: { createdAt: 'asc' } }),
         ]);
         const header = ['Type', 'Date', 'Order ID', 'Reference', 'Gross (Rs)', 'Commission (Rs)', 'Platform fee (Rs)', 'Net (Rs)', 'Status', 'Delivered on', 'Payable on', 'Paid on'];
         const body: unknown[][] = [

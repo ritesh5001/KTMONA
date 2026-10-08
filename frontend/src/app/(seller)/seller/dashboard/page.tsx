@@ -40,6 +40,7 @@ const RANGES = [
 
 export default function SellerDashboardPage() {
   const [days, setDays] = React.useState(7);
+  const { data: notices } = useSWR("seller-announcements", () => sellerCenter.announcements(), { revalidateOnFocus: false });
   const { data, error, isLoading, mutate } = useSWR(["seller-overview", days], () => sellerCenter.overview(days), {
     keepPreviousData: true,
     revalidateOnFocus: true,
@@ -76,6 +77,33 @@ export default function SellerDashboardPage() {
           </div>
         </div>
       </section>
+
+      {/* KTMONA notices */}
+      {notices && notices.length > 0 ? (
+        <div className="space-y-2">
+          {notices.map((n) => (
+            <div
+              key={n.id}
+              className={cn(
+                "flex flex-col gap-2 rounded-xl border px-4 py-3 sm:flex-row sm:items-center",
+                n.level === "WARNING" && "border-brand/30 bg-brand/8",
+                n.level === "SUCCESS" && "border-emerald-500/25 bg-emerald-500/5",
+                n.level === "INFO" && "border-blue-500/20 bg-blue-500/5"
+              )}
+            >
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">{n.title}</p>
+                <p className="text-xs text-muted-foreground">{n.body}</p>
+              </div>
+              {n.linkUrl ? (
+                <Link href={n.linkUrl}>
+                  <Btn size="sm" variant={n.level === "SUCCESS" ? "brand" : "outline"}>{n.linkLabel ?? "Open"}</Btn>
+                </Link>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {/* Alerts */}
       {o && o.alerts.length > 0 ? (

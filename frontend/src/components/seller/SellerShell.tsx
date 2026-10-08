@@ -16,6 +16,7 @@ import {
   RotateCcw,
   Settings,
   ShoppingBag,
+  Tag,
   Wallet,
 } from "lucide-react";
 import { getUnreadCount } from "@/services/notifications";
@@ -58,6 +59,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
       { href: "/seller/returns", label: "Returns & Refunds", icon: RotateCcw },
       { href: "/seller/inventory", label: "Inventory", icon: Boxes },
       { href: "/seller/pricing", label: "Pricing & Offers", icon: BadgePercent },
+      { href: "/seller/sale-events", label: "Sale Events", icon: Tag },
       { href: "/seller/settlements", label: "Payments", icon: Wallet },
       { href: "/seller/ads", label: "Ads", icon: Megaphone },
       { href: "/seller/performance", label: "Performance", icon: BarChart3 },

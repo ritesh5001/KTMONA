@@ -250,6 +250,7 @@ export interface SellerClaim {
 }
 
 export interface PaymentsSummary {
+  payoutHold: { reason: string | null } | null;
   paymentCycleDays: number;
   upcoming: { amount: number; orders: number };
   dueNow: { amount: number; orders: number };
@@ -404,6 +405,31 @@ export interface SellerSettings {
   shipping: { mode: "SHIPROCKET" | "SELF_SHIP" };
 }
 
+export interface SaleEvent {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  bannerImage: string | null;
+  startsAt: string;
+  endsAt: string;
+  joinDeadline: string | null;
+  minDiscountPercent: number;
+  categories: { id: string; name: string }[];
+  phase: "UPCOMING" | "LIVE" | "ENDED" | "DRAFT" | "CANCELLED";
+  canJoin: boolean;
+  participation: null | { offerId: string; discountPercent: number; products: number; status: string };
+}
+
+export interface SellerAnnouncementRow {
+  id: string;
+  title: string;
+  body: string;
+  level: "INFO" | "WARNING" | "SUCCESS";
+  linkUrl: string | null;
+  linkLabel: string | null;
+}
+
 type ActionResult = { results: { orderId: string; ok: boolean; error?: string }[] };
 
 // ── API ───────────────────────────────────────────────────────────────────
@@ -480,6 +506,12 @@ export const sellerCenter = {
     send<unknown>("PATCH", `/ads/${id}`, body),
 
   health: (days = 30) => get<HealthResponse>(`/health${qs({ days })}`),
+
+  campaigns: () => get<{ campaigns: SaleEvent[] }>("/campaigns"),
+  joinCampaign: (id: string, productIds: string[], discountPercent: number) =>
+    send<{ joined: boolean; skippedVariants: number }>("POST", `/campaigns/${id}/join`, { productIds, discountPercent }),
+  leaveCampaign: (id: string) => send<{ left: boolean }>("POST", `/campaigns/${id}/leave`),
+  announcements: () => get<SellerAnnouncementRow[]>("/announcements"),
   insights: (days = 30) => get<InsightsResponse>(`/insights${qs({ days })}`),
 
   settings: () => get<SellerSettings>("/settings"),

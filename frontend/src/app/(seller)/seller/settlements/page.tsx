@@ -76,6 +76,11 @@ export default function PaymentsPage() {
         description={`You are paid ${s?.paymentCycleDays ?? 7} days after each order is delivered, straight to your bank account. Ads spend and penalties are deducted; approved claims are added.`}
       />
       {sErr && !s ? <ErrorNote message={errorMessage(sErr)} onRetry={() => sMutate()} /> : null}
+      {s?.payoutHold ? (
+        <div className="rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          <b>Your payouts are on hold.</b> {s.payoutHold.reason ?? ""} Earnings keep adding up and will be paid once KTMONA releases the hold. Contact Seller Support for help.
+        </div>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard

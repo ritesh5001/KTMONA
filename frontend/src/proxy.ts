@@ -163,6 +163,7 @@ const PUBLIC_SHOP_PREFIXES = [
   "/occasion",
   "/reels",
   "/categories",
+  "/sale",
   "/user",
 ];
 

@@ -13,6 +13,7 @@ import { fastrrOrderService } from './services/fastrr-order.service.js';
 import { sellerPricingService } from './services/seller-center/pricing.service.js';
 import { sellerAdsService } from './services/seller-center/ads.service.js';
 import { sellerInsightsService } from './services/seller-center/insights.service.js';
+import { adminPenaltiesService } from './services/admin-center/penalties.service.js';
 
 /**
  * How often the consolidated maintenance sweep runs (30 minutes by default).
@@ -368,6 +369,7 @@ async function bootstrap(): Promise<void> {
                 await sellerPricingService.runOfferSchedule();
                 await sellerAdsService.rollupSpendToLedger();
                 await sellerInsightsService.runLateDispatchPenalties();
+                await adminPenaltiesService.runAutoCancel();
             } catch (err) {
                 logger.warn({ err }, 'Seller center sweep error');
             }

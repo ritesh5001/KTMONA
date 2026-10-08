@@ -409,3 +409,31 @@ body {
     border-radius: var(--radius-md);
   }
 }
+
+/* =========================================================================
+   Legacy panel pages → KTMONA panel look
+   Older admin/seller screens were written for the previous editorial theme
+   (tiny uppercase labels, wide letter-spacing, light-weight numbers). Inside
+   a panel, normalise them to the seller-panel style: sentence case, normal
+   spacing, medium weight. Unlayered on purpose so it beats the utilities.
+   Add `ktm-keep-case` to opt an element out.
+   ========================================================================= */
+
+.ktm-panel .uppercase:not(.ktm-keep-case) {
+  text-transform: none;
+}
+
+.ktm-panel [class*="tracking-[0."]:not(.ktm-keep-case),
+.ktm-panel .tracking-wide:not(.ktm-keep-case),
+.ktm-panel .tracking-wider:not(.ktm-keep-case),
+.ktm-panel .tracking-widest:not(.ktm-keep-case) {
+  letter-spacing: normal;
+}
+
+.ktm-panel .font-light {
+  font-weight: 500;
+}
+
+.ktm-panel .text-\[10px\]:not(.ktm-keep-case) {
+  font-size: 0.75rem;
+}

@@ -63,6 +63,7 @@ import { searchController } from './controllers/search.controller.js';
 import { apiReference } from "@scalar/express-api-reference";
 import { openApiSpec } from "./docs/openapi.js";
 import { sellerCenterRouter, adsRouter, adminSellerClaimsRouter } from './routes/seller-center.routes.js';
+import { adminCenterRouter, campaignsPublicRouter } from './routes/admin-center.routes.js';
 
 const HOT_ENDPOINT_SLOW_THRESHOLD_MS = 400;
 
@@ -370,6 +371,8 @@ export function createApp(): Application {
     app.use('/v1/seller/center', sellerCenterRouter);
     app.use('/v1/ads', adsRouter);
     app.use('/v1/admin/seller-claims', adminSellerClaimsRouter);
+    app.use('/v1/admin/center', adminCenterRouter);
+    app.use('/v1/campaigns', campaignsPublicRouter);
 
     // Reviews domain
     app.use('/v1/reviews', reviewRouter);

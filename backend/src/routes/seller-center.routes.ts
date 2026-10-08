@@ -21,6 +21,8 @@ import { sellerPricingService } from '../services/seller-center/pricing.service.
 import { sellerAdsService } from '../services/seller-center/ads.service.js';
 import { sellerInsightsService, LATE_DISPATCH_PENALTY_KEY } from '../services/seller-center/insights.service.js';
 import { sellerSettingsService } from '../services/seller-center/settings.service.js';
+import { campaignsService } from '../services/admin-center/campaigns.service.js';
+import { adminOpsService } from '../services/admin-center/ops.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -235,6 +237,21 @@ sellerCenterRouter.patch(
         return sellerAdsService.updateCampaign(sid(req), param(req, 'campaignId'), body);
     })
 );
+
+// Sale events & announcements
+sellerCenterRouter.get('/campaigns', h((req) => campaignsService.sellerList(sid(req))));
+sellerCenterRouter.post(
+    '/campaigns/:campaignId/join',
+    h((req) =>
+        campaignsService.join(
+            sid(req),
+            param(req, 'campaignId'),
+            z.object({ productIds: z.array(z.string()).min(1).max(200), discountPercent: z.number().min(1).max(80) }).parse(req.body)
+        )
+    )
+);
+sellerCenterRouter.post('/campaigns/:campaignId/leave', h((req) => campaignsService.leave(sid(req), param(req, 'campaignId'))));
+sellerCenterRouter.get('/announcements', h(() => adminOpsService.activeAnnouncements()));
 
 // Performance
 sellerCenterRouter.get('/health', h((req) => sellerInsightsService.health(sid(req), Number(req.query.days) || 30)));

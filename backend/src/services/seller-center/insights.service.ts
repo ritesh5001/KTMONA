@@ -45,7 +45,7 @@ class SellerInsightsService {
             }),
             prisma.review.aggregate({ where: { product: { sellerId }, isHidden: false }, _avg: { rating: true }, _count: { _all: true } }),
             prisma.review.groupBy({ by: ['rating'], where: { product: { sellerId }, isHidden: false }, _count: { _all: true } }),
-            prisma.sellerLedgerEntry.findMany({ where: { sellerId, type: 'PENALTY' }, orderBy: { createdAt: 'desc' }, take: 20 }),
+            prisma.sellerLedgerEntry.findMany({ where: { sellerId, type: 'PENALTY', waivedAt: null }, orderBy: { createdAt: 'desc' }, take: 20 }),
         ]);
 
         const now = Date.now();

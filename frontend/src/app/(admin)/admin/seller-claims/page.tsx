@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { toast } from "sonner";
 import { FileWarning } from "lucide-react";
 import { adminSellerClaims, inr, fmtDate, shortId, type SellerClaim } from "@/services/seller-center";
-import { Btn, Empty, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, Panel, StatusBadge, Tabs, errorMessage, inputCls } from "@/components/seller/kit";
+import { Btn, Empty, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, StatusBadge, Tabs, errorMessage, inputCls } from "@/components/seller/kit";
 
 const TABS = [
   { key: "open", label: "Open" },
@@ -33,7 +33,6 @@ export default function AdminSellerClaimsPage() {
   return (
     <PageShell>
       <PageHeader title="Seller claims" description="Sellers raise claims for damaged or wrong returns, lost RTO parcels and payment issues. Approved amounts are credited to their next payout." />
-      <PenaltySetting />
       <div className="rounded-2xl border border-border-soft bg-card">
         <div className="px-4 pt-2"><Tabs tabs={TABS} value={tab} onChange={setTab} /></div>
         {error && !data ? (
@@ -140,47 +139,5 @@ function ReviewModal({ claim, onClose, onDone }: { claim: SellerClaim | null; on
         </Field>
       </div>
     </Modal>
-  );
-}
-
-function PenaltySetting() {
-  const { data, mutate } = useSWR("admin-seller-center-settings", () => adminSellerClaims.settings());
-  const [value, setValue] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  React.useEffect(() => {
-    if (data) setValue(String(data.lateDispatchPenalty));
-  }, [data]);
-  return (
-    <Panel>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold">Late dispatch penalty</p>
-          <p className="text-xs text-muted-foreground">Charged per order shipped after its 48-hour dispatch date and deducted from the seller&apos;s payout. 0 = warning only.</p>
-        </div>
-        <div className="flex items-end gap-2">
-          <Field label="Amount (₹)">
-            <input type="number" min={0} max={1000} className={`${inputCls} w-32`} value={value} onChange={(e) => setValue(e.target.value)} />
-          </Field>
-          <Btn
-            variant="outline"
-            loading={saving}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                await adminSellerClaims.saveSettings(Number(value) || 0);
-                toast.success("Penalty updated");
-                mutate();
-              } catch (err) {
-                toast.error(errorMessage(err));
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            Save
-          </Btn>
-        </div>
-      </div>
-    </Panel>
   );
 }

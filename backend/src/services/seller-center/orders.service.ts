@@ -11,6 +11,7 @@ import { ApiError } from '../../errors/ApiError.js';
 import { shipmentService } from '../shipment.service.js';
 import { cancellationService } from '../cancellation.service.js';
 import { invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
+import { chargePenalty, getPenaltyRules } from '../admin-center/penalties.service.js';
 import {
     addDays,
     dispatchBy,
@@ -379,6 +380,9 @@ class SellerOrdersService {
             await cancellationService.approveCancellationBySeller(sellerId, cancellation.id);
         }
         // Multi-seller orders wait in the admin cancellation queue.
+
+        const rules = await getPenaltyRules();
+        await chargePenalty(sellerId, orderId, rules.sellerCancelPenalty, 'Seller cancellation charge');
 
         await invalidateSellerPrivateCaches(sellerId);
         return { ok: true, needsAdminApproval: sellers.size > 1 };

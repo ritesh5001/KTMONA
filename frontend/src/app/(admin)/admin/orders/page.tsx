@@ -417,7 +417,7 @@ export default function AdminOrdersPage() {
                 <p className="text-sm text-muted-foreground">No orders found.</p>
               </div>
             ) : (
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[1180px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-border-soft">
                     <th className="p-6 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
@@ -518,7 +518,7 @@ export default function AdminOrdersPage() {
                           {order.status}
                         </span>
                       </td>
-                      <td className="p-6 text-muted-foreground">
+                      <td className="whitespace-nowrap p-6 text-muted-foreground">
                         {order.createdAt
                           ? new Date(order.createdAt).toLocaleDateString("en-IN", {
                               month: "short",
@@ -528,7 +528,7 @@ export default function AdminOrdersPage() {
                           : "—"}
                       </td>
                       <td className="p-6">
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex min-w-[150px] flex-col gap-2 [&_button]:whitespace-nowrap">
                           <Button
                             size="sm"
                             variant="outline"

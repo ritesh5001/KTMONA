@@ -17,6 +17,8 @@ export interface PanelNavItem {
   label: string;
   icon: LucideIcon;
   badge?: number;
+  /** Group heading shown above the first item of each section. */
+  section?: string;
 }
 
 interface PanelShellProps {
@@ -34,6 +36,8 @@ interface PanelShellProps {
   accountName?: string | null;
   /** Second line under the account name (defaults to the role label). */
   accountSub?: string | null;
+  /** "Need help?" card at the bottom of the sidebar (sellers only). */
+  showHelpCard?: boolean;
   children: React.ReactNode;
 }
 
@@ -56,6 +60,7 @@ export function PanelShell({
   topLinks = [],
   accountName,
   accountSub,
+  showHelpCard = true,
   children,
 }: PanelShellProps) {
   const pathname = usePathname();
@@ -130,12 +135,16 @@ export function PanelShell({
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label={panelLabel}>
-        {navItems.map((item) => {
+        {navItems.map((item, index) => {
           const active = item.href === activeHref;
           const Icon = item.icon;
+          const heading = item.section && item.section !== navItems[index - 1]?.section ? item.section : null;
           return (
+            <React.Fragment key={item.href}>
+            {heading ? (
+              <p className="ktm-keep-case px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60 first:pt-1">{heading}</p>
+            ) : null}
             <Link
-              key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
@@ -158,10 +167,12 @@ export function PanelShell({
                 </span>
               ) : null}
             </Link>
+            </React.Fragment>
           );
         })}
       </nav>
 
+      {showHelpCard ? (
       <div className="px-4 pb-5">
         <div className="rounded-2xl border border-sidebar-border bg-sidebar-accent p-4">
           <Headset className="h-6 w-6 text-brand" strokeWidth={1.8} />
@@ -177,6 +188,7 @@ export function PanelShell({
           </Link>
         </div>
       </div>
+      ) : null}
     </div>
   );
 

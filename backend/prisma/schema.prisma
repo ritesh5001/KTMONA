@@ -683,6 +683,8 @@ model SellerSettlement {
   netAmount        Float            @map("net_amount")
   status           SettlementStatus @default(PENDING)
   settledAt        DateTime?        @map("settled_at")
+  /// Payout batch that paid this settlement.
+  payoutId         String?          @map("payout_id")
   createdAt        DateTime         @default(now()) @map("created_at")
 
   order  Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -824,6 +826,13 @@ model seller_profiles {
   pickup_pincode       String?
   /// Holiday mode: every live listing is paused until the seller turns it off.
   vacation_mode        Boolean                @default(false)
+  kyc_rejection_reason String?
+  kyc_verified_at      DateTime?
+  /// Admin froze payouts (e.g. under investigation). Settlements still accrue.
+  payout_hold          Boolean                @default(false)
+  payout_hold_reason   String?
+  /// Why the seller account was suspended / reactivated (shown to the seller).
+  status_reason        String?
   kyc_status           KycStatus              @default(PENDING)
   created_at           DateTime               @default(now())
   updated_at           DateTime
@@ -1549,6 +1558,8 @@ model SellerOffer {
   startsAt        DateTime          @map("starts_at")
   endsAt          DateTime          @map("ends_at")
   status          SellerOfferStatus @default(SCHEDULED)
+  /// Set when the offer is the seller's opt-in to a platform sale event.
+  campaignId      String?           @map("campaign_id")
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
   items           SellerOfferItem[]
@@ -1556,6 +1567,7 @@ model SellerOffer {
   @@index([sellerId, status])
   @@index([status, startsAt])
   @@index([status, endsAt])
+  @@index([campaignId])
   @@map("seller_offers")
 }
 
@@ -1653,10 +1665,93 @@ model SellerLedgerEntry {
   /// Day the entry belongs to (one AD_SPEND row per campaign per day).
   entryDate   DateTime         @default(now()) @map("entry_date") @db.Date
   settledAt   DateTime?        @map("settled_at")
+  payoutId    String?          @map("payout_id")
+  /// Admin waived this penalty (kept for the audit trail, excluded from payouts).
+  waivedAt    DateTime?        @map("waived_at")
+  waivedBy    String?          @map("waived_by")
   createdAt   DateTime         @default(now()) @map("created_at")
 
   @@unique([sellerId, type, referenceId, entryDate])
   @@index([sellerId, createdAt])
   @@index([sellerId, settledAt])
   @@map("seller_ledger_entries")
+}
+
+// =============================================================================
+// ADMIN CENTER (Meesho-style platform operations)
+// =============================================================================
+
+/// One bank transfer to a seller covering due settlements and ledger entries.
+model SellerPayout {
+  id                String   @id @default(cuid())
+  payoutNumber      String   @unique @map("payout_number")
+  sellerId          String   @map("seller_id")
+  amount            Float
+  settlementsAmount Float    @map("settlements_amount")
+  ledgerAmount      Float    @map("ledger_amount")
+  settlementCount   Int      @map("settlement_count")
+  ledgerCount       Int      @map("ledger_count")
+  method            String   @default("BANK_TRANSFER")
+  reference         String?
+  note              String?
+  bankSnapshot      Json?    @map("bank_snapshot")
+  createdBy         String   @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@index([sellerId, createdAt])
+  @@index([createdAt])
+  @@map("seller_payouts")
+}
+
+enum PlatformCampaignStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+/// Platform-wide sale event (e.g. "Mega Blockbuster Sale"). Sellers opt
+/// products in with at least `minDiscountPercent` off.
+model PlatformCampaign {
+  id                 String                 @id @default(cuid())
+  name               String
+  slug               String                 @unique
+  description        String?
+  bannerImage        String?                @map("banner_image")
+  startsAt           DateTime               @map("starts_at")
+  endsAt             DateTime               @map("ends_at")
+  joinDeadline       DateTime?              @map("join_deadline")
+  minDiscountPercent Float                  @map("min_discount_percent")
+  categoryIds        String[]               @default([]) @map("category_ids")
+  status             PlatformCampaignStatus @default(DRAFT)
+  createdBy          String                 @map("created_by")
+  createdAt          DateTime               @default(now()) @map("created_at")
+  updatedAt          DateTime               @updatedAt @map("updated_at")
+
+  @@index([status, startsAt])
+  @@map("platform_campaigns")
+}
+
+enum AnnouncementLevel {
+  INFO
+  WARNING
+  SUCCESS
+}
+
+/// Notice shown on every seller's dashboard (policy changes, sale events...).
+model SellerAnnouncement {
+  id        String            @id @default(cuid())
+  title     String
+  body      String
+  level     AnnouncementLevel @default(INFO)
+  linkUrl   String?           @map("link_url")
+  linkLabel String?           @map("link_label")
+  startsAt  DateTime          @default(now()) @map("starts_at")
+  endsAt    DateTime?         @map("ends_at")
+  isActive  Boolean           @default(true) @map("is_active")
+  createdBy String            @map("created_by")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  @@index([isActive, startsAt])
+  @@map("seller_announcements")
 }

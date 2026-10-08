@@ -1,190 +1,111 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { approveSeller, getSellers, suspendSeller } from "@/services/admin";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import useSWR from "swr";
 import { toast } from "sonner";
+import { AlertTriangle, PauseCircle, Store } from "lucide-react";
+import { adminCenter, type SellerTab } from "@/services/admin-center";
+import { inr, fmtDate } from "@/services/seller-center";
+import { Badge, Btn, Empty, ErrorNote, Loading, PageHeader, PageShell, Pager, SearchBox, StatusBadge, Tabs, errorMessage, useDebounced } from "@/components/seller/kit";
 
-const getStatusStyle = (status: string) => {
-  switch (status.toUpperCase()) {
-    case "ACTIVE":
-      return "border-[#7B9971]/30 text-[#5A7352] bg-[#7B9971]/5";
-    case "PENDING":
-      return "border-[#FF8A00]/30 text-[#B84A00] bg-[#FF8A00]/5";
-    case "SUSPENDED":
-      return "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5";
-    default:
-      return "border-border-soft text-muted-foreground bg-mist/30";
-  }
-};
+const TABS: { key: SellerTab; label: string }[] = [
+  { key: "pending", label: "Pending approval" },
+  { key: "kyc_review", label: "KYC to verify" },
+  { key: "active", label: "Active" },
+  { key: "at_risk", label: "At risk" },
+  { key: "suspended", label: "Suspended" },
+  { key: "all", label: "All" },
+];
 
 export default function AdminSellersPage() {
-  const [loading, setLoading] = React.useState(true);
-  const [sellers, setSellers] = React.useState<Array<any>>([]);
+  const router = useRouter();
+  const params = useSearchParams();
+  const [tab, setTab] = React.useState<SellerTab>((TABS.find((t) => t.key === params.get("tab"))?.key ?? "all") as SellerTab);
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState("");
+  const q = useDebounced(search);
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const { data, error, isLoading, mutate } = useSWR(["admin-sellers", tab, page, q], () => adminCenter.sellers({ tab, page, search: q }), { keepPreviousData: true });
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
+  const approve = async (id: string) => {
+    setBusy(id);
     try {
-      const result = await getSellers();
-      setSellers(result.sellers ?? []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to load sellers"
-      );
+      await adminCenter.setSellerStatus(id, "ACTIVE");
+      toast.success("Seller approved");
+      mutate();
+    } catch (err) {
+      toast.error(errorMessage(err));
     } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    load();
-  }, [load]);
-
-  const handleApprove = async (id: string) => {
-    try {
-      await approveSeller(id);
-      toast.success("Seller approved.");
-      load();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to approve seller"
-      );
-    }
-  };
-
-  const handleSuspend = async (id: string) => {
-    try {
-      await suspendSeller(id);
-      toast.success("Seller suspended.");
-      load();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to suspend seller"
-      );
+      setBusy(null);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-background">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:py-20"
-      >
-        {/* Header */}
-        <div className="space-y-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-brand-strong">
-            Vendor Management
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Seller Approvals
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Review and moderate seller accounts with deliberate authority.
-          </p>
+    <PageShell>
+      <PageHeader title="Sellers" description="Approve new sellers, verify KYC, and watch seller performance. Open a seller for payouts, penalties, commission and suspension." />
+      <div className="rounded-2xl border border-border-soft bg-card">
+        <div className="flex flex-col gap-3 px-4 pt-2 lg:flex-row lg:items-end lg:justify-between">
+          <Tabs tabs={TABS} value={tab} counts={data?.counts} onChange={(t) => { setTab(t); setPage(1); router.replace(`/admin/sellers?tab=${t}`, { scroll: false }); }} />
+          <div className="pb-3"><SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Store, email or phone" /></div>
         </div>
-
-        {/* Sellers Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.5 }}
-          className="border border-border-soft bg-card"
-        >
-          <div className="border-b border-border-soft p-6">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground mb-1">
-              Registry
-            </p>
-            <p className="font-serif text-lg font-light text-foreground">
-              Verified Sellers
-            </p>
-          </div>
-
+        {error && !data ? (
+          <div className="p-4"><ErrorNote message={errorMessage(error)} onRetry={() => mutate()} /></div>
+        ) : isLoading && !data ? (
+          <Loading rows={6} />
+        ) : !data || data.sellers.length === 0 ? (
+          <Empty icon={Store} title="No sellers here" />
+        ) : (
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">Loading sellers...</p>
-              </div>
-            ) : sellers.length === 0 ? (
-              <div className="p-8 text-center">
-                <p className="text-sm text-muted-foreground">No sellers found.</p>
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-border-soft">
-                    <th className="p-6 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                      Seller
-                    </th>
-                    <th className="p-6 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                      Status
-                    </th>
-                    <th className="p-6 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                      Joined
-                    </th>
-                    <th className="p-6 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                      Action
-                    </th>
+            <table className="w-full min-w-[980px] text-left text-sm">
+              <thead>
+                <tr className="border-y border-border-soft bg-mist/60 text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-semibold">Seller</th>
+                  <th className="px-3 py-3 font-semibold">Status</th>
+                  <th className="px-3 py-3 font-semibold">KYC</th>
+                  <th className="px-3 py-3 font-semibold">Live products</th>
+                  <th className="px-3 py-3 font-semibold">Orders (30d)</th>
+                  <th className="px-3 py-3 font-semibold">GMV (30d)</th>
+                  <th className="px-3 py-3 font-semibold">Cancel rate</th>
+                  <th className="px-3 py-3 font-semibold">Rating</th>
+                  <th className="px-4 py-3 text-right font-semibold" />
+                </tr>
+              </thead>
+              <tbody>
+                {data.sellers.map((s) => (
+                  <tr key={s.id} className="border-b border-border-soft last:border-0">
+                    <td className="px-4 py-3">
+                      <Link href={`/admin/sellers/${s.id}`} className="font-semibold hover:text-brand-strong">{s.storeName ?? "No store name yet"}</Link>
+                      <p className="text-xs text-muted-foreground">{s.sellerCode} · {s.email ?? s.phone} · joined {fmtDate(s.joinedAt)}</p>
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        <StatusBadge status={s.status === "SUSPENDED" ? "CANCELLED" : s.status === "PENDING" ? "PENDING" : "ACTIVE"} />
+                        {s.payoutHold ? <Badge tone="red"><PauseCircle className="mr-1 h-3 w-3" />Payout hold</Badge> : null}
+                        {s.atRisk ? <Badge tone="orange"><AlertTriangle className="mr-1 h-3 w-3" />At risk</Badge> : null}
+                      </div>
+                    </td>
+                    <td className="px-3 py-3"><StatusBadge status={s.kycStatus === "VERIFIED" ? "APPROVED" : s.kycStatus === "REJECTED" ? "REJECTED" : "PENDING"} /></td>
+                    <td className="px-3 py-3 tabular-nums">{s.liveProducts}</td>
+                    <td className="px-3 py-3 tabular-nums">{s.orders30d}</td>
+                    <td className="px-3 py-3 tabular-nums">{inr.format(s.gmv30d)}</td>
+                    <td className="px-3 py-3 tabular-nums">{s.cancelRate == null ? "—" : `${s.cancelRate}%`}</td>
+                    <td className="px-3 py-3 tabular-nums">{s.rating ?? "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        {s.status === "PENDING" ? <Btn size="sm" variant="brand" loading={busy === s.id} onClick={() => approve(s.id)}>Approve</Btn> : null}
+                        <Link href={`/admin/sellers/${s.id}`}><Btn size="sm" variant="outline">Open</Btn></Link>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border-soft">
-                  {sellers.map((seller, index) => (
-                    <motion.tr
-                      key={seller.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 + index * 0.03, duration: 0.3 }}
-                      className="hover:bg-mist/30 dark:hover:bg-navy/10 transition-colors duration-200"
-                    >
-                      <td className="p-6 font-medium text-foreground">
-                        {seller.email ?? seller.phone ?? seller.id?.slice(0, 8)}
-                      </td>
-                      <td className="p-6">
-                        <span className={`px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border ${getStatusStyle(seller.status)}`}>
-                          {seller.status}
-                        </span>
-                      </td>
-                      <td className="p-6 text-muted-foreground">
-                        {seller.createdAt
-                          ? new Date(seller.createdAt).toLocaleDateString("en-IN", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                          : "—"}
-                      </td>
-                      <td className="p-6">
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleApprove(seller.id)}
-                            disabled={seller.status === "ACTIVE"}
-                            className="h-9"
-                          >
-                            {seller.status === "ACTIVE" ? "Approved" : "Approve"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSuspend(seller.id)}
-                            disabled={seller.status === "SUSPENDED"}
-                            className="h-9 text-muted-foreground hover:text-[#7A5656] hover:border-[#A67575]/40"
-                          >
-                            {seller.status === "SUSPENDED" ? "Suspended" : "Suspend"}
-                          </Button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                ))}
+              </tbody>
+            </table>
           </div>
-        </motion.div>
-      </motion.div>
-    </div>
+        )}
+        <Pager page={page} totalPages={data?.pagination.totalPages ?? 1} onPage={setPage} />
+      </div>
+    </PageShell>
   );
 }
