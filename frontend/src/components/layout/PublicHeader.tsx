@@ -1,45 +1,32 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
+import { CircleUserRound, Menu, Search, ShoppingCart, Store } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
-import { AnnouncementBar } from "@/components/announcement-bar";
+import { CategoryMegaMenu } from "@/components/layout/CategoryMegaMenu";
+import { MobileCategoryDrawer } from "@/components/layout/MobileCategoryDrawer";
 import { useAuth } from "@/hooks/use-auth";
 import { getRoleDashboardUrl } from "@/lib/subdomain";
 import { signOut } from "@/services/auth";
 
-const navLinks = [
-  { href: "/", label: "Home" },
-  { href: "/marketplace", label: "Shop" },
-];
+const SEARCH_PLACEHOLDER = "Try Saree, Kurti or search by product name";
 
-function SearchForm({ className }: { className?: string }) {
+function SearchForm({ className, autoFocus }: { className?: string; autoFocus?: boolean }) {
   return (
-    <form action="/search" method="get" className={className}>
-      <div className="relative">
-        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-4 w-4"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-        </span>
+    <form action="/search" method="get" role="search" className={className}>
+      <label className="relative block">
+        <span className="sr-only">Search products</span>
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <input
           type="search"
           name="q"
-          placeholder="Search products..."
-          className="h-10 w-full border border-border-soft bg-card pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
+          placeholder={SEARCH_PLACEHOLDER}
           autoComplete="off"
-          aria-label="Search products"
+          autoFocus={autoFocus}
+          className="h-10 w-full rounded-md border border-border-soft bg-background pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
         />
-      </div>
+      </label>
     </form>
   );
 }
@@ -47,206 +34,132 @@ function SearchForm({ className }: { className?: string }) {
 export function PublicHeader() {
   const { user, loading, isSignedIn } = useAuth();
   const role = (user?.role ?? "USER").toUpperCase();
-  
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const closeDrawer = React.useCallback(() => setDrawerOpen(false), []);
+
+  const isShopper = isSignedIn && role === "USER";
   const accountHref = isSignedIn ? getRoleDashboardUrl(role) : "/login";
-  const accountLabel = isSignedIn
-    ? role === "USER"
-      ? "My Account"
-      : "Dashboard"
-    : "Sign In";
-  const userAccountLinks = [
-    { href: "/user/dashboard", label: "Dashboard" },
-    { href: "/user/profile", label: "My Profile" },
-    { href: "/user/orders", label: "My Orders" },
-    { href: "/user/wishlist", label: "Wishlist" },
-    { href: "/support", label: "Support" },
-  ];
+  const displayName: string | null = user?.fullName ?? user?.name ?? null;
+
+  const accountLinks = isShopper
+    ? [
+        { href: "/user/orders", label: "My Orders" },
+        { href: "/user/wishlist", label: "Wishlist" },
+        { href: "/user/profile", label: "My Profile" },
+        { href: "/support", label: "Help & Support" },
+      ]
+    : isSignedIn
+      ? [{ href: accountHref, label: "Go to dashboard" }]
+      : [];
 
   return (
-    <header className="sticky top-0 z-30 flex flex-col border-b border-border-soft bg-background/95 backdrop-blur-sm">
-      <AnnouncementBar />
+    <header className="sticky top-0 z-30 border-b border-border-soft bg-background">
+      {/* Desktop / tablet */}
+      <div className="mx-auto hidden h-[72px] max-w-[1440px] items-center gap-6 px-4 md:flex xl:px-8">
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="-ml-1 rounded-md p-2 text-foreground hover:bg-mist lg:hidden"
+          aria-label="Open categories"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <Link href="/" prefetch className="shrink-0">
+          <BrandLogo className="h-8" priority />
+        </Link>
+        <SearchForm className="w-full max-w-[460px] flex-1" />
 
-      <div className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-        <details className="group sm:hidden">
-          <summary className="flex h-14 list-none items-center">
-            <span className="inline-flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors duration-200 hover:bg-mist dark:hover:bg-navy/50">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5 group-open:hidden"
-              >
-                <line x1="4" y1="7" x2="20" y2="7" />
-                <line x1="4" y1="12" x2="20" y2="12" />
-                <line x1="4" y1="17" x2="20" y2="17" />
-              </svg>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="hidden h-5 w-5 group-open:block"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </span>
-
-            <div className="flex-1 text-center">
-              <Link href="/" prefetch className="inline-block">
-                <BrandLogo className="h-7" priority />
-              </Link>
-            </div>
-
-            <Link
-              href="/search"
-              prefetch
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors duration-200 hover:bg-mist dark:hover:bg-navy/50"
-              aria-label="Search"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4.5 w-4.5"
-              >
-                <circle cx="11" cy="11" r="7.5" />
-                <path d="m20 20-3.8-3.8" />
-              </svg>
-            </Link>
-
-            <Link
-              href="/cart"
-              prefetch
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors duration-200 hover:bg-mist dark:hover:bg-navy/50"
-              aria-label="Cart"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
-            </Link>
-          </summary>
-
-          <div className="pb-2">
-            <SearchForm className="w-full" />
-          </div>
-
-          <div className="border-t border-border-soft py-3">
-            <nav className="flex flex-col">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  prefetch
-                  className="py-3 text-sm font-medium text-foreground transition-colors hover:text-brand-strong"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <Link
-                href={accountHref}
-                prefetch
-                className="py-3 text-sm font-medium text-foreground transition-colors hover:text-brand-strong"
-              >
-                {loading ? "..." : accountLabel}
-              </Link>
-            </nav>
-          </div>
-        </details>
-
-        <div className="hidden h-16 w-full items-center gap-8 sm:flex">
-          <Link href="/" prefetch className="shrink-0">
-            <BrandLogo className="h-8" priority />
+        <div className="ml-auto flex h-full items-center">
+          <Link
+            href="/register/seller"
+            className="hidden h-10 items-center gap-2 border-r border-border-soft pr-5 text-sm text-foreground/85 hover:text-foreground lg:flex"
+          >
+            <Store className="h-4 w-4" aria-hidden /> Become a Seller
           </Link>
 
-          <nav className="hidden items-center gap-1 lg:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                prefetch
-                className="relative rounded-full px-4 py-2 text-[13px] font-medium text-muted-foreground transition-all duration-200 hover:bg-mist hover:text-foreground dark:hover:bg-navy/40"
-              >
-                {link.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="hidden flex-1 lg:block lg:max-w-md">
-            <SearchForm className="w-full" />
-          </div>
-
-          <div className="ml-auto flex items-center gap-1">
-            <Link
-              href="/cart"
-              prefetch
-              className="relative hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-mist hover:text-foreground dark:hover:bg-navy/40 sm:inline-flex"
-              aria-label="Cart"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="h-4.5 w-4.5">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <path d="M16 10a4 4 0 0 1-8 0" />
-              </svg>
+          {/* Profile with hover menu */}
+          <div className="group relative flex h-full items-center px-5">
+            <Link href={isShopper ? "/user/dashboard" : accountHref} className="flex flex-col items-center gap-0.5 text-foreground/85 hover:text-foreground">
+              <CircleUserRound className="h-5 w-5" aria-hidden />
+              <span className="text-xs font-medium">{isSignedIn ? (role === "USER" ? "Profile" : "Dashboard") : "Profile"}</span>
             </Link>
-
-            {isSignedIn && role === "USER" && !loading ? (
-              <div className="group relative hidden sm:block">
-                <Link
-                  href={accountHref}
-                  prefetch
-                  className="inline-flex items-center rounded-full bg-ink px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-navy"
-                >
-                  {accountLabel}
-                </Link>
-
-                <div className="pointer-events-none absolute right-0 top-full z-40 w-52 pt-2 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-                  <div className="overflow-hidden border border-border-soft bg-background shadow-lg">
-                    {userAccountLinks.map((item) => (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        prefetch
-                        className="block px-4 py-2.5 text-xs font-medium uppercase tracking-widest text-foreground transition-colors hover:bg-mist"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => signOut("/login?force=1")}
-                      className="block w-full border-t border-border-soft px-4 py-2.5 text-left text-xs font-medium uppercase tracking-widest text-foreground transition-colors hover:bg-mist"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
+            <div className="pointer-events-none absolute right-0 top-full z-40 w-64 opacity-0 transition-opacity duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+              <div className="rounded-b-xl border border-border-soft bg-background p-4 shadow-lg">
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">Loading…</p>
+                ) : isSignedIn ? (
+                  <>
+                    <p className="text-sm font-semibold">Hello{displayName ? `, ${displayName}` : ""}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user?.email ?? user?.phone ?? ""}</p>
+                    <div className="mt-3 border-t border-border-soft pt-2">
+                      {accountLinks.map((l) => (
+                        <Link key={l.href} href={l.href} className="block py-1.5 text-sm hover:text-brand-strong">{l.label}</Link>
+                      ))}
+                      <button type="button" onClick={() => signOut("/login?force=1")} className="block w-full py-1.5 text-left text-sm hover:text-brand-strong">
+                        Logout
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-semibold">Hello User</p>
+                    <p className="text-xs text-muted-foreground">To access your KTMONA account</p>
+                    <Link href="/login" className="mt-3 flex h-10 items-center justify-center rounded-md bg-ink text-sm font-semibold text-paper hover:bg-navy">
+                      Sign Up / Log In
+                    </Link>
+                    <div className="mt-3 border-t border-border-soft pt-2">
+                      <Link href="/login?returnTo=%2Fuser%2Forders" className="block py-1.5 text-sm hover:text-brand-strong">My Orders</Link>
+                      <Link href="/support" className="block py-1.5 text-sm hover:text-brand-strong">Help & Support</Link>
+                    </div>
+                  </>
+                )}
               </div>
-            ) : (
-              <Link
-                href={accountHref}
-                prefetch
-                className="hidden items-center rounded-full bg-ink px-4 py-2 text-xs font-medium uppercase tracking-[0.12em] text-paper transition-colors hover:bg-navy sm:inline-flex"
-              >
-                {loading ? "..." : accountLabel}
-              </Link>
-            )}
+            </div>
           </div>
+
+          <Link href="/cart" prefetch className="flex flex-col items-center gap-0.5 pl-1 text-foreground/85 hover:text-foreground">
+            <ShoppingCart className="h-5 w-5" aria-hidden />
+            <span className="text-xs font-medium">Cart</span>
+          </Link>
         </div>
       </div>
+
+      {/* Phone */}
+      <div className="md:hidden">
+        <div className="flex h-14 items-center gap-2 px-3">
+          <button type="button" onClick={() => setDrawerOpen(true)} className="rounded-md p-2 hover:bg-mist" aria-label="Open categories">
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link href="/" prefetch className="flex-1">
+            <BrandLogo className="h-7" priority />
+          </Link>
+          <Link href={isSignedIn ? (isShopper ? "/user/dashboard" : accountHref) : "/login"} className="rounded-md p-2 hover:bg-mist" aria-label="Account">
+            <CircleUserRound className="h-5 w-5" />
+          </Link>
+          <Link href="/cart" prefetch className="rounded-md p-2 hover:bg-mist" aria-label="Cart">
+            <ShoppingCart className="h-5 w-5" />
+          </Link>
+        </div>
+        <div className="px-3 pb-3">
+          <SearchForm />
+        </div>
+      </div>
+
+      <CategoryMegaMenu />
+
+      <MobileCategoryDrawer
+        open={drawerOpen}
+        onClose={closeDrawer}
+        accountLinks={
+          isSignedIn
+            ? [...accountLinks, { href: "#", label: "Logout", onClick: () => signOut("/login?force=1") }]
+            : [
+                { href: "/login", label: "Sign Up / Log In" },
+                { href: "/register/seller", label: "Become a Seller" },
+                { href: "/support", label: "Help & Support" },
+              ]
+        }
+      />
     </header>
   );
 }

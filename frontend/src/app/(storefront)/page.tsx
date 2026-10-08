@@ -1,19 +1,16 @@
 import type { Metadata } from "next";
-import { Lock, RotateCcw, ShieldCheck } from "lucide-react";
-import { CategoryCarousel } from "@/components/home/CategoryCarousel";
-import { OccasionSection } from "@/components/home/OccasionSection";
-import { ProductShowcaseSection } from "@/components/home/ProductShowcaseSection";
-import { HeroStaticServer } from "@/components/home/HeroStaticServer";
-import { BestsellersStrip } from "@/components/home/BestsellersStrip";
-import { WeddingSectionBanner } from "@/components/home/WeddingSectionBanner";
-import { InfiniteProductShowcaseSection } from "@/components/home/InfiniteProductShowcaseSection";
-import { NewArrivalsSection } from "@/components/home/NewArrivalsSection";
-import { FeaturesMarquee } from "@/components/features-marquee";
-import { SectionReveal } from "@/components/motion/SectionReveal";
-import type { MarketplaceCardProduct } from "@/components/marketplace-product-card";
+import { HomeHero, type HomeBanner } from "@/components/home/HomeHero";
+import {
+  CategoryArches,
+  FestivePromo,
+  MoreAbout,
+  SellerOfferBand,
+  ShopByCategory,
+  TrustStrip,
+} from "@/components/home/HomeSections";
+import { HomeProductFeed } from "@/components/home/HomeProductFeed";
 import type { CategoryListResponse } from "@/services/catalog";
-import type { BestsellerProduct } from "@/services/bestsellers";
-import type { Occasion } from "@/services/occasions";
+import { buildCategoryTree } from "@/lib/category-tree";
 import { BRAND_FULL_FORM, BRAND_TAGLINE, SITE_URL, SUPPORT_EMAIL, SUPPORT_PHONE_DIAL } from "@/lib/site-config";
 import { CACHE_TAGS } from "@/lib/cache-tags";
 
@@ -141,90 +138,12 @@ async function fetchHomeData<T>(path: string, tags: string[]): Promise<T | null>
   }
 }
 
-function pickNewArrivals(products?: (MarketplaceCardProduct & { createdAt?: string })[]): MarketplaceCardProduct[] {
-  if (!products?.length) return [];
-
-  return products
-    .slice()
-    .sort((a, b) => {
-      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return bTime - aTime;
-    })
-    .slice(0, 2);
-}
-
-function TrustSection() {
-  const trustItems = [
-    {
-      title: "Verified Sellers",
-      titleShort: "Verified",
-      desc: "Every seller is personally vetted",
-      descShort: "Seller vetted",
-      Icon: ShieldCheck,
-    },
-    {
-      title: "Secure Payments",
-      titleShort: "Payments",
-      desc: "Safe & encrypted checkout",
-      descShort: "Secure",
-      Icon: Lock,
-    },
-    {
-      title: "Hassle-Free Returns",
-      titleShort: "Returns",
-      desc: "10-day easy returns",
-      descShort: "10-day",
-      Icon: RotateCcw,
-    },
-  ];
-
-  return (
-    <section className="border-t border-border-soft bg-mist/50 dark:bg-card/50">
-      <div className="mx-auto max-w-6xl px-6 py-4 sm:py-6">
-        <div className="grid grid-cols-3 gap-3 text-center sm:gap-6">
-          {trustItems.map((item) => (
-            <div key={item.title} className="px-1">
-              <div className="mb-1.5 flex justify-center text-brand-strong">
-                <item.Icon className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={1.8} />
-              </div>
-              <h4 className="mb-0.5 text-[11px] font-medium leading-tight text-foreground sm:text-sm">
-                <span className="sm:hidden">{item.titleShort}</span>
-                <span className="hidden sm:inline">{item.title}</span>
-              </h4>
-              <p className="text-[10px] leading-tight text-muted-foreground sm:text-xs">
-                <span className="sm:hidden">{item.descShort}</span>
-                <span className="hidden sm:inline">{item.desc}</span>
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default async function Home() {
-  const [
-    categories,
-    bestsellers,
-    kidsBestsellers,
-    products,
-    kidsProducts,
-    occasions,
-  ] = await Promise.all([
+  const [categories, banners] = await Promise.all([
     fetchHomeData<CategoryListResponse>("/v1/categories", [CACHE_TAGS.categories]),
-    fetchHomeData<{ products: BestsellerProduct[] }>("/v1/bestsellers?limit=4&audience=MENS", [CACHE_TAGS.products]),
-    fetchHomeData<{ products: BestsellerProduct[] }>("/v1/bestsellers?limit=4&audience=KIDS", [CACHE_TAGS.products]),
-    fetchHomeData<{ data: (MarketplaceCardProduct & { createdAt?: string })[] }>("/v1/products?limit=10&audience=MENS", [CACHE_TAGS.products]),
-    fetchHomeData<{ data: (MarketplaceCardProduct & { createdAt?: string })[] }>("/v1/products?limit=10&audience=KIDS", [CACHE_TAGS.products]),
-    fetchHomeData<{ occasions: Occasion[] }>("/v1/occasions", [CACHE_TAGS.occasions]),
+    fetchHomeData<{ data?: { hero: HomeBanner[]; promo: HomeBanner | null } }>("/v1/storefront/banners", [CACHE_TAGS.storefront]),
   ]);
-
-  const bestsellersProducts = bestsellers?.products ?? [];
-  const kidsBestsellersProducts = kidsBestsellers?.products ?? [];
-  const newArrivals = pickNewArrivals(products?.data);
-  const kidsNewArrivals = pickNewArrivals(kidsProducts?.data);
+  const tree = buildCategoryTree(categories?.categories);
 
   return (
     <>
@@ -238,46 +157,14 @@ export default async function Home() {
       />
 
       <div className="min-h-[calc(100vh-160px)] bg-background">
-        <OccasionSection initialOccasions={occasions?.occasions} />
-        <HeroStaticServer />
-        <SectionReveal>
-          <CategoryCarousel initialCategories={categories?.categories} />
-        </SectionReveal>
-        <SectionReveal delayMs={40}>
-          <BestsellersStrip
-            bestsellers={bestsellersProducts}
-            kidsBestsellers={kidsBestsellersProducts}
-          />
-        </SectionReveal>
-        <SectionReveal delayMs={60}>
-          <ProductShowcaseSection
-            initialProducts={products?.data}
-            kidsProducts={kidsProducts?.data}
-          />
-        </SectionReveal>
-
-        <SectionReveal>
-          <WeddingSectionBanner />
-        </SectionReveal>
-
-        <SectionReveal delayMs={40}>
-          <NewArrivalsSection
-            mensProducts={newArrivals}
-            kidsProducts={kidsNewArrivals}
-          />
-        </SectionReveal>
-        <SectionReveal>
-          <FeaturesMarquee />
-        </SectionReveal>
-        <SectionReveal delayMs={20}>
-          <InfiniteProductShowcaseSection
-            initialProducts={products?.data}
-            kidsProducts={kidsProducts?.data}
-          />
-        </SectionReveal>
-        <SectionReveal delayMs={60}>
-          <TrustSection />
-        </SectionReveal>
+        <HomeHero banners={banners?.data?.hero ?? []} />
+        <TrustStrip />
+        <CategoryArches tree={tree} />
+        <FestivePromo tree={tree} banner={banners?.data?.promo ?? null} />
+        <ShopByCategory tree={tree} />
+        <SellerOfferBand />
+        <HomeProductFeed mains={tree} />
+        <MoreAbout tree={tree} />
       </div>
     </>
   );

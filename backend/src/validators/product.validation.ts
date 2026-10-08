@@ -120,6 +120,20 @@ export const productQuerySchema = z.object({
         .string()
         .max(100)
         .optional(),
+
+    sort: z.enum(['newest', 'price_asc', 'price_desc', 'discount']).optional(),
+
+    minPrice: z
+        .string()
+        .transform(Number)
+        .pipe(z.number().min(0))
+        .optional(),
+
+    maxPrice: z
+        .string()
+        .transform(Number)
+        .pipe(z.number().min(0))
+        .optional(),
 });
 
 export type ProductQueryInput = z.infer<typeof productQuerySchema>;

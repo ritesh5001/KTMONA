@@ -147,6 +147,8 @@ export interface PublicProductWithCategory {
     salePrice: number;
     price: number;
     activeCoupon?: PublicProductCouponPreview | null;
+    /** Shopper reviews; only on list responses. */
+    rating?: { average: number | null; count: number } | undefined;
 }
 
 export interface PublicProductWithDetails {
@@ -271,7 +273,12 @@ export interface ProductQueryFilters {
     audience?: ProductAudience | undefined;
     search?: string | undefined;
     occasion?: string | undefined;
+    sort?: ProductListSort | undefined;
+    minPrice?: number | undefined;
+    maxPrice?: number | undefined;
 }
+
+export type ProductListSort = 'newest' | 'price_asc' | 'price_desc' | 'discount';
 
 // ============================================================================
 // RESPONSE TYPES

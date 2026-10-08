@@ -34,8 +34,7 @@ import {
   Banknote,
   XCircle,
   BellRing,
-  Bell,
-} from "lucide-react";
+  Bell, Images } from "lucide-react";
 import { getUnreadCount } from "@/services/notifications";
 import { getSessionRole } from "@/lib/session";
 import { getStorefrontUrl } from "@/lib/subdomain";
@@ -90,6 +89,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       { section: "Growth", href: "/admin/bestsellers", label: "Bestsellers", icon: Award },
       { section: "Growth", href: "/admin/reels", label: "Reels", icon: Clapperboard },
       { section: "Growth", href: "/admin/reviews", label: "Reviews", icon: Star },
+      { section: "Platform", href: "/admin/homepage", label: "Homepage Banners", icon: Images },
       { section: "Platform", href: "/admin/announcements", label: "Seller Notices", icon: BellRing },
       { section: "Platform", href: "/admin/notifications", label: "Notifications", icon: Bell },
       { section: "Platform", href: "/admin/support", label: "Support", icon: Headset },

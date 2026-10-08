@@ -266,6 +266,18 @@ export type CampaignInput = {
 
 // ── API ───────────────────────────────────────────────────────────────────
 
+export interface HomeBannerItem {
+  imageUrl: string;
+  mobileImageUrl?: string | null;
+  href?: string | null;
+  alt: string;
+}
+
+export interface HomeBanners {
+  hero: HomeBannerItem[];
+  promo: HomeBannerItem | null;
+}
+
 export const adminCenter = {
   dashboard: (days = 30) => get<AdminDashboard>(`/dashboard${qs({ days })}`),
 
@@ -308,6 +320,8 @@ export const adminCenter = {
   setAdStatus: (id: string, status: "ACTIVE" | "PAUSED" | "ENDED") => send<unknown>("PATCH", `/ads/${id}`, { status }),
 
   announcements: () => get<{ announcements: Announcement[] }>("/announcements"),
+  homeBanners: () => get<HomeBanners>("/storefront/banners"),
+  saveHomeBanners: (banners: HomeBanners) => send<HomeBanners>("PUT", "/storefront/banners", banners),
   saveAnnouncement: (id: string | null, body: Omit<Announcement, "id" | "createdAt" | "startsAt" | "endsAt"> & { startsAt?: string; endsAt?: string | null }) =>
     id ? send<Announcement>("PUT", `/announcements/${id}`, body) : send<Announcement>("POST", "/announcements", body),
   deleteAnnouncement: (id: string) => send<unknown>("DELETE", `/announcements/${id}`),

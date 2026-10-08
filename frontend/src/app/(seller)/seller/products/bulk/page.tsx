@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import useSWR from "swr";
+import { CategoryOptions } from "@/components/seller/CategoryOptions";
 import { toast } from "sonner";
 import { CheckCircle2, Download, FileSpreadsheet, UploadCloud, XCircle } from "lucide-react";
 import { getCategories } from "@/services/catalog";
@@ -23,7 +24,7 @@ export default function BulkUploadPage() {
   const [dragOver, setDragOver] = React.useState(false);
 
   React.useEffect(() => {
-    if (!categoryId && categories[0]) setCategoryId(categories[0].id);
+    if (!categoryId && categories[0]) setCategoryId((categories.find((c) => !categories.some((x) => x.parentId === c.id)) ?? categories[0]).id);
   }, [categories, categoryId]);
 
   const download = async () => {
@@ -76,11 +77,7 @@ export default function BulkUploadPage() {
           <div className="flex-1">
             <Field label="Category">
               <select className={inputCls} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
+                <CategoryOptions categories={categories} value={categoryId} />
               </select>
             </Field>
           </div>

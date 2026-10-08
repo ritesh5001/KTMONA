@@ -12,8 +12,8 @@ export const CACHE_KEYS = {
     // Category & Product domain
     CATEGORIES_LIST: 'categories:list',
     PRODUCTS_LIST: 'products:list',
-    PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string) =>
-        `products:list:${page}:${limit}:${categoryId ?? '_'}:${search ?? '_'}:${occasion ?? '_'}`,
+    PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string, extra?: string) =>
+        `products:list:${page}:${limit}:${categoryId ?? '_'}:${search ?? '_'}:${occasion ?? '_'}${extra ? `:${extra}` : ''}`,
     PRODUCT_DETAIL: (id: string) => `products:detail:${id}`,
     SELLER_PRODUCTS: (sellerId: string, page: number, limit: number) => `products:seller:${sellerId}:${page}:${limit}`,
     BESTSELLERS_LIST: 'products:bestsellers',

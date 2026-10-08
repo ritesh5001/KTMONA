@@ -1,5 +1,6 @@
 "use client";
 
+import { CategoryOptions } from "@/components/seller/CategoryOptions";
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
@@ -977,11 +978,7 @@ export default function AdminProductsClient({
                 onChange={(event) => setCategoryFilter(event.target.value)}
               >
                 <option value="all">All categories</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                <CategoryOptions categories={categories} value={categoryFilter === "all" ? undefined : categoryFilter} />
               </select>
             </div>
           </div>
@@ -1391,11 +1388,7 @@ export default function AdminProductsClient({
                       className="border border-border-soft bg-card px-3 py-2 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
                     >
                       <option value="">Select category</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
+                      <CategoryOptions categories={categories} value={editForm.categoryId} />
                     </select>
                   </label>
                 </div>

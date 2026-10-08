@@ -21,6 +21,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
 import { compressImageForUpload } from "@/lib/image-compression";
+import { buildCategoryTree, flattenTree, pathLabels } from "@/lib/category-tree";
 
 const IMAGEKIT_PUBLIC_KEY = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 const IMAGEKIT_URL_ENDPOINT = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
@@ -58,6 +59,7 @@ const CategoryFormFields = ({
   values,
   onChange,
   parentOptions,
+  parentLabels,
   excludeId,
   onUpload,
   uploadingImage,
@@ -66,6 +68,7 @@ const CategoryFormFields = ({
   values: Record<string, any>;
   onChange: (field: string, value: any) => void;
   parentOptions: AdminCategory[];
+  parentLabels: Map<string, string>;
   excludeId?: string;
   onUpload: (field: "image" | "bannerImage", file: File) => void;
   uploadingImage: boolean;
@@ -162,7 +165,7 @@ const CategoryFormFields = ({
           {parentOptions
             .filter((c) => c.id !== excludeId)
             .map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+              <option key={c.id} value={c.id}>{parentLabels.get(c.id) ?? c.name}</option>
             ))}
         </select>
       </div>
@@ -187,6 +190,18 @@ const CategoryFormFields = ({
 export default function AdminCategoriesPage() {
   const [loading, setLoading] = React.useState(true);
   const [categories, setCategories] = React.useState<AdminCategory[]>([]);
+  const [search, setSearch] = React.useState("");
+  // Tree order (main → group → leaf) with depth, hidden categories included.
+  const tree = React.useMemo(() => buildCategoryTree(categories, { includeHidden: true }), [categories]);
+  const labels = React.useMemo(() => pathLabels(tree), [tree]);
+  const ordered = React.useMemo(
+    () => flattenTree(tree) as unknown as Array<AdminCategory & { depth: number }>,
+    [tree],
+  );
+  const visible = React.useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? ordered.filter((c) => (labels.get(c.id) ?? c.name).toLowerCase().includes(q)) : ordered;
+  }, [ordered, labels, search]);
   const [saving, setSaving] = React.useState(false);
   const [pendingCategoryIds, setPendingCategoryIds] = React.useState<string[]>([]);
 
@@ -543,7 +558,10 @@ export default function AdminCategoriesPage() {
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground mb-1">Catalog</p>
                 <p className="font-serif text-lg font-light text-foreground">All Categories</p>
               </div>
-              <p className="text-sm text-muted-foreground">{categories.length} total</p>
+              <div className="flex items-center gap-3">
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search categories" className="h-9 w-56" />
+                <p className="text-sm text-muted-foreground">{categories.length} total</p>
+              </div>
             </div>
           </div>
 
@@ -553,19 +571,22 @@ export default function AdminCategoriesPage() {
             <div className="p-8 text-center"><p className="text-sm text-muted-foreground">No categories yet.</p></div>
           ) : (
             <div className="divide-y divide-border-soft">
-              {categories.map((category) => (
+              {visible.map((category) => (
                 <div
                   key={category.id}
+                  style={{ paddingLeft: `${1.5 + (search ? 0 : category.depth * 1.75)}rem` }}
                   className={`flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between ${
                     pendingCategoryIds.includes(category.id) ? "opacity-60" : ""
                   }`}
                 >
                   <div className="flex-1 space-y-1">
-                    <p className="font-medium text-foreground">{category.name}</p>
+                    <p className={`text-foreground ${category.depth === 0 ? "font-semibold" : "font-medium"}`}>
+                      {search ? labels.get(category.id) ?? category.name : category.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {category.slug}
                       {category.description ? ` · ${category.description.slice(0, 60)}...` : ""}
-                      {category.parentId ? ` · Child of ${categories.find((c) => c.id === category.parentId)?.name ?? "..."}` : ""}
+                      {category.depth === 0 ? " · Main category" : ""}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
@@ -601,7 +622,8 @@ export default function AdminCategoriesPage() {
               <CategoryFormFields
                 values={createForm}
                 onChange={(field, value) => setCreateForm((prev) => ({ ...prev, [field]: value }))}
-                parentOptions={categories}
+                parentOptions={ordered}
+                parentLabels={labels}
                 onUpload={(field, file) => uploadCategoryAsset({ file, field, mode: "create" })}
                 uploadingImage={uploadingCreateImage}
                 uploadingBannerImage={uploadingCreateBannerImage}
@@ -625,7 +647,8 @@ export default function AdminCategoriesPage() {
               <CategoryFormFields
                 values={editForm}
                 onChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
-                parentOptions={categories}
+                parentOptions={ordered}
+                parentLabels={labels}
                 excludeId={editingId}
                 onUpload={(field, file) => uploadCategoryAsset({ file, field, mode: "edit" })}
                 uploadingImage={uploadingEditImage}

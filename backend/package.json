@@ -49,6 +49,7 @@
     "backfill:variant-attributes": "tsx scripts/backfill-variant-attributes.ts",
     "verify:stress": "tsx scripts/stress-test-all-domains.ts",
     "backfill:product-slugs": "tsx scripts/backfill-product-slugs.ts",
+    "seed:categories": "tsx scripts/seed-categories.ts",
     "seed:category-descriptions": "tsx scripts/seed-category-descriptions.ts"
   },
   "prisma": {

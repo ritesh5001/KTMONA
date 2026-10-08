@@ -4,6 +4,7 @@
  * Also exports the public sale-event router (/v1/campaigns).
  */
 
+import { storefrontService } from '../services/admin-center/storefront.service.js';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -166,6 +167,12 @@ adminCenterRouter.delete('/announcements/:id', h((req) => adminOpsService.delete
 // =============================================================================
 // Public sale events (storefront)
 // =============================================================================
+
+adminCenterRouter.get('/storefront/banners', h(() => storefrontService.getBanners()));
+adminCenterRouter.put('/storefront/banners', h((req) => storefrontService.saveBanners(req.body)));
+
+export const storefrontPublicRouter = Router();
+storefrontPublicRouter.get('/banners', h(() => storefrontService.getBanners()));
 
 export const campaignsPublicRouter = Router();
 campaignsPublicRouter.get('/', h(() => campaignsService.publicList()));

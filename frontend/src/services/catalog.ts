@@ -7,6 +7,11 @@ export interface Category {
   slug: string;
   isActive: boolean;
   createdAt: string;
+  parentId?: string | null;
+  sortOrder?: number | null;
+  image?: string | null;
+  bannerImage?: string | null;
+  description?: string | null;
 }
 
 export interface CategoryListResponse {

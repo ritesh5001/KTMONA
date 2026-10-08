@@ -1,109 +1,78 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCategories, type Category } from "@/services/catalog";
-import { MotionCard } from "@/components/motion/MotionCard";
+import { getCategories } from "@/services/catalog";
+import { buildCategoryTree, categoryHref, type CategoryNode } from "@/lib/category-tree";
+import { CategoryArt } from "@/components/storefront/category-visuals";
 import { SITE_URL } from "@/lib/site-config";
 
-// Using the same resolver as CategoryCarousel so they look identical
-type CategoryItem = Category & {
-    image?: string | null;
-    imageUrl?: string | null;
-};
-
-function resolveCategoryImage(category: CategoryItem): string {
-    const raw = category.imageUrl ?? category.image ?? "";
-    if (!raw) return "/images/product-placeholder.svg";
-    if (raw.startsWith("/")) return raw;
-    if (raw.startsWith("https://ik.imagekit.io")) return raw;
-    return "/images/product-placeholder.svg";
-}
-
 export const metadata: Metadata = {
-    title: "All Categories | Shop by Category",
-    description:
-        "Browse curated ethnic wear categories for men. Shop sherwani, kurta sets, Indo-Western outfits, wedding wear and festive collections from top designers in India.",
-    alternates: {
-        canonical: `${SITE_URL}/categories`,
-    },
-    openGraph: {
-        title: "All Categories | Shop by Category | KTMONA",
-        description:
-            "Browse curated ethnic wear categories for men. Shop sherwani, kurta sets, Indo-Western outfits, wedding wear and festive collections.",
-        url: `${SITE_URL}/categories`,
-        siteName: "KTMONA",
-        type: "website",
-    },
+  title: "All Categories | Shop by Category",
+  description:
+    "Browse every KTMONA category: sarees and kurtis, western wear, menswear, kids and toys, home and kitchen, beauty, jewellery, footwear, electronics and more from verified sellers.",
+  alternates: { canonical: `${SITE_URL}/categories` },
+  openGraph: {
+    title: "All Categories | KTMONA",
+    description: "Shop fashion, home, beauty, electronics and more by category on KTMONA.",
+    url: `${SITE_URL}/categories`,
+    siteName: "KTMONA",
+    type: "website",
+  },
 };
 
 export default async function CategoriesPage() {
-    let categories: CategoryItem[] = [];
-    try {
-        const response = await getCategories();
-        categories = (response.categories ?? []).filter((c) => c.isActive);
-    } catch (err) {
-        console.error("Failed to load categories", err);
-    }
+  let tree: CategoryNode[] = [];
+  try {
+    tree = buildCategoryTree((await getCategories()).categories);
+  } catch (err) {
+    console.error("Failed to load categories", err);
+  }
 
-    const breadcrumbJsonLd = {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        itemListElement: [
-            {
-                "@type": "ListItem",
-                position: 1,
-                name: "Home",
-                item: SITE_URL,
-            },
-            {
-                "@type": "ListItem",
-                position: 2,
-                name: "Categories",
-                item: `${SITE_URL}/categories`,
-            },
-        ],
-    };
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Categories", item: `${SITE_URL}/categories` },
+    ],
+  };
 
-    return (
-        <div className="min-h-[calc(100vh-160px)] bg-mist border-t border-border-soft">
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-            />
-            <div className="mx-auto max-w-6xl px-6 py-20">
-                <div className="mb-12 text-center md:mb-16">
-                    <p className="mb-4 text-xs font-medium uppercase tracking-[0.3em] text-brand-strong">
-                        Explore All
-                    </p>
-                    <h1 className="font-serif text-4xl font-light tracking-tight text-foreground sm:text-5xl">
-                        Curated Collections
-                    </h1>
-                </div>
+  return (
+    <div className="mx-auto max-w-[1440px] px-4 py-8 xl:px-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <nav aria-label="Breadcrumb" className="text-xs text-muted-foreground">
+        <Link href="/" className="hover:text-foreground">Home</Link> / <span className="text-foreground">All Categories</span>
+      </nav>
+      <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">All Categories</h1>
 
-                {categories.length === 0 ? (
-                    <div className="rounded-none border border-border-soft bg-card px-6 py-16 text-center text-sm text-muted-foreground max-w-lg mx-auto">
-                        No active categories found right now. Check back soon.
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 md:gap-6 lg:gap-8">
-                        {categories.map((category) => (
-                            <Link key={category.id} href={`/marketplace?categoryId=${category.id}`} className="group contents">
-                                <MotionCard
-                                    imageSrc={resolveCategoryImage(category)}
-                                    imageAlt={category.name}
-                                    aspectClass="aspect-square"
-                                    widthClass="w-full"
-                                >
-                                    <div className="px-3 py-5 text-center">
-                                        <h3 className="line-clamp-2 font-serif text-lg font-normal tracking-tight text-foreground transition-colors duration-300 group-hover:text-brand-strong">
-                                            {category.name}
-                                        </h3>
-                                    </div>
-                                </MotionCard>
-                            </Link>
-                        ))}
-                    </div>
-                )}
-            </div>
+      {tree.length === 0 ? (
+        <p className="mt-8 rounded-lg border border-border-soft bg-card p-10 text-center text-muted-foreground">Categories are loading. Please refresh in a moment.</p>
+      ) : (
+        <div className="mt-6 space-y-6">
+          {tree.map((main) => (
+            <section key={main.id} id={main.slug} className="rounded-xl border border-border-soft bg-card p-4 sm:p-5">
+              <Link href={categoryHref(main.slug)} className="group flex items-center gap-3">
+                <CategoryArt slug={main.slug} image={main.image} name={main.name} className="h-12 w-12 shrink-0 rounded-full" />
+                <h2 className="text-lg font-semibold group-hover:text-brand-strong">{main.name}</h2>
+                <span className="ml-auto text-sm font-semibold text-brand-strong">View all ›</span>
+              </Link>
+              <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                {main.children.map((group) => (
+                  <div key={group.id}>
+                    <Link href={categoryHref(group.slug)} className="text-sm font-semibold hover:text-brand-strong">{group.name}</Link>
+                    <ul className="mt-1.5 space-y-1">
+                      {group.children.map((leaf) => (
+                        <li key={leaf.id}>
+                          <Link href={categoryHref(leaf.slug)} className="text-[13px] text-muted-foreground hover:text-foreground">{leaf.name}</Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
         </div>
-    );
+      )}
+    </div>
+  );
 }

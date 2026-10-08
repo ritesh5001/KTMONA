@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { CategoryOptions } from "@/components/seller/CategoryOptions";
 import { useRouter } from "next/navigation";
 import { EarningsHint } from "@/components/seller/EarningsHint";
 import Image from "next/image";
@@ -169,7 +170,7 @@ function parseVariantInput(
 }
 
 export interface SellerProductsInitialData {
-  categories: Array<{ id: string; name: string }>;
+  categories: Array<{ id: string; name: string; parentId?: string | null; sortOrder?: number | null }>;
   occasions: Occasion[];
   products: Array<any>;
 }
@@ -1451,11 +1452,7 @@ export default function SellerProductsClient({
                               disabled={product.deletedByAdmin}
                             >
                               <option value="">Select category</option>
-                              {categories.map((category) => (
-                                <option key={category.id} value={category.id}>
-                                  {category.name}
-                                </option>
-                              ))}
+                              <CategoryOptions categories={categories} value={editForm.categoryId} />
                             </select>
                           </div>
                           <div className="space-y-2">
@@ -2119,11 +2116,7 @@ export default function SellerProductsClient({
                       }
                     >
                       <option value="">Select category</option>
-                      {categories.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
+                      <CategoryOptions categories={categories} value={form.categoryId} />
                     </select>
                   </div>
                   <div className="space-y-2">

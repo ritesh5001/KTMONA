@@ -226,6 +226,9 @@ export class ProductService {
             salePrice: sellingPrice,
             price: sellingPrice,
             activeCoupon: this.getBestCouponPreview(sellingPrice, product.sellerId, coupons),
+            ...(product.ratingCount !== undefined && {
+                rating: { average: product.ratingAverage ?? null, count: product.ratingCount },
+            }),
         };
     }
 
@@ -374,6 +377,8 @@ export class ProductService {
             categoryId: this.normalizeTextFilter(filters.categoryId),
             search: this.normalizeTextFilter(filters.search),
             occasion: this.normalizeTextFilter(filters.occasion)?.toLowerCase(),
+            minPrice: Number.isFinite(filters.minPrice) ? filters.minPrice : undefined,
+            maxPrice: Number.isFinite(filters.maxPrice) ? filters.maxPrice : undefined,
         };
     }
 
@@ -406,8 +411,18 @@ export class ProductService {
         const normalizedFilters = this.normalizeListFilters(filters);
         const page = normalizedFilters.page ?? 1;
         const limit = normalizedFilters.limit ?? 20;
+        // audience, sort and price change the result set, so they are part of the
+        // key whenever any of them is set.
+        const extraKey = [
+            normalizedFilters.audience,
+            normalizedFilters.sort,
+            normalizedFilters.minPrice,
+            normalizedFilters.maxPrice,
+        ].some((v) => v !== undefined)
+            ? `${normalizedFilters.audience ?? '_'}:${normalizedFilters.sort ?? '_'}:${normalizedFilters.minPrice ?? '_'}:${normalizedFilters.maxPrice ?? '_'}`
+            : undefined;
         const cacheKey =
-            !normalizedFilters.categoryId && !normalizedFilters.search && !normalizedFilters.occasion && page === 1 && limit === 20
+            !normalizedFilters.categoryId && !normalizedFilters.search && !normalizedFilters.occasion && !extraKey && page === 1 && limit === 20
                 ? CACHE_KEYS.PRODUCTS_LIST
                 : CACHE_KEYS.PRODUCTS_LIST_FILTERED(
                     page,
@@ -415,6 +430,7 @@ export class ProductService {
                     normalizedFilters.categoryId,
                     normalizedFilters.search,
                     normalizedFilters.occasion,
+                    extraKey,
                 );
 
         const cached = await getFromCache<ProductListResponse>(cacheKey);
