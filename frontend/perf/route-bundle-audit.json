@@ -1,0 +1,486 @@
+{
+  "generatedAt": "2026-04-04T08:17:03.319Z",
+  "source": "frontend/.next manifests",
+  "routes": [
+    {
+      "route": "/",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": false,
+        "projectClientModulesCount": 0,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/marketplace",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": false,
+        "projectClientModulesCount": 0,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/search",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": false,
+        "projectClientModulesCount": 0,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/product/[id]",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": false,
+        "projectClientModulesCount": 6,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/cart",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": true,
+        "projectClientModulesCount": 2,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/checkout",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": true,
+        "projectClientModulesCount": 2,
+        "thirdPartyClientModulesCount": 20
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": true,
+        "projectClientModulesCount": 4,
+        "thirdPartyClientModulesCount": 18
+      }
+    },
+    {
+      "route": "/admin/dashboard",
+      "js": {
+        "initialBytes": 522736,
+        "initialKb": 510.5,
+        "routeSpecificBytes": 0,
+        "routeSpecificKb": 0,
+        "totalShippedBytes": 522736,
+        "totalShippedKb": 510.5,
+        "largestChunks": [
+          {
+            "chunk": "static/chunks/39636465be6a3bb4.js",
+            "bytes": 224408,
+            "kb": 219.1
+          },
+          {
+            "chunk": "static/chunks/a6dad97d9634a72d.js",
+            "bytes": 112594,
+            "kb": 110
+          },
+          {
+            "chunk": "static/chunks/c32846c40665f02a.js",
+            "bytes": 110896,
+            "kb": 108.3
+          },
+          {
+            "chunk": "static/chunks/38232f66bb685250.js",
+            "bytes": 32827,
+            "kb": 32.1
+          },
+          {
+            "chunk": "static/chunks/30a85d86229c47e0.js",
+            "bytes": 30173,
+            "kb": 29.5
+          },
+          {
+            "chunk": "static/chunks/turbopack-166e5cdcf7836b78.js",
+            "bytes": 10268,
+            "kb": 10
+          },
+          {
+            "chunk": "static/chunks/f7281c1aca924357.js",
+            "bytes": 1570,
+            "kb": 1.5
+          }
+        ]
+      },
+      "libraries": [
+        {
+          "library": "next",
+          "bytes": 0,
+          "kb": 0
+        }
+      ],
+      "clientServer": {
+        "pageIsClient": true,
+        "projectClientModulesCount": 6,
+        "thirdPartyClientModulesCount": 16
+      }
+    }
+  ]
+}

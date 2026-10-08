@@ -1,0 +1,411 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* =========================================================================
+   KTMONA Design System — "Trust Every Click"
+   Navy + orange, taken from the KTMONA logo.
+   ========================================================================= */
+
+@theme inline {
+  /* Core Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  /* Brand Palette */
+  --color-paper: #FFFFFF;
+  --color-mist: var(--mist);
+  --color-brand: #FF8A00;
+  --color-brand-light: #FFAA02;
+  --color-brand-dark: #E05A00;
+  --color-brand-muted: #FFB547;
+  /* Orange tone that passes WCAG AA as text on the current surface. */
+  --color-brand-strong: var(--brand-strong);
+  --color-ink: #0C1B42;
+  --color-navy: #102462;
+  --color-navy-soft: #2A3D7A;
+  --color-border-soft: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  /* Font Families */
+  --font-serif: var(--font-inter);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+
+  /* Shadcn Theme Variables */
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-3xl: 24px;
+  --radius-4xl: 32px;
+}
+
+/* =========================================================================
+   Root Variables - Light Theme
+   ========================================================================= */
+
+:root {
+  --radius: 12px;
+  /*
+   * Keep typography independent of next/font/google. Vercel's Turbopack build
+   * can otherwise emit an unresolved @vercel/turbopack-next internal font
+   * module before any application code is compiled. Inter is used when it is
+   * installed locally; the platform UI stack is the metric-compatible fallback.
+   */
+  --font-inter: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --background: #F5F7FB;
+  --foreground: #0C1B42;
+
+  --card: #FFFFFF;
+  --card-foreground: #0C1B42;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #0C1B42;
+
+  /* Primary - KTMONA navy */
+  --primary: #0C1B42;
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #EEF2F9;
+  --secondary-foreground: #0C1B42;
+
+  --muted: #EEF2F9;
+  --muted-foreground: #55607A;
+
+  --accent: #FFF3E3;
+  --accent-foreground: #0C1B42;
+
+  --mist: #EEF2F9;
+  --brand-strong: #B84A00;
+
+  --destructive: #DC2626;
+
+  --border: #E3E8F1;
+  --border-strong: #C5CEDF;
+  --input: #E3E8F1;
+  --ring: #FF8A00;
+
+  --chart-1: #FF8A00;
+  --chart-2: #1D4ED8;
+  --chart-3: #0C1B42;
+  --chart-4: #FFB547;
+  --chart-5: #94A3C4;
+
+  /* Sidebar - navy panel, orange active state */
+  --sidebar: #0C1B42;
+  --sidebar-foreground: #C3CCE3;
+  --sidebar-primary: #FF8A00;
+  --sidebar-primary-foreground: #0C1B42;
+  --sidebar-accent: rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ring: #FF8A00;
+}
+
+/* =========================================================================
+   Dark Theme - Deep navy
+   ========================================================================= */
+
+.dark {
+  --background: #070F26;
+  --foreground: #E8EDF8;
+
+  --card: #0E1A3A;
+  --card-foreground: #E8EDF8;
+
+  --popover: #0E1A3A;
+  --popover-foreground: #E8EDF8;
+
+  --primary: #FF9A1F;
+  --primary-foreground: #0C1B42;
+
+  --secondary: #16244A;
+  --secondary-foreground: #E8EDF8;
+
+  --muted: #16244A;
+  --muted-foreground: #9AA6C4;
+
+  --accent: #16244A;
+  --accent-foreground: #E8EDF8;
+
+  --mist: #16244A;
+  --brand-strong: #FF9A1F;
+
+  --destructive: #F87171;
+
+  --border: rgba(232, 237, 248, 0.1);
+  --border-strong: rgba(232, 237, 248, 0.22);
+  --input: rgba(232, 237, 248, 0.15);
+  --ring: #FF9A1F;
+
+  --chart-1: #FF9A1F;
+  --chart-2: #60A5FA;
+  --chart-3: #C3CCE3;
+  --chart-4: #FFB547;
+  --chart-5: #64748B;
+
+  --sidebar: #050C20;
+  --sidebar-foreground: #C3CCE3;
+  --sidebar-primary: #FF9A1F;
+  --sidebar-primary-foreground: #0C1B42;
+  --sidebar-accent: rgba(255, 255, 255, 0.06);
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --sidebar-ring: #FF9A1F;
+}
+
+/* =========================================================================
+   Base Styles
+   ========================================================================= */
+
+body {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* Brand text selection */
+::selection {
+  background: rgba(255, 138, 0, 0.25);
+  color: #0C1B42;
+}
+
+.dark ::selection {
+  background: rgba(255, 154, 31, 0.35);
+  color: #E8EDF8;
+}
+
+/* Logo gradient: yellow-orange → orange → deep orange */
+@utility bg-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-light) 0%, var(--color-brand) 52%, var(--color-brand-dark) 100%);
+}
+
+@utility text-brand-gradient {
+  background-image: linear-gradient(135deg, var(--color-brand-light) 0%, var(--color-brand) 52%, var(--color-brand-dark) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* =========================================================================
+   Typography Utilities
+   ========================================================================= */
+
+.font-serif {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Heading defaults. In the base layer so font-weight / tracking utilities on
+   individual headings still win. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+
+  .ktm-panel :where(h1, h2, h3) {
+    font-weight: 600;
+  }
+}
+
+/* Large display headings */
+.heading-display {
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+@keyframes announcement-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-announcement-scroll {
+  animation: announcement-scroll 60s linear infinite;
+}
+
+.animate-announcement-scroll:hover {
+  animation-play-state: paused;
+}
+
+@keyframes features-scroll {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-features-scroll {
+  animation: features-scroll 40s linear infinite;
+}
+
+.animate-features-scroll:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-features-scroll {
+    animation: none;
+    transform: translateX(0);
+  }
+}
+
+/* =========================================================================
+   Premium Animation Classes
+   ========================================================================= */
+
+/* Slow, fabric-like transitions */
+.transition-premium {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-duration: 500ms;
+}
+
+.transition-premium-fast {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+  transition-duration: 300ms;
+}
+
+/* Subtle hover lift for cards */
+.hover-lift {
+  transition: transform 400ms cubic-bezier(0.25, 0.1, 0.25, 1),
+              box-shadow 400ms cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.hover-lift:hover {
+  transform: translateY(-3px);
+}
+
+/* =========================================================================
+   Premium Component Base Styles
+   ========================================================================= */
+
+/* Premium button base */
+.btn-premium {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.8125rem;
+}
+
+/* Premium card */
+.card-premium {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(12, 27, 66, 0.05),
+              0 4px 12px rgba(12, 27, 66, 0.04);
+}
+
+.dark .card-premium {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2),
+              0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Focus ring - brand orange */
+.focus-premium:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background),
+              0 0 0 4px var(--ring);
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================================================================
+   Dashboard panels (seller, admin, customer)
+   Bordered card surfaces get the rounded, softly-shadowed card look from the
+   KTMONA panel design. Lives in the components layer so an explicit
+   `rounded-*` utility on an element still wins.
+   ========================================================================= */
+
+@layer components {
+  .ktm-panel :where([class~="border"][class*="bg-card"], [class~="border"][class*="bg-background"], [class~="border"][class*="bg-paper"]) {
+    border-radius: var(--radius-lg);
+  }
+
+  .ktm-panel :where([class~="border"][class*="bg-card"]) {
+    box-shadow: 0 1px 2px rgba(12, 27, 66, 0.04), 0 4px 16px rgba(12, 27, 66, 0.04);
+  }
+
+  .dark .ktm-panel :where([class~="border"][class*="bg-card"]) {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  .ktm-panel :where(table) {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .ktm-panel :where(input, select, textarea, button) {
+    border-radius: var(--radius-md);
+  }
+}

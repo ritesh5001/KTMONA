@@ -1,0 +1,1 @@
+{"version":3,"file":"admin-alert.d.ts","sourceRoot":"","sources":["../../../../../src/notifications/email/templates/admin-alert.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAIrD,wBAAgB,kBAAkB,CAAC,IAAI,EAAE;IAAE,KAAK,EAAE,MAAM,CAAC;IAAC,OAAO,EAAE,MAAM,CAAA;CAAE,GAAG,mBAAmB,CAiBhG"}

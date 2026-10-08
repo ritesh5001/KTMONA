@@ -1,0 +1,1260 @@
+{
+  "generatedAt": "2026-04-04T07:01:22.374Z",
+  "productId": "cmnjzdrid01fnxn50mm0b1va8",
+  "routes": [
+    {
+      "route": "/",
+      "url": "http://localhost:3010/",
+      "auth": "none",
+      "requestCount": 85,
+      "totalPayloadBytes": 1221209,
+      "totalPayloadKb": 1192.6,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 19,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/2992-dbd1daa0a82a412d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8444-612ebedf408053ed.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/_next/image?url=%2FIndoWesternTatvivah.jpg&w=640&q=75",
+            "sizeBytes": 135471,
+            "durationMs": 49
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F3rd%20mobile%20banner.jpeg&w=1200&q=75",
+            "sizeBytes": 82571,
+            "durationMs": 3
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2FSherwaniTatvivah.jpg&w=640&q=75",
+            "sizeBytes": 82012,
+            "durationMs": 49
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%20mobile%20banner.jpeg&w=1200&q=75",
+            "sizeBytes": 70111,
+            "durationMs": 4
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F2nd%20mobile%20banner.jpeg&w=1200&q=75",
+            "sizeBytes": 68414,
+            "durationMs": 3
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F6331blueBlue_69JhNY-T2u.png&w=640&q=75",
+            "sizeBytes": 67800,
+            "durationMs": 859
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2FAccesories.jpg&w=640&q=75",
+            "sizeBytes": 66762,
+            "durationMs": 49
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%20desktop%20banner.jpg&w=1200&q=75",
+            "sizeBytes": 54562,
+            "durationMs": 5
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2FEthanicKurtaTatvivah.jpg&w=640&q=75",
+            "sizeBytes": 48990,
+            "durationMs": 49
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2FDSC05838_Wg3m3_Bl4L.jpg&w=640&q=75",
+            "sizeBytes": 46566,
+            "durationMs": 50
+          }
+        ],
+        "aboveFoldImageCount": 20,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%2520mobile%2520banner.jpeg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 78,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F2nd%2520mobile%2520banner.jpeg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 78,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F2nd%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F4th%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F3rd%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2Fwedding%2520section%2520desktop%2520banner.jpeg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%2520mobile%2520banner.jpeg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 78,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F2nd%2520mobile%2520banner.jpeg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 78,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F1st%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Fimages%2Fhero%2F2nd%2520desktop%2520banner.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 78,
+            "height": 30,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/8e9860b6e62d6359-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 50,
+          "good": 0,
+          "weak": 5,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 9,
+        "lcpMs": 84,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 78,
+        "loadMs": 139,
+        "wallTimeMs": 3958
+      }
+    },
+    {
+      "route": "/marketplace",
+      "url": "http://localhost:3010/marketplace",
+      "auth": "none",
+      "requestCount": 77,
+      "totalPayloadBytes": 1894747,
+      "totalPayloadKb": 1850.3,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 18,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/marketplace/page-eb7b1ebfdfb53f01.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/3794-084a406ae2f53c6d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8444-612ebedf408053ed.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/images/hero/3rd%20desktop%20banner.jpg",
+            "sizeBytes": 261585,
+            "durationMs": 7
+          },
+          {
+            "url": "http://localhost:3010/images/hero/1st%20desktop%20banner.jpg",
+            "sizeBytes": 250887,
+            "durationMs": 3
+          },
+          {
+            "url": "http://localhost:3010/images/hero/2nd%20desktop%20banner.jpg",
+            "sizeBytes": 243477,
+            "durationMs": 4
+          },
+          {
+            "url": "http://localhost:3010/images/hero/4th%20desktop%20banner.jpg",
+            "sizeBytes": 200390,
+            "durationMs": 6
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2FDSC05818_Gw97_FR_D1.jpg&w=640&q=75",
+            "sizeBytes": 177663,
+            "durationMs": 29
+          },
+          {
+            "url": "http://localhost:3010/images/hero/wedding%20section%20desktop%20banner.jpeg",
+            "sizeBytes": 173559,
+            "durationMs": 7
+          },
+          {
+            "url": "http://localhost:3010/images/hero/1st%20mobile%20banner.jpeg",
+            "sizeBytes": 128875,
+            "durationMs": 2
+          },
+          {
+            "url": "http://localhost:3010/images/hero/2nd%20mobile%20banner.jpeg",
+            "sizeBytes": 123882,
+            "durationMs": 2
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2FDSC05838_Wg3m3_Bl4L.jpg&w=640&q=75",
+            "sizeBytes": 46566,
+            "durationMs": 29
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2FDSC05891_1_91f66787-2583-4d2a-abcb-963575cccd99_rUXQLYpD-C.jpg&w=640&q=75",
+            "sizeBytes": 30974,
+            "durationMs": 29
+          }
+        ],
+        "aboveFoldImageCount": 10,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/1st%20mobile%20banner.jpeg",
+            "loading": "auto",
+            "width": 1000,
+            "height": 1000,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/2nd%20mobile%20banner.jpeg",
+            "loading": "auto",
+            "width": 1000,
+            "height": 1000,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/1st%20desktop%20banner.jpg",
+            "loading": "auto",
+            "width": 2100,
+            "height": 800,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/2nd%20desktop%20banner.jpg",
+            "loading": "auto",
+            "width": 2100,
+            "height": 800,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/4th%20desktop%20banner.jpg",
+            "loading": "auto",
+            "width": 2100,
+            "height": 800,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/3rd%20desktop%20banner.jpg",
+            "loading": "auto",
+            "width": 2100,
+            "height": 800,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/images/hero/wedding%20section%20desktop%20banner.jpeg",
+            "loading": "auto",
+            "width": 2100,
+            "height": 800,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenFront_WRq0_1NoiO.jpg&w=640&q=75",
+            "loading": "lazy",
+            "width": 196,
+            "height": 252,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2114LightBlueFront_XQeBpGjnIV.jpg&w=640&q=75",
+            "loading": "lazy",
+            "width": 196,
+            "height": 252,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/8e9860b6e62d6359-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 39,
+          "good": 0,
+          "weak": 2,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 9,
+        "lcpMs": 60,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 44,
+        "loadMs": 82,
+        "wallTimeMs": 4100
+      }
+    },
+    {
+      "route": "/search",
+      "url": "http://localhost:3010/search?q=kurta",
+      "auth": "none",
+      "requestCount": 43,
+      "totalPayloadBytes": 110006,
+      "totalPayloadKb": 107.4,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 17,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/search/page-e88d712f02670938.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/4bd1b696-e5d7c65570c947b7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/3794-084a406ae2f53c6d.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=384&q=75",
+            "sizeBytes": 14057,
+            "durationMs": 22
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "sizeBytes": 9212,
+            "durationMs": 22
+          }
+        ],
+        "aboveFoldImageCount": 1,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 21,
+          "good": 0,
+          "weak": 2,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 3,
+        "lcpMs": 92,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 13,
+        "loadMs": 71,
+        "wallTimeMs": 3918
+      }
+    },
+    {
+      "route": "/product/[id]",
+      "url": "http://localhost:3010/product/cmnjzdrid01fnxn50mm0b1va8",
+      "auth": "none",
+      "requestCount": 55,
+      "totalPayloadBytes": 199739,
+      "totalPayloadKb": 195.1,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 19,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8444-612ebedf408053ed.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/3794-084a406ae2f53c6d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/7089-9294b1bf4b445fff.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenFront_WRq0_1NoiO.jpg&w=1200&q=75",
+            "sizeBytes": 27634,
+            "durationMs": 1
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=384&q=75",
+            "sizeBytes": 14057,
+            "durationMs": 1
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "sizeBytes": 9212,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenZoom_rhK16x_mv8.jpg&w=256&q=75",
+            "sizeBytes": 8448,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenFront_WRq0_1NoiO.jpg&w=256&q=75",
+            "sizeBytes": 3607,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenZoom_aVf7zmaB2A.jpg&w=256&q=75",
+            "sizeBytes": 3370,
+            "durationMs": 28
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenFront_c5ZAVSrBo.jpg&w=256&q=75",
+            "sizeBytes": 2948,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenBack_A5eTzlU22q.jpg&w=256&q=75",
+            "sizeBytes": 2902,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenSide_bb9YKrQtPR.jpg&w=256&q=75",
+            "sizeBytes": 2456,
+            "durationMs": 27
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenBack_i8ldSRLB0n.jpg&w=256&q=75",
+            "sizeBytes": 2388,
+            "durationMs": 27
+          }
+        ],
+        "aboveFoldImageCount": 10,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenFront_WRq0_1NoiO.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenFront_c5ZAVSrBo.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenBack_A5eTzlU22q.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenSide_bb9YKrQtPR.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenZoom_rhK16x_mv8.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenBack_i8ldSRLB0n.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenSide_gBsiKTpYTy.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112DarkGreenZoom_aVf7zmaB2A.jpg&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 164,
+            "aboveFold": true
+          },
+          {
+            "src": "http://localhost:3010/_next/image?url=https%3A%2F%2Fik.imagekit.io%2Fi85bduykd%2F2112BottleGreenFront_WRq0_1NoiO.jpg&w=1200&q=75",
+            "loading": "auto",
+            "width": 293,
+            "height": 377,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/48410f3df60da620-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 33,
+          "good": 0,
+          "weak": 2,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 8,
+        "lcpMs": 984,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 49,
+        "loadMs": 86,
+        "wallTimeMs": 4733
+      }
+    },
+    {
+      "route": "/cart",
+      "url": "http://localhost:3010/cart",
+      "auth": "user",
+      "requestCount": 57,
+      "totalPayloadBytes": 229018,
+      "totalPayloadKb": 223.7,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 18,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/cart/page-508b920737a56d3b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/3794-084a406ae2f53c6d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8444-612ebedf408053ed.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=384&q=75",
+            "sizeBytes": 14057,
+            "durationMs": 29
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "sizeBytes": 9212,
+            "durationMs": 29
+          }
+        ],
+        "aboveFoldImageCount": 1,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/48410f3df60da620-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/8e9860b6e62d6359-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 24,
+          "good": 0,
+          "weak": 2,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 5,
+        "lcpMs": 1064,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 41,
+        "loadMs": 78,
+        "wallTimeMs": 3366
+      }
+    },
+    {
+      "route": "/checkout",
+      "url": "http://localhost:3010/checkout",
+      "auth": "user",
+      "requestCount": 118,
+      "totalPayloadBytes": 230869,
+      "totalPayloadKb": 225.5,
+      "duplicateRequests": [
+        {
+          "url": "https://checkout-static-next.razorpay.com/build/chunks/v2-entry-card-39f7cd63.modern.js",
+          "count": 2
+        },
+        {
+          "url": "https://checkout-static-next.razorpay.com/build/chunks/v2-entry-checkout-payment-9592a10e.modern.js",
+          "count": 2
+        }
+      ],
+      "js": {
+        "totalScriptBytes": 2076,
+        "totalScriptKb": 2,
+        "scriptRequestCount": 43,
+        "largestScripts": [
+          {
+            "url": "https://checkout-static-next.razorpay.com/build/chunks/v2-entry-v2-icon-common0-17d40644.modern.js",
+            "sizeBytes": 901
+          },
+          {
+            "url": "https://checkout-static-next.razorpay.com/build/chunks/v2-entry-customer-678aa8ce.modern.js",
+            "sizeBytes": 646
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/9039-add3c70cc6a4efa6.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 3,
+        "endpoints": [
+          "https://checkout.razorpay.com/v1/checkout.js",
+          "https://api.razorpay.com/v1/checkout/public?build=b3fd5e2fb9ae23367e758c1f098f07fe742d5acc&build_v1=95116d6cc420916ce3670edbea4b0e136ba1271c&checkout_v2=1&new_session=1&traffic_env=production&unified_session_id=SZKGcxCt9agDsx",
+          "https://lumberjack.razorpay.com/v1/track"
+        ],
+        "p50Ms": 160,
+        "p95Ms": 754,
+        "maxMs": 820
+      },
+      "assets": {
+        "largestImages": [
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=384&q=75",
+            "sizeBytes": 14057,
+            "durationMs": 28
+          },
+          {
+            "url": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "sizeBytes": 9212,
+            "durationMs": 27
+          }
+        ],
+        "aboveFoldImageCount": 1,
+        "aboveFoldImages": [
+          {
+            "src": "http://localhost:3010/_next/image?url=%2Flogo.png&w=256&q=75",
+            "loading": "lazy",
+            "width": 128,
+            "height": 72,
+            "aboveFold": true
+          }
+        ],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/48410f3df60da620-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/8e9860b6e62d6359-s.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 26,
+          "good": 0,
+          "weak": 2,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 9,
+        "lcpMs": 104,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 45,
+        "loadMs": 78,
+        "wallTimeMs": 6499
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "url": "http://localhost:3010/seller/dashboard",
+      "auth": "seller",
+      "requestCount": 70,
+      "totalPayloadBytes": 87147,
+      "totalPayloadKb": 85.1,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 939,
+        "totalScriptKb": 0.9,
+        "scriptRequestCount": 26,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/(seller)/seller/dashboard/page-98349f3c20ad0420.js",
+            "sizeBytes": 205
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/(seller)/seller/analytics/page-d01f6d1740f715a1.js",
+            "sizeBytes": 205
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/3794-084a406ae2f53c6d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/(seller)/layout-52d986cd4af97c20.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [],
+        "aboveFoldImageCount": 0,
+        "aboveFoldImages": [],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 30,
+          "good": 0,
+          "weak": 0,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 14,
+        "lcpMs": 96,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 24,
+        "loadMs": 85,
+        "wallTimeMs": 3388
+      }
+    },
+    {
+      "route": "/admin/dashboard",
+      "url": "http://localhost:3010/admin/dashboard",
+      "auth": "admin",
+      "requestCount": 24,
+      "totalPayloadBytes": 86737,
+      "totalPayloadKb": 84.7,
+      "duplicateRequests": [],
+      "js": {
+        "totalScriptBytes": 529,
+        "totalScriptKb": 0.5,
+        "scriptRequestCount": 12,
+        "largestScripts": [
+          {
+            "url": "http://localhost:3010/_next/static/chunks/main-app-c5ac30689fd0fed8.js",
+            "sizeBytes": 529
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/webpack-753d9dcbf3d857c7.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8500-98e13bcce54aa7a0.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/6609-80e42c74e2ed6b14.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5772-bd30d902b80458d2.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/layout-45375bd3cabaf91f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/(admin)/layout-6009e2e3f3a4ba7d.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/5918-13db76f52630a08b.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/app/(admin)/admin/dashboard/page-ca5eb5aa468ae21f.js",
+            "sizeBytes": 0
+          },
+          {
+            "url": "http://localhost:3010/_next/static/chunks/8444-612ebedf408053ed.js",
+            "sizeBytes": 0
+          }
+        ]
+      },
+      "api": {
+        "requestCount": 0,
+        "endpoints": [],
+        "p50Ms": 0,
+        "p95Ms": 0,
+        "maxMs": 0
+      },
+      "assets": {
+        "largestImages": [],
+        "aboveFoldImageCount": 0,
+        "aboveFoldImages": [],
+        "fonts": [
+          {
+            "url": "http://localhost:3010/_next/static/media/7b89a4fd5e90ede0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          },
+          {
+            "url": "http://localhost:3010/_next/static/media/e4af272ccee01ff0-s.p.woff2",
+            "cacheControl": "public, max-age=31536000, immutable"
+          }
+        ],
+        "cacheStats": {
+          "strong": 16,
+          "good": 0,
+          "weak": 0,
+          "missing": 0
+        }
+      },
+      "vitalsEstimate": {
+        "ttfbMs": 9,
+        "lcpMs": 68,
+        "cls": 0,
+        "inpProxyMs": 0,
+        "tbtMs": 0,
+        "maxLongTaskMs": 0
+      },
+      "runtime": {
+        "dclMs": 25,
+        "loadMs": 53,
+        "wallTimeMs": 3327
+      }
+    }
+  ]
+}

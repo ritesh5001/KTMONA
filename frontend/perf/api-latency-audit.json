@@ -1,0 +1,422 @@
+{
+  "generatedAt": "2026-04-04T07:06:16.661Z",
+  "sampleCountPerEndpoint": 12,
+  "productId": "cmnjzdrid01fnxn50mm0b1va8",
+  "results": [
+    {
+      "route": "/",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/categories",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 183,
+        "p95": 906,
+        "avg": 314,
+        "max": 1611,
+        "min": 175
+      },
+      "payloadBytes": {
+        "p50": 3981,
+        "p95": 3981,
+        "avg": 3981,
+        "max": 3981,
+        "min": 3981
+      }
+    },
+    {
+      "route": "/",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/bestsellers?limit=4",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 180,
+        "p95": 194,
+        "avg": 182,
+        "max": 198,
+        "min": 175
+      },
+      "payloadBytes": {
+        "p50": 19,
+        "p95": 19,
+        "avg": 19,
+        "max": 19,
+        "min": 19
+      }
+    },
+    {
+      "route": "/",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/products?limit=20",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 179,
+        "p95": 190,
+        "avg": 181,
+        "max": 194,
+        "min": 175
+      },
+      "payloadBytes": {
+        "p50": 23828,
+        "p95": 23828,
+        "avg": 23828,
+        "max": 23828,
+        "min": 23828
+      }
+    },
+    {
+      "route": "/",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/occasions",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 184,
+        "p95": 288,
+        "avg": 203,
+        "max": 312,
+        "min": 178
+      },
+      "payloadBytes": {
+        "p50": 1527,
+        "p95": 1527,
+        "avg": 1527,
+        "max": 1527,
+        "min": 1527
+      }
+    },
+    {
+      "route": "/marketplace",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/products?page=1&limit=9",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 183,
+        "p95": 243,
+        "avg": 193,
+        "max": 312,
+        "min": 179
+      },
+      "payloadBytes": {
+        "p50": 11978,
+        "p95": 11978,
+        "avg": 11978,
+        "max": 11978,
+        "min": 11978
+      }
+    },
+    {
+      "route": "/product/[id]",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/products/cmnjzdrid01fnxn50mm0b1va8",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 182,
+        "p95": 1342,
+        "avg": 397,
+        "max": 2740,
+        "min": 175
+      },
+      "payloadBytes": {
+        "p50": 3505,
+        "p95": 3505,
+        "avg": 3505,
+        "max": 3505,
+        "min": 3505
+      }
+    },
+    {
+      "route": "/product/[id]",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/products/cmnjzdrid01fnxn50mm0b1va8/reviews?page=1&limit=10&sort=newest",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 1304,
+        "p95": 1473,
+        "avg": 1317,
+        "max": 1535,
+        "min": 1202
+      },
+      "payloadBytes": {
+        "p50": 18,
+        "p95": 18,
+        "avg": 18,
+        "max": 18,
+        "min": 18
+      }
+    },
+    {
+      "route": "/product/[id]",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/products/cmnjzdrid01fnxn50mm0b1va8/related?limit=8",
+      "role": null,
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 179,
+        "p95": 1291,
+        "avg": 384,
+        "max": 2646,
+        "min": 174
+      },
+      "payloadBytes": {
+        "p50": 8862,
+        "p95": 8862,
+        "avg": 8862,
+        "max": 8862,
+        "min": 8862
+      }
+    },
+    {
+      "route": "/cart",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/cart",
+      "role": "user",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 178,
+        "p95": 388,
+        "avg": 221,
+        "max": 426,
+        "min": 175
+      },
+      "payloadBytes": {
+        "p50": 117,
+        "p95": 117,
+        "avg": 117,
+        "max": 117,
+        "min": 117
+      }
+    },
+    {
+      "route": "/checkout",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/addresses",
+      "role": "user",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 1236,
+        "p95": 1373,
+        "avg": 1253,
+        "max": 1424,
+        "min": 1202
+      },
+      "payloadBytes": {
+        "p50": 20,
+        "p95": 20,
+        "avg": 20,
+        "max": 20,
+        "min": 20
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/seller/analytics/summary",
+      "role": "seller",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 263,
+        "p95": 355,
+        "avg": 287,
+        "max": 356,
+        "min": 237
+      },
+      "payloadBytes": {
+        "p50": 126,
+        "p95": 126,
+        "avg": 126,
+        "max": 126,
+        "min": 126
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/seller/analytics/revenue-chart?interval=daily",
+      "role": "seller",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 246,
+        "p95": 356,
+        "avg": 279,
+        "max": 357,
+        "min": 235
+      },
+      "payloadBytes": {
+        "p50": 30,
+        "p95": 30,
+        "avg": 30,
+        "max": 30,
+        "min": 30
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/seller/analytics/top-products?limit=10",
+      "role": "seller",
+      "samples": 12,
+      "statusSpread": [
+        200,
+        429
+      ],
+      "latencyMs": {
+        "p50": 213,
+        "p95": 250,
+        "avg": 214,
+        "max": 253,
+        "min": 176
+      },
+      "payloadBytes": {
+        "p50": 59,
+        "p95": 88,
+        "avg": 59,
+        "max": 88,
+        "min": 30
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/seller/analytics/inventory-health",
+      "role": "seller",
+      "samples": 12,
+      "statusSpread": [
+        429
+      ],
+      "latencyMs": {
+        "p50": 179,
+        "p95": 184,
+        "avg": 178,
+        "max": 185,
+        "min": 167
+      },
+      "payloadBytes": {
+        "p50": 88,
+        "p95": 88,
+        "avg": 88,
+        "max": 88,
+        "min": 88
+      }
+    },
+    {
+      "route": "/seller/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/seller/analytics/refund-impact",
+      "role": "seller",
+      "samples": 12,
+      "statusSpread": [
+        429
+      ],
+      "latencyMs": {
+        "p50": 179,
+        "p95": 200,
+        "avg": 181,
+        "max": 208,
+        "min": 171
+      },
+      "payloadBytes": {
+        "p50": 88,
+        "p95": 88,
+        "avg": 88,
+        "max": 88,
+        "min": 88
+      }
+    },
+    {
+      "route": "/admin/dashboard",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/admin/stats",
+      "role": "admin",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 180,
+        "p95": 1740,
+        "avg": 467,
+        "max": 3642,
+        "min": 173
+      },
+      "payloadBytes": {
+        "p50": 10122,
+        "p95": 10122,
+        "avg": 10122,
+        "max": 10122,
+        "min": 10122
+      }
+    },
+    {
+      "route": "/cart",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/notifications/unread-count",
+      "role": "user",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 1252,
+        "p95": 1367,
+        "avg": 1265,
+        "max": 1406,
+        "min": 1201
+      },
+      "payloadBytes": {
+        "p50": 39,
+        "p95": 39,
+        "avg": 39,
+        "max": 39,
+        "min": 39
+      }
+    },
+    {
+      "route": "/cart",
+      "endpoint": "https://tat-vivah-multi-vendor-ecom.onrender.com/v1/wishlist/count",
+      "role": "user",
+      "samples": 12,
+      "statusSpread": [
+        200
+      ],
+      "latencyMs": {
+        "p50": 1242,
+        "p95": 1884,
+        "avg": 1363,
+        "max": 2566,
+        "min": 1225
+      },
+      "payloadBytes": {
+        "p50": 15,
+        "p95": 15,
+        "avg": 15,
+        "max": 15,
+        "min": 15
+      }
+    }
+  ]
+}

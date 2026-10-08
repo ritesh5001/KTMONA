@@ -1,0 +1,61 @@
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "lib": [
+            "ES2022"
+        ],
+        "outDir": "./dist",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "resolveJsonModule": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "strictFunctionTypes": true,
+        "strictBindCallApply": true,
+        "strictPropertyInitialization": true,
+        "noImplicitThis": true,
+        "alwaysStrict": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "noUncheckedIndexedAccess": true,
+        "exactOptionalPropertyTypes": true,
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ],
+            "@config/*": [
+                "./src/config/*"
+            ],
+            "@modules/*": [
+                "./src/modules/*"
+            ],
+            "@middlewares/*": [
+                "./src/middlewares/*"
+            ],
+            "@utils/*": [
+                "./src/utils/*"
+            ],
+            "@errors/*": [
+                "./src/errors/*"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*",
+        "scripts/**/*",
+        "prisma/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ]
+}

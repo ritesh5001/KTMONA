@@ -1,0 +1,96 @@
+{
+  "expo": {
+    "name": "KTMONA",
+    "slug": "ktmona",
+    "version": "3.3",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "mobile",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Allow KTMONA to convert your speech into search text.",
+        "NSMicrophoneUsageDescription": "Allow KTMONA to use your microphone for voice search."
+      },
+      "bundleIdentifier": "com.ktmona.app"
+    },
+    "android": {
+      "versionCode": 21,
+      "adaptiveIcon": {
+        "backgroundColor": "#04185A",
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.ktmona.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "backgroundColor": "#0C1B42"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#FF8A00"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow KTMONA to select a photo for virtual try-on and product reviews.",
+          "cameraPermission": "Allow KTMONA to take a photo for virtual try-on.",
+          "microphonePermission": "Allow KTMONA to record audio when capturing media."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow KTMONA to use your microphone for voice search.",
+          "speechRecognitionPermission": "Allow KTMONA to convert your speech into search text.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true
+          }
+        }
+      ],
+      "expo-video",
+      "expo-font",
+      "expo-router",
+      "./plugins/withPhonePeSdk"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "13fff0d2-6600-4b3e-9817-6a17f872adc6"
+      }
+    },
+    "owner": "nextgenfusion5001"
+  }
+}

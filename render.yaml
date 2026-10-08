@@ -1,0 +1,142 @@
+services:
+  - type: web
+    name: ktmona-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm install && npm run build:render
+    startCommand: npm run start:render
+    healthCheckPath: /health/live
+    # Custom domain for the API. Add the CNAME Render shows for it at your DNS
+    # provider (api.ktmona.com -> <service>.onrender.com).
+    domains:
+      - api.ktmona.com
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PRISMA_LOG_QUERIES
+        value: "false"
+      - key: BACKEND_PUBLIC_URL
+        value: https://api.ktmona.com
+      # KTMONA portals. Storefront is canonical on www.
+      - key: FRONTEND_BASE_URL
+        value: https://www.ktmona.com
+      - key: SELLER_BASE_URL
+        value: https://seller.ktmona.com
+      - key: FRONTEND_REVALIDATE_URL
+        value: https://www.ktmona.com/api/revalidate
+      # Browser origins allowed to call the API with cookies/credentials.
+      - key: CORS_ORIGIN
+        value: https://www.ktmona.com,https://ktmona.com,https://seller.ktmona.com,https://admin.ktmona.com
+      # Sender must be on a domain verified in Resend.
+      - key: EMAIL_FROM
+        value: no-reply@ktmona.com
+      # Self-ping keeps the instance from idling out. Render free services spin
+      # down after ~15 minutes without inbound traffic, and the next visitor then
+      # waits ~50s for a cold start — the single largest source of slow page
+      # loads. The ping code already existed but never ran because this URL was
+      # unset. Must be the service's own PUBLIC url, not localhost, or it does
+      # not count as inbound traffic.
+      # Point this at /health/live, not /health. The plain /health route runs
+      # SELECT 1 against Postgres, so pinging it would wake Neon's compute on
+      # every cycle and undo the scale-to-zero savings below.
+      - key: BACKEND_WARMUP_URL
+        value: https://api.ktmona.com/health/live
+      # 14 minutes: the longest ping that still beats Render's ~15 minute idle
+      # spin-down. Was 240000 (4 min), which pinged 3x more often than needed.
+      - key: BACKEND_WARMUP_INTERVAL_MS
+        value: "840000"
+      # Consolidated maintenance sweep (stale orders, inventory integrity,
+      # appointments, Fastrr reconciliation). Long on purpose: Neon suspends the
+      # compute after 5 minutes without a query, so frequent jobs meant the
+      # database was billed 24/7. Raise toward 3600000 to save more.
+      - key: MAINTENANCE_INTERVAL_MS
+        value: "1800000"
+      # Stop warming the storefront cache once the site has been quiet this long.
+      - key: CATALOG_WARMUP_IDLE_AFTER_MS
+        value: "1800000"
+      # Shiprocket Checkout (Fastrr). The key/secret are set in the Render
+      # dashboard, not here — they sign every request to Shiprocket.
+      - key: FASTRR_API_KEY
+        sync: false
+      - key: FASTRR_API_SECRET
+        sync: false
+      # A production key against Shiprocket's dev host 404s rather than failing
+      # clearly, so this must match whichever credentials are configured above.
+      - key: FASTRR_ENV
+        value: PRODUCTION
+      # The master switch for buyer traffic, kept separate from the credentials
+      # so express checkout can be turned off from the dashboard in seconds —
+      # buyers fall straight back to the native PhonePe checkout, no deploy.
+      - key: FASTRR_CHECKOUT_ENABLED
+        value: "false"
+      # Optional. Shiprocket does not document signing their order webhook, so
+      # its body is never trusted regardless (every payload is re-verified
+      # against their Order/Details API). Set this to additionally require a
+      # matching X-Api-Key on the webhook.
+      - key: FASTRR_WEBHOOK_API_KEY
+        sync: false
+
+      # PhonePe PG (Standard Checkout v2). Secrets set in the Render dashboard.
+      - key: PHONEPE_ENV
+        value: PRODUCTION
+      - key: PHONEPE_CLIENT_VERSION
+        value: "1"
+      - key: PHONEPE_CLIENT_ID
+        sync: false
+      - key: PHONEPE_CLIENT_SECRET
+        sync: false
+      - key: PHONEPE_WEBHOOK_USERNAME
+        sync: false
+      - key: PHONEPE_WEBHOOK_PASSWORD
+        sync: false
+      # Where PhonePe returns the buyer once they have paid. Neither of these was
+      # declared here, so both fell back to FRONTEND_BASE_URL — and locally
+      # PHONEPE_WEB_REDIRECT_BASE_URL is set to http://localhost:3001, which takes
+      # precedence over it. If that dev value is ever set on the service, every
+      # buyer is handed to a dead page on their own phone after paying.
+      #
+      # WEB: must be the public storefront origin, e.g.
+      #   https://www.ktmona.com
+      # The backend now refuses loopback and private hosts here regardless.
+      - key: PHONEPE_WEB_REDIRECT_BASE_URL
+        value: https://www.ktmona.com
+      # MOBILE: LEAVE THIS UNSET.
+      #
+      # It must be an https URL if set at all. PhonePe validates
+      # merchantUrls.redirectUrl and rejects custom app schemes, so a deep link
+      # like `mobile://checkout` makes checkout fail on PhonePe's own domain with
+      # a generic "Something went wrong" — after the buyer has already committed.
+      #
+      # Unset simply reuses the web callback above, which works. Bringing the
+      # buyer back into the app should be done by having that https page
+      # deep-link onward, not by handing PhonePe a scheme it will not accept.
+      - key: PHONEPE_MOBILE_REDIRECT_URL
+        sync: false
+      # AquaSMS — SMS OTP delivery. Non-secret values are pinned here; the
+      # username, API key and DLT ids are set in the Render dashboard.
+      #
+      # SMS stays OFF until AQUASMS_DLT_PE_ID and AQUASMS_DLT_TEMPLATE_ID are
+      # both set, and OTPs fall back to email. That is intentional: without DLT
+      # registration the provider bills the message but Indian operators drop
+      # it, so users would receive no code at all.
+      - key: AQUASMS_BASE_URL
+        value: https://login.aquasms.com
+      - key: AQUASMS_SMS_TYPE
+        value: TRANS
+      - key: AQUASMS_TIMEOUT_MS
+        value: "20000"
+      - key: AQUASMS_ALLOW_NON_DLT
+        value: "false"
+      - key: AQUASMS_USERNAME
+        sync: false
+      - key: AQUASMS_API_KEY
+        sync: false
+      - key: AQUASMS_SENDER_ID
+        sync: false
+      - key: AQUASMS_DLT_PE_ID
+        sync: false
+      - key: AQUASMS_DLT_TEMPLATE_ID
+        sync: false
+      - key: AQUASMS_OTP_TEMPLATE
+        sync: false

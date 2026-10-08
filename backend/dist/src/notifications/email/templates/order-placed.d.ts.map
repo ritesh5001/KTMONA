@@ -1,0 +1,1 @@
+{"version":3,"file":"order-placed.d.ts","sourceRoot":"","sources":["../../../../../src/notifications/email/templates/order-placed.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAIrD,wBAAgB,mBAAmB,CAAC,IAAI,EAAE;IAAE,OAAO,EAAE,MAAM,CAAC;IAAC,WAAW,EAAE,MAAM,CAAA;CAAE,GAAG,mBAAmB,CAqBvG"}

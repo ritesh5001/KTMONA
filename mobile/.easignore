@@ -1,0 +1,62 @@
+# Keep EAS archive lean and let EAS generate native folders from config
+android/
+ios/
+
+# Local artifacts
+node_modules/
+**/node_modules/
+.expo/
+.expo-shared/
+.turbo/
+.next/
+tmp/
+temp/
+
+# Build outputs
+build/
+dist/
+dist-android/
+dist-android-final/
+dist-android-optimized/
+dist-android*/
+**/dist-android*/
+coverage/
+android/.gradle/
+android/build/
+android/app/build/
+ios/build/
+*.apk
+*.aab
+*.hprof
+*.keystore
+
+# VCS and editor noise
+.git/
+**/.git/
+.gitignore
+.vscode/
+**/.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+perf-pass-*.txt
+
+# Non-runtime project files
+README.md
+scripts/
+docs/
+**/__tests__/
+**/*.test.*
+**/*.spec.*
+# Local Android export snapshots (not needed for EAS cloud build)
+dist-android/
+dist-android-final/
+dist-android-optimized/
+
+# Local perf logs
+perf-pass-*.txt

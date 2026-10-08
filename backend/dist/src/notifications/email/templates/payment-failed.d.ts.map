@@ -1,0 +1,1 @@
+{"version":3,"file":"payment-failed.d.ts","sourceRoot":"","sources":["../../../../../src/notifications/email/templates/payment-failed.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAIrD,wBAAgB,qBAAqB,CAAC,IAAI,EAAE;IAAE,OAAO,EAAE,MAAM,CAAA;CAAE,GAAG,mBAAmB,CAiBpF"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"shipment-created.d.ts","sourceRoot":"","sources":["../../../../../src/notifications/email/templates/shipment-created.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAIrD,wBAAgB,uBAAuB,CAAC,IAAI,EAAE;IAC1C,OAAO,EAAE,MAAM,CAAC;IAChB,OAAO,EAAE,MAAM,CAAC;IAChB,cAAc,EAAE,MAAM,CAAC;CAC1B,GAAG,mBAAmB,CAoBtB"}
