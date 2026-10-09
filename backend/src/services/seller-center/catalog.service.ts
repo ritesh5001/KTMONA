@@ -259,6 +259,133 @@ class SellerCatalogService {
         };
     }
 
+    /**
+     * Meesho inventory screen: products grouped by catalog, filtered by listing
+     * status (Active / Activation Pending / Blocked / Paused) and stock level.
+     */
+    async inventoryCatalogs(sellerId: string, query: Record<string, unknown>) {
+        const STATUS = ['active', 'activation_pending', 'blocked', 'paused'] as const;
+        const STOCK = ['all', 'out_of_stock', 'low_stock'] as const;
+        const status = (STATUS as readonly string[]).includes(String(query.status)) ? String(query.status) : 'active';
+        const stock = (STOCK as readonly string[]).includes(String(query.stock)) ? String(query.stock) : 'all';
+        const search = typeof query.search === 'string' ? query.search.trim() : '';
+        const categoryId = typeof query.categoryId === 'string' && query.categoryId ? query.categoryId : undefined;
+
+        const statusWhere = (key: string): Prisma.ProductWhereInput => {
+            switch (key) {
+                case 'activation_pending':
+                    return { status: 'PENDING', deletedByAdmin: false };
+                case 'blocked':
+                    return { OR: [{ status: 'REJECTED' }, { deletedByAdmin: true }] };
+                case 'paused':
+                    return { status: 'APPROVED', deletedByAdmin: false, OR: [{ pausedBySeller: true }, { pausedForVacation: true }] };
+                default:
+                    return { status: 'APPROVED', deletedByAdmin: false, pausedBySeller: false, pausedForVacation: false };
+            }
+        };
+        const base: Prisma.ProductWhereInput = compact({ sellerId, categoryId });
+        const searchWhere: Prisma.ProductWhereInput | null = search
+            ? {
+                  OR: [
+                      { title: { contains: search, mode: 'insensitive' } },
+                      { id: search },
+                      { styleCode: { contains: search, mode: 'insensitive' } },
+                      { catalogUpload: { fileId: { contains: search } } },
+                      { variants: { some: { sku: { contains: search, mode: 'insensitive' } } } },
+                  ],
+              }
+            : null;
+
+        const statusCounts = Object.fromEntries(
+            await Promise.all(STATUS.map(async (k) => [k, await prisma.product.count({ where: { AND: [base, statusWhere(k)] } })] as const))
+        );
+        const products = await prisma.product.findMany({
+            where: { AND: [base, statusWhere(status), ...(searchWhere ? [searchWhere] : [])] },
+            include: {
+                category: { select: { id: true, name: true } },
+                catalogUpload: { select: { id: true, fileId: true } },
+                variants: { include: { inventory: true }, orderBy: { createdAt: 'asc' } },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 300,
+        });
+
+        const since = new Date(Date.now() - 30 * 86_400_000);
+        const sold = await prisma.orderItem.groupBy({
+            by: ['variantId'],
+            where: { sellerId, variantId: { in: products.flatMap((p) => p.variants.map((v) => v.id)) }, order: { createdAt: { gte: since }, status: { notIn: ['CANCELLED', 'PLACED'] } } },
+            _sum: { quantity: true },
+        });
+        const soldMap = new Map(sold.map((s) => [s.variantId, s._sum.quantity ?? 0]));
+
+        const stockOf = (v: { inventory: { stock: number } | null }) => v.inventory?.stock ?? 0;
+        const stockMatch = (n: number) => (stock === 'out_of_stock' ? n <= 0 : stock === 'low_stock' ? n > 0 && n <= LOW_STOCK_THRESHOLD : true);
+        const allVariants = products.flatMap((p) => p.variants);
+        const stockCounts = {
+            all: products.length,
+            out_of_stock: products.filter((p) => p.variants.some((v) => stockOf(v) <= 0)).length,
+            low_stock: products.filter((p) => p.variants.some((v) => stockOf(v) > 0 && stockOf(v) <= LOW_STOCK_THRESHOLD)).length,
+        };
+
+        type Catalog = { key: string; catalogId: string; title: string; image: string | null; category: { id: string; name: string }; estimatedOrdersPerDay: number; products: unknown[] };
+        const catalogs = new Map<string, Catalog>();
+        for (const p of products) {
+            const variants = p.variants.filter((v) => stockMatch(stockOf(v)));
+            if (variants.length === 0) continue;
+            const key = p.catalogUploadId ?? p.id;
+            const cat = catalogs.get(key) ?? {
+                key,
+                catalogId: p.catalogUpload?.fileId ?? p.id,
+                title: p.title,
+                image: p.images[0] ?? null,
+                category: p.category,
+                estimatedOrdersPerDay: 0,
+                products: [],
+            };
+            const rows = variants.map((v) => {
+                const perDay = (soldMap.get(v.id) ?? 0) / 30;
+                cat.estimatedOrdersPerDay += perDay;
+                return {
+                    variantId: v.id,
+                    size: v.size,
+                    color: v.color,
+                    sku: v.sku,
+                    stock: stockOf(v),
+                    sellerPrice: v.sellerPrice,
+                    customerPrice: v.status === 'APPROVED' ? v.price : null,
+                    estimatedOrdersPerDay: Math.round(perDay * 10) / 10,
+                    daysToStockout: perDay > 0 ? Math.floor(stockOf(v) / perDay) : null,
+                };
+            });
+            cat.products.push({
+                productId: p.id,
+                title: p.title,
+                image: p.images[0] ?? null,
+                styleCode: p.styleCode,
+                status: listingStatus(p),
+                rejectionReason: p.deletedByAdmin ? p.deletedByAdminReason : p.rejectionReason,
+                variants: rows,
+            });
+            catalogs.set(key, cat);
+        }
+        const list = [...catalogs.values()];
+        if (query.sort === 'stock') {
+            const minStock = (c: Catalog) => Math.min(...(c.products as { variants: { stock: number }[] }[]).flatMap((p) => p.variants.map((v) => v.stock)));
+            list.sort((a, b) => minStock(a) - minStock(b));
+        } else if (query.sort !== 'newest') {
+            list.sort((a, b) => b.estimatedOrdersPerDay - a.estimatedOrdersPerDay);
+        }
+        return {
+            status,
+            stock,
+            statusCounts,
+            stockCounts,
+            lowStockThreshold: LOW_STOCK_THRESHOLD,
+            totalVariants: allVariants.length,
+            catalogs: list.map((c) => ({ ...c, estimatedOrdersPerDay: Math.round(c.estimatedOrdersPerDay * 10) / 10 })),
+        };
+    }
+
     async inventorySummary(sellerId: string) {
         const scope: Prisma.ProductVariantWhereInput = { product: { sellerId, deletedByAdmin: false } };
         const [total, out, low] = await Promise.all([

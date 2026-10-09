@@ -12,13 +12,24 @@ import { signOut } from "@/services/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Toaster } from "@/components/ui/sonner";
 
+export interface PanelNavChild {
+  href: string;
+  label: string;
+  /** Small pill after the label, e.g. "NEW". */
+  tag?: string;
+}
+
 export interface PanelNavItem {
   href: string;
   label: string;
   icon: LucideIcon;
   badge?: number;
+  /** Small pill after the label, e.g. "NEW". */
+  tag?: string;
   /** Group heading shown above the first item of each section. */
   section?: string;
+  /** Collapsible sub-menu (Meesho-style "Orders › Manage Orders"). */
+  children?: PanelNavChild[];
 }
 
 interface PanelShellProps {
@@ -38,7 +49,15 @@ interface PanelShellProps {
   accountSub?: string | null;
   /** "Need help?" card at the bottom of the sidebar (sellers only). */
   showHelpCard?: boolean;
+  /** Rendered under the logo, above the nav (e.g. store switcher, quick links). */
+  sidebarHeader?: React.ReactNode;
   children: React.ReactNode;
+}
+
+function NavTag({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="ktm-keep-case rounded bg-pink-600 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-white">{children}</span>
+  );
 }
 
 function isActivePath(pathname: string, href: string) {
@@ -61,6 +80,7 @@ export function PanelShell({
   accountName,
   accountSub,
   showHelpCard = true,
+  sidebarHeader,
   children,
 }: PanelShellProps) {
   const pathname = usePathname();
@@ -81,11 +101,25 @@ export function PanelShell({
     setAccountOpen(false);
   }, [pathname]);
 
+  // Parents and sub-menu entries, flattened for search and active matching.
+  const flatItems = React.useMemo(
+    () =>
+      navItems.flatMap((item) => [
+        item,
+        ...(item.children ?? []).map((child) => ({ ...child, icon: item.icon, parent: item.href })),
+      ]),
+    [navItems]
+  );
+
   const matches = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return navItems.filter((item) => item.label.toLowerCase().includes(q)).slice(0, 6);
-  }, [navItems, query]);
+    const seen = new Set<string>();
+    return flatItems
+      .filter((item) => item.label.toLowerCase().includes(q))
+      .filter((item) => (seen.has(item.href) ? false : (seen.add(item.href), true)))
+      .slice(0, 6);
+  }, [flatItems, query]);
 
   const onSearchSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -99,11 +133,15 @@ export function PanelShell({
   // /seller/products/new, not "My Products" as well).
   const activeHref = React.useMemo(
     () =>
-      navItems
+      flatItems
         .filter((item) => isActivePath(pathname, item.href))
         .sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null,
-    [navItems, pathname]
+    [flatItems, pathname]
   );
+
+  // Groups the user opened; the group holding the active page is always open.
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
+  const groupActive = (item: PanelNavItem) => Boolean(item.children?.some((c) => c.href === activeHref));
 
   const displayName = accountName || account || roleLabel;
   const initial = displayName.charAt(0).toUpperCase();
@@ -134,39 +172,91 @@ export function PanelShell({
         </button>
       </div>
 
+      {sidebarHeader ? <div className="px-3 pb-2">{sidebarHeader}</div> : null}
+
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 pb-4" aria-label={panelLabel}>
         {navItems.map((item, index) => {
-          const active = item.href === activeHref;
           const Icon = item.icon;
           const heading = item.section && item.section !== navItems[index - 1]?.section ? item.section : null;
-          return (
-            <React.Fragment key={item.href}>
-            {heading ? (
-              <p className="ktm-keep-case px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60 first:pt-1">{heading}</p>
-            ) : null}
-            <Link
-              href={item.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "group flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
-                active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_6px_16px_rgba(255,138,0,0.25)]"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
-              <span className="flex-1 truncate">{item.label}</span>
+          const hasChildren = Boolean(item.children?.length);
+          const inGroup = hasChildren && groupActive(item);
+          const open = hasChildren && (openGroups[item.href] ?? inGroup);
+          const active = !hasChildren && item.href === activeHref;
+          const rowCls = (on: boolean) =>
+            cn(
+              "group flex h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-medium transition-colors",
+              on
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_6px_16px_rgba(255,138,0,0.25)]"
+                : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            );
+          const trailing = (on: boolean) => (
+            <>
+              {item.tag ? <NavTag>{item.tag}</NavTag> : null}
               {item.badge ? (
                 <span
                   className={cn(
                     "min-w-5 rounded-full px-1.5 py-0.5 text-center text-[11px] font-semibold tabular-nums",
-                    active ? "bg-ink text-paper" : "bg-brand text-ink"
+                    on ? "bg-ink text-paper" : "bg-brand text-ink"
                   )}
                 >
                   {item.badge > 99 ? "99+" : item.badge}
                 </span>
               ) : null}
+            </>
+          );
+          return (
+            <React.Fragment key={item.href}>
+            {heading ? (
+              <p className="ktm-keep-case px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60 first:pt-1">{heading}</p>
+            ) : null}
+            {hasChildren ? (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setOpenGroups((prev) => ({ ...prev, [item.href]: !open }))}
+                  aria-expanded={open}
+                  className={cn(rowCls(false), inGroup && "text-sidebar-accent-foreground")}
+                >
+                  <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {trailing(false)}
+                  <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
+                </button>
+                {open ? (
+                  <div className="mb-1 ml-5 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-3">
+                    {item.children!.map((child) => {
+                      const on = child.href === activeHref;
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          aria-current={on ? "page" : undefined}
+                          className={cn(
+                            "flex h-9 items-center gap-2 rounded-lg px-3 text-[13px] font-medium transition-colors",
+                            on
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                              : "text-sidebar-foreground/90 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                          )}
+                        >
+                          <span className="flex-1 truncate">{child.label}</span>
+                          {child.tag ? <NavTag>{child.tag}</NavTag> : null}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+            <Link
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={rowCls(active)}
+            >
+              <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+              <span className="flex-1 truncate">{item.label}</span>
+              {trailing(active)}
             </Link>
+            )}
             </React.Fragment>
           );
         })}

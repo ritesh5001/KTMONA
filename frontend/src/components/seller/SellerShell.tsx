@@ -3,22 +3,29 @@
 import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import {
+  BadgeCheck,
   BadgePercent,
   BarChart3,
+  Bell,
   Boxes,
   CalendarClock,
   Clapperboard,
+  FileStack,
   Headset,
-  LayoutDashboard,
+  Home,
+  Images,
   Megaphone,
   Package,
-  PlusCircle,
   RotateCcw,
   Settings,
+  ShieldCheck,
   ShoppingBag,
+  Store,
   Tag,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { getUnreadCount } from "@/services/notifications";
 import { sellerCenter } from "@/services/seller-center";
@@ -52,22 +59,46 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
   });
 
   const navItems = React.useMemo<PanelNavItem[]>(
+    // Same order and grouping as the Meesho supplier panel.
     () => [
-      { href: "/seller/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/seller/products", label: "My Products", icon: Package },
-      { href: "/seller/products/new", label: "Add Product", icon: PlusCircle },
-      { href: "/seller/orders", label: "Orders", icon: ShoppingBag, badge: counts?.pending || undefined },
-      { href: "/seller/returns", label: "Returns & Refunds", icon: RotateCcw },
-      { href: "/seller/inventory", label: "Inventory", icon: Boxes },
-      { href: "/seller/pricing", label: "Pricing & Offers", icon: BadgePercent },
-      { href: "/seller/sale-events", label: "Sale Events", icon: Tag },
-      { href: "/seller/settlements", label: "Payments", icon: Wallet },
-      ...(ADS_ENABLED ? [{ href: "/seller/ads", label: "Ads", icon: Megaphone }] : []),
-      { href: "/seller/performance", label: "Performance", icon: BarChart3 },
-      { href: "/seller/reels", label: "Reels", icon: Clapperboard },
-      { href: "/seller/appointments", label: "Appointments", icon: CalendarClock },
-      { href: "/seller/support", label: "Seller Support", icon: Headset },
-      { href: "/seller/settings", label: "Settings", icon: Settings },
+      { href: "/seller/dashboard", label: "Home", icon: Home },
+      {
+        href: "/seller/orders",
+        label: "Orders",
+        icon: ShoppingBag,
+        section: "Manage Business",
+        badge: counts?.pending || undefined,
+        tag: counts?.pending ? undefined : "New",
+        children: [
+          { href: "/seller/orders", label: "Manage Orders" },
+          { href: "/seller/orders/dispatch-performance", label: "Dispatch Performance", tag: "New" },
+        ],
+      },
+      { href: "/seller/returns", label: "Returns", icon: RotateCcw, section: "Manage Business" },
+      {
+        href: "/seller/pricing",
+        label: "Pricing",
+        icon: BadgePercent,
+        section: "Manage Business",
+        children: [
+          { href: "/seller/pricing", label: "Manage Pricing" },
+          { href: "/seller/pricing/reduce-rto", label: "Reduce RTOs & Returns" },
+        ],
+      },
+      { href: "/seller/claims", label: "Claims", icon: ShieldCheck, section: "Manage Business" },
+      { href: "/seller/inventory", label: "Inventory", icon: Boxes, section: "Manage Business" },
+      { href: "/seller/catalog-uploads", label: "Catalog Uploads", icon: FileStack, section: "Manage Business" },
+      { href: "/seller/image-bulk-upload", label: "Image Bulk Upload", icon: Images, section: "Manage Business" },
+      { href: "/seller/quality", label: "Quality", icon: BadgeCheck, section: "Manage Business" },
+      { href: "/seller/settlements", label: "Payments", icon: Wallet, section: "Manage Business" },
+      { href: "/seller/warehouse", label: "Warehouse", icon: Warehouse, section: "Manage Business" },
+      { href: "/seller/products", label: "My Products", icon: Package, section: "More" },
+      { href: "/seller/sale-events", label: "Sale Events", icon: Tag, section: "More" },
+      ...(ADS_ENABLED ? [{ href: "/seller/ads", label: "Ads", icon: Megaphone, section: "More" }] : []),
+      { href: "/seller/performance", label: "Business Dashboard", icon: BarChart3, section: "More" },
+      { href: "/seller/reels", label: "Reels", icon: Clapperboard, section: "More" },
+      { href: "/seller/appointments", label: "Appointments", icon: CalendarClock, section: "More" },
+      { href: "/seller/settings", label: "Settings", icon: Settings, section: "More" },
     ],
     [counts?.pending]
   );
@@ -96,6 +127,27 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
       topLinks={topLinks}
       accountName={settings?.store?.name ?? null}
       accountSub={settings ? `Seller ID: ${settings.sellerCode}` : null}
+      showHelpCard={false}
+      sidebarHeader={
+        <div className="rounded-xl bg-sidebar-accent/60">
+          <Link href="/seller/settings" className="flex items-center gap-2.5 px-3 py-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+              <Store className="h-4 w-4" />
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-accent-foreground">
+              {settings?.store?.name ?? "My Store"}
+            </span>
+          </Link>
+          <div className="grid grid-cols-2 border-t border-sidebar-border text-xs font-medium">
+            <Link href="/seller/notifications" className="flex items-center justify-center gap-1.5 py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
+              <Bell className="h-3.5 w-3.5" /> Notices{unread ? ` (${unread})` : ""}
+            </Link>
+            <Link href="/seller/support" className="flex items-center justify-center gap-1.5 border-l border-sidebar-border py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
+              <Headset className="h-3.5 w-3.5" /> Support
+            </Link>
+          </div>
+        </div>
+      }
     >
       {children}
     </PanelShell>

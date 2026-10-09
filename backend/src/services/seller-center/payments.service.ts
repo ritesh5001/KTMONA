@@ -121,6 +121,68 @@ class SellerPaymentsService {
         };
     }
 
+    /**
+     * Meesho payments home: next 3 payout dates, completed payouts in the last
+     * 30 days, unscheduled (shipped, not delivered), a 30-day daily trend and
+     * compensation vs recoveries.
+     */
+    async dashboard(sellerId: string) {
+        const [rows, ledger] = await Promise.all([
+            this.rows(sellerId),
+            prisma.sellerLedgerEntry.findMany({ where: { sellerId, waivedAt: null, createdAt: { gte: addDays(new Date(), -30) } } }),
+        ]);
+        const sum = (list: Row[]) => round2(list.reduce((s, r) => s + r.net, 0));
+        const today = startOfDay();
+        const upcoming = rows.filter((r) => r.bucket === 'upcoming' && r.payableOn);
+        const byDate = new Map<string, Row[]>();
+        upcoming.forEach((r) => {
+            const key = startOfDay(r.payableOn! < today ? today : r.payableOn!).toISOString();
+            byDate.set(key, [...(byDate.get(key) ?? []), r]);
+        });
+        const nextPayments = [...byDate.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .slice(0, 3)
+            .map(([date, list]) => ({ date, amount: sum(list), orders: list.length }));
+        const next7 = upcoming.filter((r) => r.payableOn! <= addDays(today, 7));
+        const paid30 = rows.filter((r) => r.bucket === 'paid' && r.paidAt && r.paidAt >= addDays(today, -30));
+        const completedByDate = new Map<string, Row[]>();
+        paid30.forEach((r) => {
+            const key = startOfDay(r.paidAt!).toISOString();
+            completedByDate.set(key, [...(completedByDate.get(key) ?? []), r]);
+        });
+        const outstanding = rows.filter((r) => r.bucket === 'outstanding');
+
+        const series = Array.from({ length: 30 }, (_, i) => {
+            const day = addDays(today, -29 + i);
+            const next = addDays(day, 1);
+            return {
+                date: day,
+                paid: sum(rows.filter((r) => r.paidAt && r.paidAt >= day && r.paidAt < next)),
+                outstanding: sum(rows.filter((r) => r.bucket !== 'cancelled' && r.orderDate < next && (!r.paidAt || r.paidAt >= next))),
+            };
+        });
+
+        const compensation = round2(ledger.filter((l) => l.amount > 0).reduce((s, l) => s + l.amount, 0));
+        const recoveries = round2(ledger.filter((l) => l.amount < 0 && l.type !== 'AD_SPEND').reduce((s, l) => s + l.amount, 0));
+        const adSpend = round2(ledger.filter((l) => l.type === 'AD_SPEND').reduce((s, l) => s + l.amount, 0));
+
+        return {
+            paymentCycleDays: PAYMENT_CYCLE_DAYS,
+            upcoming: { next7Days: sum(next7), payments: nextPayments },
+            completed: {
+                last30Days: sum(paid30),
+                payments: [...completedByDate.entries()]
+                    .sort((a, b) => b[0].localeCompare(a[0]))
+                    .slice(0, 3)
+                    .map(([date, list]) => ({ date, amount: sum(list), orders: list.length })),
+            },
+            unscheduled: { amount: sum(outstanding), orders: outstanding.length },
+            series,
+            compensation: { compensation, recoveries, total: round2(compensation + recoveries) },
+            adsCost: { last30Days: round2(Math.abs(adSpend)) },
+        };
+    }
+
     async orders(sellerId: string, query: Record<string, unknown>) {
         const bucket = ['upcoming', 'outstanding', 'paid', 'cancelled'].includes(String(query.bucket)) ? (query.bucket as Bucket) : null;
         const page = parsePage(query.page);

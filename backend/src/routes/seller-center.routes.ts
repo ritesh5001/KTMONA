@@ -24,6 +24,8 @@ import { sellerInsightsService, LATE_DISPATCH_PENALTY_KEY } from '../services/se
 import { sellerSettingsService } from '../services/seller-center/settings.service.js';
 import { campaignsService } from '../services/admin-center/campaigns.service.js';
 import { adminOpsService } from '../services/admin-center/ops.service.js';
+import { sellerCatalogUploadsService, MAX_PRODUCTS_PER_CATALOG } from '../services/seller-center/catalog-uploads.service.js';
+import { sellerSupplierService } from '../services/seller-center/supplier.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -73,6 +75,36 @@ sellerCenterRouter.use(authenticate, authorize('SELLER'));
 
 // Dashboard
 sellerCenterRouter.get('/overview', h((req) => sellerDashboardService.overview(sid(req), Number(req.query.days) || 7)));
+sellerCenterRouter.get(
+    '/home',
+    h((req) => sellerSupplierService.home(sid(req), (['daily', 'weekly', 'monthly'] as const).find((r) => r === req.query.range) ?? 'daily'))
+);
+sellerCenterRouter.get('/dispatch-performance', h((req) => sellerSupplierService.dispatchPerformance(sid(req), [7, 30, 90].includes(Number(req.query.days)) ? Number(req.query.days) : 30)));
+sellerCenterRouter.get('/returns/overview', h((req) => sellerSupplierService.returnsOverview(sid(req), req.query)));
+sellerCenterRouter.get('/quality', h((req) => sellerSupplierService.quality(sid(req), req.query)));
+sellerCenterRouter.get('/pricing/performance', h((req) => sellerPricingService.performance(sid(req), req.query)));
+sellerCenterRouter.get('/pricing/rto', h((req) => sellerSupplierService.rtoGroups(sid(req))));
+sellerCenterRouter.post(
+    '/pricing/rto',
+    h((req) => {
+        const body = z
+            .object({
+                groups: z.array(z.string().min(1)).min(1).max(100),
+                prepaidDiscount: z.number().min(0).max(10_000).nullable().optional(),
+                wdrpDiscount: z.number().min(0).max(10_000).nullable().optional(),
+            })
+            .parse(req.body);
+        return sellerSupplierService.applyRtoDiscounts(sid(req), body);
+    })
+);
+sellerCenterRouter.get('/payments/dashboard', h((req) => sellerPaymentsService.dashboard(sid(req))));
+sellerCenterRouter.get(
+    '/orders/export',
+    h(async (req, res) => {
+        const csv = await sellerOrdersService.exportCsv(sid(req), req.query);
+        sendFile(res, Buffer.from(csv, 'utf8'), `ktmona-orders-${String(req.query.tab ?? 'all')}-${new Date().toISOString().slice(0, 10)}.csv`, 'text/csv; charset=utf-8');
+    })
+);
 
 // Orders
 sellerCenterRouter.get('/orders', h((req) => sellerOrdersService.list(sid(req), req.query)));
@@ -135,13 +167,71 @@ sellerCenterRouter.get(
 sellerCenterRouter.post(
     '/catalog/bulk-upload',
     xlsx,
-    h((req) => {
+    h(async (req) => {
         const categoryId = z.string().min(1).parse(req.query.categoryId);
         if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw ApiError.badRequest('Attach the filled .xlsx template');
-        return sellerCatalogService.importCatalog(sid(req), categoryId, req.body);
+        const result = await sellerCatalogService.importCatalog(sid(req), categoryId, req.body);
+        const fileName = typeof req.query.fileName === 'string' ? req.query.fileName.slice(0, 200) : null;
+        const upload = await sellerCatalogUploadsService.recordBulk(sid(req), categoryId, fileName, result);
+        return { ...result, upload };
+    })
+);
+
+// Catalog uploads (Meesho "Upload Catalog")
+const sizeRow = z.object({
+    size: z.string().trim().min(1).max(50),
+    sellerPrice: z.number().positive(),
+    wdrpPrice: z.number().positive().nullable().optional(),
+    prepaidDiscount: z.number().min(0).nullable().optional(),
+    mrp: z.number().positive(),
+    stock: z.number().int().min(0),
+    sku: z.string().trim().max(100).nullable().optional(),
+});
+const catalogProduct = z.object({
+    name: z.string().trim().min(3).max(255),
+    images: z.array(z.string().url()).min(1).max(5),
+    styleCode: z.string().trim().max(100).nullable().optional(),
+    netWeightGrams: z.number().int().positive().max(100_000),
+    description: z.string().trim().max(2000).nullable().optional(),
+    hsnCode: z.string().trim().max(20).nullable().optional(),
+    gstPercent: z.number().refine((n) => [0, 3, 5, 12, 18, 28].includes(n), 'GST must be 0, 3, 5, 12, 18 or 28').nullable().optional(),
+    color: z.string().trim().max(50).nullable().optional(),
+    attributes: z.record(z.string().max(500)).default({}),
+    legal: z.record(z.string().max(500)).default({}),
+    sizes: z.array(sizeRow).min(1).max(30),
+});
+sellerCenterRouter.get('/catalog-uploads/overview', h((req) => sellerCatalogUploadsService.overview(sid(req))));
+sellerCenterRouter.get('/catalog-uploads', h((req) => sellerCatalogUploadsService.list(sid(req), req.query)));
+sellerCenterRouter.post(
+    '/catalog-uploads/single',
+    h((req) => {
+        const body = z
+            .object({ draftId: z.string().optional(), categoryId: z.string().min(1), products: z.array(catalogProduct).min(1).max(MAX_PRODUCTS_PER_CATALOG) })
+            .parse(req.body);
+        return sellerCatalogUploadsService.submitSingle(sid(req), body);
+    })
+);
+sellerCenterRouter.get('/catalog-uploads/drafts/:id', h((req) => sellerCatalogUploadsService.getDraft(sid(req), param(req, 'id'))));
+sellerCenterRouter.post(
+    '/catalog-uploads/drafts',
+    h((req) => {
+        const body = z
+            .object({ id: z.string().optional(), categoryId: z.string().min(1), products: z.array(z.unknown()).max(MAX_PRODUCTS_PER_CATALOG) })
+            .parse(req.body);
+        return sellerCatalogUploadsService.saveDraft(sid(req), body);
+    })
+);
+sellerCenterRouter.delete('/catalog-uploads/drafts/:id', h((req) => sellerCatalogUploadsService.deleteDraft(sid(req), param(req, 'id'))));
+sellerCenterRouter.post(
+    '/catalog-uploads/prefilled-template',
+    h(async (req, res) => {
+        const body = z.object({ categoryId: z.string().min(1), images: z.array(z.string().url()).min(1).max(200) }).parse(req.body);
+        const { file, fileName } = await sellerCatalogUploadsService.prefilledTemplate(body.categoryId, body.images);
+        sendFile(res, file, fileName, XLSX_TYPE);
     })
 );
 sellerCenterRouter.get('/inventory', h((req) => sellerCatalogService.inventory(sid(req), req.query)));
+sellerCenterRouter.get('/inventory/catalogs', h((req) => sellerCatalogService.inventoryCatalogs(sid(req), req.query)));
 sellerCenterRouter.put(
     '/inventory',
     h((req) => {

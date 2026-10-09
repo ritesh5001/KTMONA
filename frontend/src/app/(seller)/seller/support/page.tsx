@@ -1,16 +1,15 @@
-import SupportChat from "@/components/support/support-chat";
+import { Suspense } from "react";
+import { HelpCenter } from "@/components/seller/HelpCenter";
 
 export const metadata = {
   title: "Support | KTMONA Seller",
-  description: "Chat with the KTMONA admin team about listings, orders, and settlements.",
+  description: "Find answers, raise a ticket or claim, and chat with the KTMONA team about listings, orders and payments.",
 };
 
 export default function SellerSupportPage() {
   return (
-    <SupportChat
-      audience="requester"
-      title="Seller Support"
-      description="Raise a request with the admin team about listings, orders, payouts, or your account."
-    />
+    <Suspense fallback={null}>
+      <HelpCenter />
+    </Suspense>
   );
 }

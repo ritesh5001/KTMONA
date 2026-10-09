@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { toast } from "sonner";
@@ -10,6 +11,7 @@ import {
   ClipboardList,
   Download,
   FileText,
+  Gauge,
   PackageCheck,
   RotateCcw,
   Truck,
@@ -23,6 +25,7 @@ import {
   type OrderTab,
   type SellerOrder,
 } from "@/services/seller-center";
+import { supplier } from "@/services/seller-supplier";
 import {
   Badge,
   Btn,
@@ -45,6 +48,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const TABS: { key: OrderTab; label: string }[] = [
+  { key: "on_hold", label: "On Hold" },
   { key: "pending", label: "Pending" },
   { key: "ready_to_ship", label: "Ready to Ship" },
   { key: "shipped", label: "Shipped" },
@@ -54,7 +58,15 @@ const TABS: { key: OrderTab; label: string }[] = [
   { key: "all", label: "All" },
 ];
 
+const SLA_OPTIONS = [
+  { value: "", label: "SLA Status" },
+  { value: "breached", label: "Breached" },
+  { value: "due_today", label: "Dispatch due today" },
+  { value: "due_later", label: "Dispatch due later" },
+];
+
 const TAB_HELP: Record<OrderTab, string> = {
+  on_hold: "The customer asked to cancel these orders. Approve the cancellation or keep the order before dispatch.",
   pending: "New orders. Accept them to generate the shipping label, or cancel if you can't fulfil.",
   ready_to_ship: "Pack the parcel, stick the label, add it to a manifest and hand it to the courier.",
   shipped: "On the way to the customer.",
@@ -82,20 +94,26 @@ export default function SellerOrdersClient() {
   const [page, setPage] = React.useState(1);
   const [search, setSearch] = React.useState("");
   const debounced = useDebounced(search);
+  const [sla, setSla] = React.useState("");
+  const [from, setFrom] = React.useState("");
+  const [to, setTo] = React.useState("");
+  const [sku, setSku] = React.useState("");
+  const debouncedSku = useDebounced(sku);
+  const filters = { sla: tab === "pending" || tab === "ready_to_ship" ? sla : "", from, to, sku: debouncedSku };
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
   const [busy, setBusy] = React.useState<string | null>(null);
   const [detailId, setDetailId] = React.useState<string | null>(params.get("order"));
   const [trackingFor, setTrackingFor] = React.useState<SellerOrder | null>(null);
   const [cancelFor, setCancelFor] = React.useState<SellerOrder | null>(null);
 
-  const key = ["seller-orders", tab, page, debounced] as const;
-  const { data, error, isLoading, mutate } = useSWR(key, () => sellerCenter.orders({ tab, page, search: debounced, limit: 20 }), {
+  const key = ["seller-orders", tab, page, debounced, filters.sla, from, to, debouncedSku] as const;
+  const { data, error, isLoading, mutate } = useSWR(key, () => sellerCenter.orders({ tab, page, search: debounced, limit: 20, ...filters }), {
     keepPreviousData: true,
   });
 
   React.useEffect(() => {
     setSelected(new Set());
-  }, [tab, page, debounced]);
+  }, [tab, page, debounced, filters.sla, from, to, debouncedSku]);
 
   const changeTab = (next: OrderTab) => {
     setTab(next);
@@ -157,12 +175,59 @@ export default function SellerOrdersClient() {
       <PageHeader
         title="Orders"
         description={TAB_HELP[tab]}
-        actions={<SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search order ID, customer, AWB" />}
+        actions={
+          <>
+            <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search order ID, customer, AWB" />
+            <Btn
+              variant="primary"
+              loading={busy === "export"}
+              onClick={() => run("export", () => supplier.downloadOrders({ tab, search: debounced, ...filters }), "Orders data downloaded")}
+            >
+              <Download className="h-4 w-4" /> Download Orders Data
+            </Btn>
+          </>
+        }
       />
+
+      <div className="flex flex-col gap-3 rounded-2xl border border-border-soft bg-card p-4 sm:flex-row sm:items-center">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">
+          <Gauge className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">Get better visibility into your dispatch health</p>
+          <p className="text-xs text-muted-foreground">Track on-time dispatch, cancellations and key order performance insights in one place.</p>
+        </div>
+        <Link href="/seller/orders/dispatch-performance">
+          <Btn variant="primary">Check Dispatch health</Btn>
+        </Link>
+      </div>
 
       <div className="rounded-2xl border border-border-soft bg-card">
         <div className="px-4 pt-2">
           <Tabs tabs={TABS} value={tab} onChange={changeTab} counts={data?.counts} />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border-b border-border-soft px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Filter by :</span>
+          {tab === "pending" || tab === "ready_to_ship" ? (
+            <select value={sla} onChange={(e) => { setSla(e.target.value); setPage(1); }} aria-label="SLA status" className="h-9 rounded-lg border border-border-soft bg-card px-2 text-sm">
+              {SLA_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ) : null}
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            Order date
+            <input type="date" value={from} max={to || undefined} onChange={(e) => { setFrom(e.target.value); setPage(1); }} aria-label="Order date from" className="h-9 rounded-lg border border-border-soft bg-card px-2 text-sm text-foreground" />
+            –
+            <input type="date" value={to} min={from || undefined} onChange={(e) => { setTo(e.target.value); setPage(1); }} aria-label="Order date to" className="h-9 rounded-lg border border-border-soft bg-card px-2 text-sm text-foreground" />
+          </label>
+          <input value={sku} onChange={(e) => { setSku(e.target.value); setPage(1); }} placeholder="SKU ID" aria-label="Filter by SKU" className="h-9 w-36 rounded-lg border border-border-soft bg-card px-3 text-sm" />
+          {sla || from || to || sku ? (
+            <Btn size="sm" variant="ghost" onClick={() => { setSla(""); setFrom(""); setTo(""); setSku(""); setPage(1); }}>
+              Clear filters
+            </Btn>
+          ) : null}
         </div>
 
         {/* Bulk action bar */}

@@ -14,6 +14,7 @@ import { earningsFor, getCommissionTerms, parseLimit, parsePage, round2 } from '
 
 const log = logger.child({ module: 'seller-pricing' });
 
+
 class SellerPricingService {
     async calculator(sellerId: string, sellerPrice: number) {
         const terms = await getCommissionTerms(sellerId);
@@ -91,6 +92,100 @@ class SellerPricingService {
                 };
             }),
             pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        };
+    }
+
+    /**
+     * Meesho "Manage Pricing": price performance overview and the tabs
+     * All / Losing Orders / Losing Views / Best Priced, one row per product.
+     */
+    async performance(sellerId: string, query: Record<string, unknown>) {
+        const TABS = ['all', 'losing_orders', 'losing_views', 'best_priced'] as const;
+        const tab = (TABS as readonly string[]).includes(String(query.tab)) ? String(query.tab) : 'all';
+        const days = [7, 30, 90].includes(Number(query.days)) ? Number(query.days) : 30;
+        const search = typeof query.search === 'string' ? query.search.trim() : '';
+        const categoryId = typeof query.categoryId === 'string' && query.categoryId ? query.categoryId : undefined;
+
+        type Row = Awaited<ReturnType<SellerPricingService['list']>>['variants'][number];
+        const variants: Row[] = [];
+        for (let page = 1; page <= 10; page++) {
+            const res = await this.list(sellerId, { page, limit: 100, search });
+            variants.push(...res.variants);
+            if (page >= res.pagination.totalPages) break;
+        }
+        const now = new Date();
+        const since = new Date(now.getTime() - days * 86_400_000);
+        const prevSince = new Date(since.getTime() - days * 86_400_000);
+        const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+        const twoWeeksAgo = new Date(now.getTime() - 14 * 86_400_000);
+        const productIds = [...new Set(variants.map((v) => v.productId))];
+
+        const [products, cur, prev, viewsCur, viewsPrev] = await Promise.all([
+            prisma.product.findMany({
+                where: { id: { in: productIds }, ...(categoryId ? { categoryId } : {}) },
+                select: { id: true, categoryId: true, styleCode: true, catalogUploadId: true, catalogUpload: { select: { fileId: true } }, category: { select: { name: true } } },
+            }),
+            prisma.orderItem.groupBy({ by: ['productId'], where: { sellerId, order: { createdAt: { gte: since }, status: { notIn: ['CANCELLED', 'PLACED'] } } }, _sum: { quantity: true } }),
+            prisma.orderItem.groupBy({ by: ['productId'], where: { sellerId, order: { createdAt: { gte: prevSince, lt: since }, status: { notIn: ['CANCELLED', 'PLACED'] } } }, _sum: { quantity: true } }),
+            prisma.productViewDaily.groupBy({ by: ['productId'], where: { sellerId, day: { gte: weekAgo } }, _sum: { views: true } }),
+            prisma.productViewDaily.groupBy({ by: ['productId'], where: { sellerId, day: { gte: twoWeeksAgo, lt: weekAgo } }, _sum: { views: true } }),
+        ]);
+        const pMap = new Map(products.map((p) => [p.id, p]));
+        const sum = (rows: { productId: string; _sum: { quantity?: number | null; views?: number | null } }[]) =>
+            new Map(rows.map((r) => [r.productId, (r._sum.quantity ?? r._sum.views ?? 0) as number]));
+        const curMap = sum(cur);
+        const prevMap = sum(prev);
+        const vCur = sum(viewsCur);
+        const vPrev = sum(viewsPrev);
+
+        const byProduct = new Map<string, Row[]>();
+        variants.filter((v) => pMap.has(v.productId)).forEach((v) => byProduct.set(v.productId, [...(byProduct.get(v.productId) ?? []), v]));
+        const rows = [...byProduct.entries()].map(([productId, vs]) => {
+            const p = pMap.get(productId)!;
+            const orders = curMap.get(productId) ?? 0;
+            const before = prevMap.get(productId) ?? 0;
+            const viewsNow = vCur.get(productId) ?? 0;
+            const viewsBefore = vPrev.get(productId) ?? 0;
+            const losingOrders = vs.some((v) => v.competitive === false);
+            const losingViews = viewsBefore >= 10 && viewsNow < viewsBefore * 0.7;
+            return {
+                productId,
+                title: vs[0]!.title,
+                image: vs[0]!.image,
+                catalogId: p.catalogUpload?.fileId ?? productId,
+                styleCode: p.styleCode,
+                category: p.category.name,
+                sizes: vs.map((v) => v.size),
+                stock: vs.reduce((s, v) => s + v.stock, 0),
+                orders,
+                growth: before > 0 ? round2(((orders - before) / before) * 100) : null,
+                insight: losingOrders ? 'LOSING_ORDERS' : losingViews ? 'LOSING_VIEWS' : 'BEST_PRICE',
+                variants: vs,
+            };
+        });
+        const counts = {
+            all: rows.length,
+            losing_orders: rows.filter((r) => r.insight === 'LOSING_ORDERS').length,
+            losing_views: rows.filter((r) => r.insight === 'LOSING_VIEWS').length,
+            best_priced: rows.filter((r) => r.insight === 'BEST_PRICE').length,
+        };
+        const filtered = tab === 'all' ? rows : rows.filter((r) => r.insight === tab.toUpperCase());
+        if (query.sort === 'stock') filtered.sort((a, b) => b.stock - a.stock);
+        else filtered.sort((a, b) => b.orders - a.orders);
+
+        const totalCur = [...curMap.values()].reduce((a, b) => a + b, 0);
+        const totalPrev = [...prevMap.values()].reduce((a, b) => a + b, 0);
+        return {
+            days,
+            tab,
+            overview: {
+                orders: totalCur,
+                orderGrowth: totalPrev > 0 ? round2(((totalCur - totalPrev) / totalPrev) * 100) : null,
+                losingOrders: counts.losing_orders,
+                priceSuggestions: variants.filter((v) => v.recommendedSellerPrice != null).length,
+            },
+            counts,
+            products: filtered,
         };
     }
 

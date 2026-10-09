@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { FileWarning, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { sellerCenter, inr, fmtDate, shortId, type ClaimType } from "@/services/seller-center";
+import { supplier } from "@/services/seller-supplier";
 import {
   Badge,
   Btn,
@@ -24,12 +26,13 @@ import {
   inputCls,
 } from "@/components/seller/kit";
 
-type View = "returns" | "rto" | "claims";
+type View = "overview" | "tracking" | "claims";
 const VIEWS: { key: View; label: string }[] = [
-  { key: "returns", label: "Customer Returns" },
-  { key: "rto", label: "RTO" },
-  { key: "claims", label: "Claims" },
+  { key: "overview", label: "Overview" },
+  { key: "tracking", label: "Return Tracking" },
+  { key: "claims", label: "Claim Tracking" },
 ];
+type Tracking = "returns" | "rto";
 
 const CLAIM_LABELS: Record<ClaimType, string> = {
   DAMAGED_RETURN: "Returned product is damaged",
@@ -45,42 +48,159 @@ type ClaimTarget = { orderId: string; returnId?: string; types: ClaimType[]; max
 
 export default function ReturnsPage() {
   const params = useSearchParams();
-  const [view, setView] = React.useState<View>((VIEWS.find((v) => v.key === params.get("view"))?.key ?? "returns") as View);
+  const legacy = params.get("view");
+  const initial: View = legacy === "claims" ? "claims" : legacy === "returns" || legacy === "rto" ? "tracking" : ((VIEWS.find((v) => v.key === legacy)?.key ?? "overview") as View);
+  const [view, setView] = React.useState<View>(initial);
+  const [tracking, setTracking] = React.useState<Tracking>(legacy === "rto" ? "rto" : "returns");
   const [claimFor, setClaimFor] = React.useState<ClaimTarget | null>(null);
 
   return (
     <PageShell>
       <PageHeader
-        title="Returns & Refunds"
+        title="Return/RTO Orders"
         description="Track customer returns and RTO parcels, and raise a claim when a return comes back damaged, wrong or missing."
+        actions={
+          <Link href="/seller/claims">
+            <Btn variant="primary"><ShieldCheck className="h-4 w-4" /> Raise Claim</Btn>
+          </Link>
+        }
       />
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { icon: RotateCcw, title: "Customer returns", text: "Approved returns are picked up and sent back to your pickup address." },
-          { icon: Truck, title: "RTO", text: "Parcels the customer did not accept come back as Return to Origin." },
-          { icon: ShieldCheck, title: "Seller protection", text: "Claim within 30 days of a return if the item is damaged or wrong." },
-        ].map((c) => (
-          <div key={c.title} className="flex gap-3 rounded-2xl border border-border-soft bg-card p-4">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand/12 text-brand-strong">
-              <c.icon className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-sm font-semibold">{c.title}</p>
-              <p className="text-xs text-muted-foreground">{c.text}</p>
-            </div>
-          </div>
-        ))}
-      </div>
 
       <div className="rounded-2xl border border-border-soft bg-card">
         <div className="px-4 pt-2">
           <Tabs tabs={VIEWS} value={view} onChange={setView} />
         </div>
-        {view === "returns" ? <ReturnsView onClaim={setClaimFor} /> : view === "rto" ? <RtoView onClaim={setClaimFor} /> : <ClaimsView />}
+        {view === "overview" ? (
+          <OverviewView />
+        ) : view === "tracking" ? (
+          <>
+            <div className="flex gap-2 px-4 pt-3">
+              {([
+                { key: "returns", label: "Customer Returns" },
+                { key: "rto", label: "Courier Returns (RTO)" },
+              ] as const).map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setTracking(t.key)}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${tracking === t.key ? "border-brand bg-brand/10 text-foreground" : "border-border-soft text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            {tracking === "returns" ? <ReturnsView onClaim={setClaimFor} /> : <RtoView onClaim={setClaimFor} />}
+          </>
+        ) : (
+          <ClaimsView />
+        )}
       </div>
 
       <ClaimModal target={claimFor} onClose={() => setClaimFor(null)} onDone={() => setView("claims")} />
     </PageShell>
+  );
+}
+
+function OverviewView() {
+  const [days, setDays] = React.useState(30);
+  const [sort, setSort] = React.useState("recent");
+  const [performance, setPerformance] = React.useState("");
+  const { data, error, isLoading, mutate } = useSWR(["seller-returns-overview", days, sort, performance], () => supplier.returnsOverview({ days, sort, performance }), {
+    keepPreviousData: true,
+  });
+  if (error && !data) return <div className="p-4"><ErrorNote message={errorMessage(error)} onRetry={() => mutate()} /></div>;
+  if (isLoading && !data) return <Loading />;
+  if (!data) return null;
+  const s = data.summary;
+  return (
+    <div className="space-y-5 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-semibold">Summary</h3>
+        <select value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period" className="h-9 rounded-lg border border-border-soft bg-card px-2 text-sm">
+          <option value={30}>Last 1 Month</option>
+          <option value={90}>Last 3 Months</option>
+          <option value={180}>Last 6 Months</option>
+        </select>
+      </div>
+      <div className="grid gap-3 md:grid-cols-3">
+        <div className="rounded-xl border border-border-soft p-4">
+          <p className="text-xs font-medium text-muted-foreground">Customer Return Rate</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{s.returnRate}%</p>
+          <p className="mt-1 text-xs text-muted-foreground">{s.returned} orders returned out of {s.delivered} delivered</p>
+        </div>
+        <div className="rounded-xl border border-border-soft p-4">
+          <p className="text-xs font-medium text-muted-foreground">Average Reverse Shipping Cost</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{inr.format(s.avgReverseShippingCost)}</p>
+          <p className="mt-1 text-xs text-muted-foreground">For {s.returned} customer returned orders</p>
+        </div>
+        <div className="rounded-xl border border-border-soft p-4">
+          <p className="text-xs font-medium text-muted-foreground">Courier Return (RTO) Rate</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{s.rtoRate}%</p>
+          <p className="mt-1 text-xs text-muted-foreground">{s.rtoOrders} RTO orders out of {s.dispatched} dispatched</p>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+        <ShieldCheck className="h-4 w-4 text-amber-600" />
+        <span className="flex-1">Add a Wrong/Defective Returns Price and a prepaid discount to cut unwanted returns and RTO.</span>
+        <Link href="/seller/pricing/reduce-rto" className="font-semibold text-ink hover:underline dark:text-brand">Reduce RTO &amp; Returns</Link>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base font-semibold">Product Performance</h3>
+        <div className="flex flex-wrap gap-2 text-sm">
+          <select value={performance} onChange={(e) => setPerformance(e.target.value)} aria-label="Performance" className="h-9 rounded-lg border border-border-soft bg-card px-2">
+            <option value="">Performance: All</option>
+            <option value="high_returns">High returns (&gt;10%)</option>
+          </select>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort" className="h-9 rounded-lg border border-border-soft bg-card px-2">
+            <option value="recent">Most Recent</option>
+            <option value="returns">Highest Return Rate</option>
+            <option value="orders">Most Delivered</option>
+          </select>
+        </div>
+      </div>
+      {data.products.length === 0 ? (
+        <Empty icon={RotateCcw} title="No products" text="Products with deliveries will show their return rate here." />
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-border-soft">
+          <table className="w-full min-w-[720px] text-left text-sm">
+            <thead>
+              <tr className="bg-mist/60 text-xs text-muted-foreground">
+                <th className="px-4 py-3 font-semibold">Product Details</th>
+                <th className="px-3 py-3 font-semibold">Orders Delivered</th>
+                <th className="px-3 py-3 font-semibold">Customer Return</th>
+                <th className="px-3 py-3 font-semibold">Top Return Reason</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.products.map((p) => (
+                <tr key={p.id} className="border-t border-border-soft">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <Thumb src={p.image} alt={p.title} />
+                      <div className="min-w-0">
+                        <p className="max-w-[280px] truncate font-medium">{p.title}</p>
+                        <p className="text-xs text-muted-foreground">Category: {p.category.name}</p>
+                        <div className="mt-1 flex gap-1">
+                          {p.wdrpEnabled ? <Badge tone="blue">WDRP enabled</Badge> : null}
+                          {p.prepaidEnabled ? <Badge tone="green">Prepaid discount</Badge> : null}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 tabular-nums">{p.delivered}</td>
+                  <td className="px-3 py-3">
+                    <p className="font-semibold tabular-nums">{p.returnRate}%</p>
+                    <p className="text-xs text-muted-foreground">{p.returns} Returns</p>
+                  </td>
+                  <td className="px-3 py-3 text-muted-foreground">{p.topReason ?? "N/A"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

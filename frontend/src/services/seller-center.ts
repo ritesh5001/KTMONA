@@ -83,7 +83,7 @@ export interface Pagination {
   totalPages: number;
 }
 
-export type OrderTab = "pending" | "ready_to_ship" | "shipped" | "delivered" | "cancelled" | "rto" | "all";
+export type OrderTab = "on_hold" | "pending" | "ready_to_ship" | "shipped" | "delivered" | "cancelled" | "rto" | "all";
 
 export interface SellerOrderItem {
   id: string;
@@ -437,7 +437,7 @@ type ActionResult = { results: { orderId: string; ok: boolean; error?: string }[
 export const sellerCenter = {
   overview: (days = 7) => get<Overview>(`/overview${qs({ days })}`),
 
-  orders: (params: { tab: OrderTab; page?: number; search?: string; limit?: number }) =>
+  orders: (params: { tab: OrderTab; page?: number; search?: string; limit?: number; sla?: string; from?: string; to?: string; sku?: string }) =>
     get<{ tab: OrderTab; counts: OrderCounts; orders: SellerOrder[]; pagination: Pagination }>(`/orders${qs(params)}`),
   orderCounts: () => get<OrderCounts>(`/orders/counts`),
   order: (orderId: string) => get<SellerOrder>(`/orders/${orderId}`),
@@ -457,7 +457,7 @@ export const sellerCenter = {
   downloadCatalogTemplate: (categoryId: string) => downloadFile(`/catalog/template${qs({ categoryId })}`, "ktmona-catalog-template.xlsx"),
   bulkUpload: (categoryId: string, file: File) =>
     uploadXlsx<{ productsCreated: number; products: { id: string; title: string }[]; rowsWithErrors: number; errors: { row: number; message: string }[] }>(
-      `/catalog/bulk-upload${qs({ categoryId })}`,
+      `/catalog/bulk-upload${qs({ categoryId, fileName: file.name })}`,
       file
     ),
 

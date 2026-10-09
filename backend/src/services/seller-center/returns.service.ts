@@ -151,9 +151,15 @@ class SellerReturnsService {
         sellerId: string,
         input: { orderId: string; returnId?: string | undefined; type: SellerClaimType; description: string; images?: string[] | undefined; amountClaimed?: number | undefined}
     ) {
+        // Accept the full ID or the short "#AB12CD34" number shown in the panel.
+        const ref = input.orderId.trim().replace(/^#/, '');
         const order = await prisma.order.findFirst({
-            where: { id: input.orderId, items: { some: { sellerId } } },
+            where: {
+                items: { some: { sellerId } },
+                OR: [{ id: ref }, ...(ref.length >= 6 && ref.length < 20 ? [{ id: { endsWith: ref.toLowerCase() } }] : [])],
+            },
             include: { items: { where: { sellerId } }, shipments: { where: { seller_id: sellerId } } },
+            orderBy: { createdAt: 'desc' },
         });
         if (!order) throw ApiError.notFound('Order not found');
         if (Date.now() - order.createdAt.getTime() > 120 * 86_400_000) {
@@ -161,6 +167,16 @@ class SellerReturnsService {
         }
 
         const isReturnClaim = ['DAMAGED_RETURN', 'WRONG_RETURN', 'MISSING_ITEM_IN_RETURN'].includes(input.type);
+        if (isReturnClaim && !input.returnId) {
+            // Raised from the help center with just the order number.
+            const latest = await prisma.returnRequest.findFirst({
+                where: { orderId: order.id, status: { not: 'REJECTED' }, items: { some: { orderItem: { sellerId } } } },
+                orderBy: { createdAt: 'desc' },
+                select: { id: true },
+            });
+            if (!latest) throw ApiError.badRequest('No return found for this order');
+            input = { ...input, returnId: latest.id };
+        }
         if (isReturnClaim) {
             if (!input.returnId) throw ApiError.badRequest('Select the return this claim is about');
             const ret = await prisma.returnRequest.findFirst({ where: { id: input.returnId, orderId: order.id } });

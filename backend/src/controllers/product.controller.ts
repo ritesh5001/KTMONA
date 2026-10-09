@@ -11,6 +11,7 @@ import {
     updateStockSchema,
 } from '../validators/variant.validation.js';
 import { ApiError } from '../errors/ApiError.js';
+import { sellerSupplierService } from '../services/seller-center/supplier.service.js';
 import { ZodError } from 'zod';
 
 /**
@@ -83,6 +84,8 @@ export class ProductController {
             }
 
             const result = await this.service.getProductById(id);
+            // Seller "Business Insights" views. Best-effort; never blocks the page.
+            void sellerSupplierService.recordView(id).catch(() => undefined);
             res.set('Cache-Control', 'public, max-age=180, stale-while-revalidate=900');
             res.status(200).json(result);
         } catch (error) {

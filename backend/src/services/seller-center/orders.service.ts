@@ -13,12 +13,14 @@ import { cancellationService } from '../cancellation.service.js';
 import { invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
 import { chargePenalty, getPenaltyRules } from '../admin-center/penalties.service.js';
 import {
+    DISPATCH_SLA_HOURS,
     addDays,
     dispatchBy,
     parseLimit,
     parsePage,
     round2,
     sellerCode,
+    toCsv,
 } from './common.js';
 import { renderLabels, renderManifest, type LabelData } from './labels.js';
 import {
@@ -30,7 +32,7 @@ import {
 
 const log = logger.child({ module: 'seller-orders' });
 
-export const ORDER_TABS = ['pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'rto', 'all'] as const;
+export const ORDER_TABS = ['on_hold', 'pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'rto', 'all'] as const;
 export type OrderTab = (typeof ORDER_TABS)[number];
 
 async function sellerCancelledOrderIds(sellerId: string): Promise<string[]> {
@@ -47,12 +49,22 @@ function tabWhere(sellerId: string, tab: OrderTab, cancelledIds: string[]): Pris
         shipments: { some: { seller_id: sellerId, status: { in: statuses } } },
     });
     switch (tab) {
+        case 'on_hold':
+            // Customer asked to cancel: hold dispatch until the seller decides.
+            return {
+                ...mine,
+                status: 'CONFIRMED',
+                id: { notIn: cancelledIds },
+                shipments: { none: { seller_id: sellerId } },
+                cancellationRequest: { is: { status: 'REQUESTED' } },
+            };
         case 'pending':
             return {
                 ...mine,
                 status: 'CONFIRMED',
                 id: { notIn: cancelledIds },
                 shipments: { none: { seller_id: sellerId } },
+                NOT: { cancellationRequest: { is: { status: 'REQUESTED' } } },
             };
         case 'ready_to_ship':
             return shipmentIn(['CREATED']);
@@ -68,6 +80,40 @@ function tabWhere(sellerId: string, tab: OrderTab, cancelledIds: string[]): Pris
         default:
             return { ...mine, status: { not: 'PLACED' } };
     }
+}
+
+/** Meesho filters: SLA status, order date range and SKU. */
+async function filterWhere(sellerId: string, query: Record<string, unknown>): Promise<Prisma.OrderWhereInput[]> {
+    const out: Prisma.OrderWhereInput[] = [];
+    const now = new Date();
+    const slaCutoff = (hoursFromNow: number) => new Date(now.getTime() - (DISPATCH_SLA_HOURS - hoursFromNow) * 3_600_000);
+    // dispatchBy = createdAt + SLA, so "breached" means createdAt < now - SLA.
+    if (query.sla === 'breached') out.push({ createdAt: { lt: slaCutoff(0) } });
+    if (query.sla === 'due_today') {
+        const endOfDay = new Date(now);
+        endOfDay.setHours(23, 59, 59, 999);
+        const hoursLeft = (endOfDay.getTime() - now.getTime()) / 3_600_000;
+        out.push({ createdAt: { gte: slaCutoff(0), lte: slaCutoff(hoursLeft) } });
+    }
+    if (query.sla === 'due_later') {
+        const endOfDay = new Date(now);
+        endOfDay.setHours(23, 59, 59, 999);
+        out.push({ createdAt: { gt: slaCutoff((endOfDay.getTime() - now.getTime()) / 3_600_000) } });
+    }
+    const from = typeof query.from === 'string' && query.from ? new Date(query.from) : null;
+    const to = typeof query.to === 'string' && query.to ? new Date(`${query.to}T23:59:59.999`) : null;
+    if (from && !Number.isNaN(from.getTime())) out.push({ createdAt: { gte: from } });
+    if (to && !Number.isNaN(to.getTime())) out.push({ createdAt: { lte: to } });
+    const sku = typeof query.sku === 'string' ? query.sku.trim() : '';
+    if (sku) {
+        const variants = await prisma.productVariant.findMany({
+            where: { product: { sellerId }, sku: { contains: sku, mode: 'insensitive' } },
+            select: { id: true },
+            take: 200,
+        });
+        out.push({ items: { some: { sellerId, variantId: { in: variants.map((v) => v.id) } } } });
+    }
+    return out;
 }
 
 const orderInclude = {
@@ -106,6 +152,7 @@ class SellerOrdersService {
                 ],
             });
         }
+        for (const extra of await filterWhere(sellerId, query)) (where.AND as Prisma.OrderWhereInput[]).push(extra);
 
         const [total, orders, counts] = await Promise.all([
             prisma.order.count({ where }),
@@ -122,6 +169,31 @@ class SellerOrdersService {
 
         const rows = await this.toRows(sellerId, orders, cancelledIds);
         return { tab, counts, orders: rows, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    }
+
+    /** "Download Orders Data": every order in the tab + filters, as CSV. */
+    async exportCsv(sellerId: string, query: Record<string, unknown>): Promise<string> {
+        const rows: unknown[][] = [];
+        let page = 1;
+        for (;;) {
+            const res = await this.list(sellerId, { ...query, page, limit: 100 });
+            for (const o of res.orders) {
+                for (const i of o.items) {
+                    rows.push([
+                        o.orderId, o.orderDate, o.status, o.paymentMode, o.dispatchBy, o.slaBreached ? 'Yes' : 'No',
+                        i.title, i.sku, i.size, i.color, i.quantity, i.sellerPrice, i.lineTotal,
+                        o.customer.name, o.customer.city, o.customer.pincode,
+                        o.shipment?.carrier ?? '', o.shipment?.awb ?? '',
+                    ]);
+                }
+            }
+            if (page >= res.pagination.totalPages || page >= 50) break;
+            page += 1;
+        }
+        return toCsv(
+            ['Order ID', 'Order Date', 'Status', 'Payment', 'Dispatch By', 'SLA Breached', 'Product', 'SKU', 'Size', 'Colour', 'Qty', 'Your Price', 'Line Total', 'Customer', 'City', 'Pincode', 'Courier', 'AWB'],
+            rows
+        );
     }
 
     async detail(sellerId: string, orderId: string) {

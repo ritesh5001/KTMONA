@@ -3,7 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { BadgePercent, Calculator, Lightbulb, Plus, Tag } from "lucide-react";
+import { AlertTriangle, BadgePercent, Calculator, Lightbulb, Plus, Tag, ThumbsUp } from "lucide-react";
 import { sellerCenter, inr, inr2, fmtDate, type PricingVariant } from "@/services/seller-center";
 import {
   Badge,
@@ -15,7 +15,6 @@ import {
   Modal,
   PageHeader,
   PageShell,
-  Pager,
   Panel,
   SearchBox,
   StatusBadge,
@@ -26,24 +25,93 @@ import {
   useDebounced,
 } from "@/components/seller/kit";
 import { ProductPicker } from "@/components/seller/ProductPicker";
+import { RtoCard } from "@/components/seller/RtoCard";
+import { supplier, type PricingPerformance, type PricingProduct, type PricingTab } from "@/services/seller-supplier";
 import { cn } from "@/lib/utils";
 
-type View = "pricing" | "offers";
+type View = PricingTab | "offers";
 
 export default function PricingPage() {
-  const [view, setView] = React.useState<View>("pricing");
+  const [view, setView] = React.useState<View>("all");
+  const [days, setDays] = React.useState(30);
+  const [search, setSearch] = React.useState("");
+  const q = useDebounced(search);
+  const { data: perf, error, isLoading, mutate } = useSWR(
+    view === "offers" ? null : ["seller-pricing-perf", view, days, q],
+    () => supplier.pricingPerformance({ tab: view as PricingTab, days, search: q }),
+    { keepPreviousData: true }
+  );
+  const { data: rto } = useSWR("seller-pricing-rto", () => supplier.rtoGroups(), { revalidateOnFocus: false });
+  const o = perf?.overview;
+
   return (
     <PageShell>
       <PageHeader
-        title="Pricing & Offers"
-        description="See exactly what you earn on every product, compare with similar products on KTMONA, and run limited-time discounts."
+        title="Pricing"
+        description="See how your prices compare, what you earn on every product, and where a small price change can bring more orders."
+        actions={<SearchBox value={search} onChange={setSearch} placeholder="Search by product or SKU" />}
       />
+
+      <div>
+        <h2 className="mb-3 text-base font-semibold">Overview</h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="rounded-2xl border border-border-soft bg-card p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold">Price Performance</h3>
+              <select value={days} onChange={(e) => setDays(Number(e.target.value))} aria-label="Period" className="h-8 rounded-lg border border-border-soft bg-card px-2 text-xs font-semibold">
+                <option value={7}>Last 7 days</option>
+                <option value={30}>Last 30 days</option>
+                <option value={90}>Last 90 days</option>
+              </select>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-4 border-b border-border-soft pb-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Order Growth</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">
+                  {o?.orders ?? "–"}{" "}
+                  {o?.orderGrowth != null ? (
+                    <span className={cn("text-xs", o.orderGrowth >= 0 ? "text-emerald-600" : "text-red-600")}>
+                      {o.orderGrowth >= 0 ? "↑" : "↓"} {Math.abs(o.orderGrowth)}%
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Price suggestions</p>
+                <p className="mt-1 text-lg font-semibold tabular-nums">{o?.priceSuggestions ?? "–"}</p>
+              </div>
+            </div>
+            <p className="mt-3 flex items-center gap-2 text-sm font-semibold">
+              <AlertTriangle className="h-4 w-4 text-amber-500" /> Losing Order <span className="tabular-nums">{o?.losingOrders ?? 0} Products</span>
+            </p>
+            <p className="text-xs text-muted-foreground">Reduce price and increase more orders</p>
+          </section>
+          <RtoCard rates={rto?.rates} compact />
+        </div>
+      </div>
+
       <Calculator_ />
+
       <div className="rounded-2xl border border-border-soft bg-card">
         <div className="px-4 pt-2">
-          <Tabs tabs={[{ key: "pricing", label: "Product prices" }, { key: "offers", label: "Offers & discounts" }]} value={view} onChange={setView} />
+          <Tabs
+            tabs={[
+              { key: "all", label: "All Products" },
+              { key: "losing_orders", label: "Losing Orders" },
+              { key: "losing_views", label: "Losing Views" },
+              { key: "best_priced", label: "Best Priced" },
+              { key: "offers", label: "Offers & Discounts" },
+            ]}
+            value={view}
+            onChange={setView}
+            counts={perf?.counts}
+          />
         </div>
-        {view === "pricing" ? <PricingTable /> : <OffersView />}
+        {view === "offers" ? (
+          <OffersView />
+        ) : (
+          <PricingTable data={perf} error={error} loading={isLoading} onRetry={() => mutate()} />
+        )}
       </div>
     </PageShell>
   );
@@ -84,90 +152,105 @@ function Calculator_() {
   );
 }
 
-function PricingTable() {
-  const [page, setPage] = React.useState(1);
-  const [search, setSearch] = React.useState("");
-  const q = useDebounced(search);
-  const { data, error, isLoading, mutate } = useSWR(["seller-pricing", page, q], () => sellerCenter.pricing({ page, search: q }), { keepPreviousData: true });
+const INSIGHT: Record<PricingProduct["insight"], { label: string; cls: string }> = {
+  BEST_PRICE: { label: "Best Price", cls: "text-emerald-700 dark:text-emerald-400" },
+  LOSING_ORDERS: { label: "Losing Orders", cls: "text-red-600" },
+  LOSING_VIEWS: { label: "Losing Views", cls: "text-amber-600" },
+};
+
+function PricingTable({
+  data,
+  error,
+  loading,
+  onRetry,
+}: {
+  data: PricingPerformance | undefined;
+  error: unknown;
+  loading: boolean;
+  onRetry: () => void;
+}) {
   const [editing, setEditing] = React.useState<PricingVariant | null>(null);
+  const variants = React.useMemo(() => data?.products.flatMap((p) => p.variants) ?? [], [data]);
+
+  if (error && !data) return <div className="p-4"><ErrorNote message={errorMessage(error)} onRetry={onRetry} /></div>;
+  if (loading && !data) return <Loading />;
+  if (!data || data.products.length === 0) return <Empty icon={Tag} title="No products here" text="Products matching this tab will show up here." />;
 
   return (
     <div>
-      <div className="flex justify-end px-4 py-3">
-        <SearchBox value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search product" />
-      </div>
-      {error && !data ? (
-        <div className="p-4"><ErrorNote message={errorMessage(error)} onRetry={() => mutate()} /></div>
-      ) : isLoading && !data ? (
-        <Loading />
-      ) : !data || data.variants.length === 0 ? (
-        <Empty icon={Tag} title="No products yet" />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-sm">
-            <thead>
-              <tr className="border-y border-border-soft bg-mist/60 text-xs text-muted-foreground">
-                <th className="px-4 py-3 font-semibold">Product</th>
-                <th className="px-3 py-3 font-semibold">Your price</th>
-                <th className="px-3 py-3 font-semibold">Customer pays</th>
-                <th className="px-3 py-3 font-semibold">MRP</th>
-                <th className="px-3 py-3 font-semibold">You earn</th>
-                <th className="px-3 py-3 font-semibold">Market check</th>
-                <th className="px-4 py-3 text-right font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.variants.map((v) => (
-                <tr key={v.variantId} className="border-b border-border-soft align-top last:border-0">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1040px] text-left text-sm">
+          <thead>
+            <tr className="border-b border-border-soft bg-mist/60 text-xs text-muted-foreground">
+              <th className="px-4 py-3 font-semibold">Product Details</th>
+              <th className="px-3 py-3 font-semibold">Current Stock</th>
+              <th className="px-3 py-3 font-semibold">Growth<br /><span className="font-normal">in {data.days} days</span></th>
+              <th className="px-3 py-3 font-semibold">Current Customer Price</th>
+              <th className="px-3 py-3 font-semibold">Recommended Price</th>
+              <th className="px-3 py-3 font-semibold">Insights</th>
+              <th className="px-4 py-3 text-right font-semibold">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.products.map((p) => {
+              const first = p.variants[0]!;
+              const recommended = p.variants.find((v) => v.recommendedSellerPrice != null);
+              const prices = p.variants.map((v) => v.customerPrice).filter((n): n is number => n != null);
+              return (
+                <tr key={p.productId} className="border-b border-border-soft align-top last:border-0">
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Thumb src={v.image} alt={v.title} />
+                    <div className="flex items-start gap-3">
+                      <Thumb src={p.image} alt={p.title} />
                       <div className="min-w-0">
-                        <p className="max-w-[220px] truncate font-medium">{v.title}</p>
-                        <p className="text-xs text-muted-foreground">{[v.size !== "Default" ? v.size : null, v.color, v.sku].filter(Boolean).join(" · ")}</p>
+                        <p className="max-w-[260px] truncate font-medium">{p.title}</p>
+                        <p className="text-xs text-muted-foreground">Catalog ID: {p.catalogId.slice(-10)}</p>
+                        {p.styleCode ? <p className="text-xs text-muted-foreground">Style ID: {p.styleCode}</p> : null}
+                        <p className="text-xs text-muted-foreground">Size: {p.sizes.join(", ")}</p>
                         <div className="mt-1 flex gap-1">
-                          {v.status !== "APPROVED" ? <StatusBadge status={v.status === "PENDING" ? "UNDER_REVIEW" : v.status} /> : null}
-                          {v.offer ? <Badge tone="orange">{v.offer.discountPercent}% off · {v.offer.name}</Badge> : null}
+                          {p.variants.some((v) => v.status !== "APPROVED") ? <StatusBadge status="UNDER_REVIEW" /> : null}
+                          {first.offer ? <Badge tone="orange">{first.offer.discountPercent}% off · {first.offer.name}</Badge> : null}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-3 py-3 font-semibold tabular-nums">{inr2.format(v.sellerPrice)}</td>
-                  <td className="px-3 py-3 tabular-nums">{v.customerPrice != null ? inr2.format(v.customerPrice) : "—"}</td>
-                  <td className="px-3 py-3 tabular-nums text-muted-foreground">{v.mrp != null ? inr.format(v.mrp) : "—"}</td>
-                  <td className="px-3 py-3 font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr2.format(v.earnings.net)}</td>
-                  <td className="px-3 py-3 text-xs">
-                    {v.benchmark == null ? (
-                      <span className="text-muted-foreground">Not enough data</span>
-                    ) : v.competitive ? (
-                      <span className="font-semibold text-emerald-700 dark:text-emerald-400">Competitive</span>
+                  <td className="px-3 py-3 tabular-nums">{p.stock}</td>
+                  <td className="px-3 py-3 tabular-nums">
+                    {p.growth == null ? "–" : <span className={p.growth >= 0 ? "text-emerald-600" : "text-red-600"}>{p.growth >= 0 ? "+" : ""}{p.growth}%</span>}
+                  </td>
+                  <td className="px-3 py-3">
+                    <p className="font-semibold tabular-nums">{prices.length ? inr.format(Math.min(...prices)) : "—"}</p>
+                    <p className="text-xs text-muted-foreground">You earn: {inr2.format(first.earnings.net)}</p>
+                  </td>
+                  <td className="px-3 py-3 tabular-nums">
+                    {recommended ? (
+                      <button type="button" className="inline-flex items-center gap-1 font-semibold text-brand-strong hover:underline" onClick={() => setEditing({ ...recommended, sellerPrice: recommended.recommendedSellerPrice! })}>
+                        <Lightbulb className="h-3.5 w-3.5" /> {inr.format(recommended.recommendedSellerPrice!)}
+                      </button>
                     ) : (
-                      <div>
-                        <span className="font-semibold text-brand-strong">Priced high</span>
-                        <p className="text-muted-foreground">Similar items sell at ~{inr.format(v.benchmark)}</p>
-                      </div>
+                      "-"
                     )}
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", INSIGHT[p.insight].cls)}>
+                      <ThumbsUp className="h-3.5 w-3.5" /> {INSIGHT[p.insight].label}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex flex-col items-end gap-1">
-                      <Btn size="sm" variant="outline" disabled={v.offer?.status === "ACTIVE"} onClick={() => setEditing(v)}>
-                        Edit price
-                      </Btn>
-                      {v.recommendedSellerPrice ? (
-                        <button type="button" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-strong hover:underline" onClick={() => setEditing({ ...v, sellerPrice: v.recommendedSellerPrice! })}>
-                          <Lightbulb className="h-3 w-3" /> Try {inr.format(v.recommendedSellerPrice)}
-                        </button>
-                      ) : null}
+                      {p.variants.map((v) => (
+                        <Btn key={v.variantId} size="sm" variant="outline" disabled={v.offer?.status === "ACTIVE"} onClick={() => setEditing(v)}>
+                          Edit{p.variants.length > 1 ? ` · ${v.size}` : ""}
+                        </Btn>
+                      ))}
                     </div>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <Pager page={page} totalPages={data?.pagination.totalPages ?? 1} onPage={setPage} />
-      <PriceModal variant={editing} onClose={() => setEditing(null)} onSaved={() => mutate()} original={data?.variants.find((x) => x.variantId === editing?.variantId) ?? null} />
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <PriceModal variant={editing} onClose={() => setEditing(null)} onSaved={onRetry} original={variants.find((x) => x.variantId === editing?.variantId) ?? null} />
     </div>
   );
 }

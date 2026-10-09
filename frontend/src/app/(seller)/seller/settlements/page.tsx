@@ -4,9 +4,11 @@ import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { CalendarClock, CheckCircle2, Clock, Download, IndianRupee, Wallet } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, ChevronRight, Clock, Download, IndianRupee, Truck, Wallet } from "lucide-react";
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { sellerCenter, inr, inr2, fmtDate, shortId } from "@/services/seller-center";
+import { supplier } from "@/services/seller-supplier";
 import {
   Btn,
   Empty,
@@ -18,7 +20,6 @@ import {
   Pager,
   Panel,
   SearchBox,
-  StatCard,
   StatusBadge,
   Tabs,
   errorMessage,
@@ -52,6 +53,7 @@ export default function PaymentsPage() {
   const [downloading, setDownloading] = React.useState(false);
 
   const { data: s, error: sErr, mutate: sMutate } = useSWR("seller-payments-summary", () => sellerCenter.paymentsSummary());
+  const { data: d } = useSWR("seller-payments-dashboard", () => supplier.paymentsDashboard());
   const { data: rows, isLoading } = useSWR(view !== "ledger" ? ["seller-payment-rows", view, page, q] : null, () =>
     sellerCenter.paymentOrders({ bucket: view === "all" ? undefined : view, page, search: q })
   , { keepPreviousData: true });
@@ -83,39 +85,95 @@ export default function PaymentsPage() {
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          icon={CalendarClock}
-          tone="orange"
-          label="Next payout"
-          value={s ? inr.format(s.nextPayout.amount) : "—"}
-          sub={s?.nextPayout.date ? `on ${fmtDate(s.nextPayout.date)}` : "No payout scheduled yet"}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <PayCard
+          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          title="Upcoming Payments"
+          badge={`Next 7 days (${inr2.format(d?.upcoming.next7Days ?? 0)})`}
+          rows={d?.upcoming.payments ?? []}
+          empty="No upcoming payments to show"
+          emptyText="Your upcoming payouts will appear here once orders are delivered."
+          onView={() => { setView("upcoming"); setPage(1); }}
         />
-        <StatCard icon={Clock} tone="blue" label="Upcoming (delivered)" value={s ? inr.format(s.upcoming.amount) : "—"} sub={s ? `${s.upcoming.orders} orders` : undefined} />
-        <StatCard icon={Wallet} tone="navy" label="In pipeline (not delivered)" value={s ? inr.format(s.outstanding.amount) : "—"} sub={s ? `${s.outstanding.orders} orders` : undefined} />
-        <StatCard icon={CheckCircle2} tone="green" label="Total paid" value={s ? inr.format(s.paid.amount) : "—"} sub={s?.paid.lastPaidAt ? `Last paid ${fmtDate(s.paid.lastPaidAt)}` : undefined} />
+        <PayCard
+          icon={<CheckCircle2 className="h-5 w-5 text-emerald-600" />}
+          title="Completed Payments"
+          badge={`Last 30 days (${inr2.format(d?.completed.last30Days ?? 0)})`}
+          rows={d?.completed.payments ?? []}
+          empty="No completed payments to show"
+          emptyText="Once orders are delivered and payments cleared, payment information will appear here."
+          onView={() => { setView("paid"); setPage(1); }}
+        />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
-        <Panel title="Weekly payouts">
-          <div className="relative h-56">
-            {s && s.weeklyPayouts.every((w) => w.amount === 0) ? (
-              <p className="absolute inset-0 z-10 flex items-center justify-center text-sm text-muted-foreground">No payouts in the last 6 weeks yet</p>
-            ) : null}
-            {s ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={s.weeklyPayouts.map((w) => ({ ...w, label: new Date(w.weekStart).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) }))}>
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-                  <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
-                  <Tooltip formatter={(v) => [inr.format(Number(v)), "Paid"]} contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)", fontSize: 12 }} />
-                  <Bar dataKey="amount" fill="var(--color-brand)" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full animate-pulse rounded-xl bg-mist" />
-            )}
-          </div>
+      <div className="flex flex-col gap-3 rounded-2xl border border-border-soft bg-card p-4 sm:flex-row sm:items-center">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+          <Truck className="h-5 w-5" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Unscheduled Payments {d ? <span className="tabular-nums">· {inr2.format(d.unscheduled.amount)} ({d.unscheduled.orders} orders)</span> : null}</p>
+          <p className="text-xs text-muted-foreground">Payments expected from your shipped orders. Once delivered, we will automatically move them to your upcoming payments.</p>
+        </div>
+        <Btn variant="outline" onClick={() => { setView("outstanding"); setPage(1); }}>View Details</Btn>
+      </div>
+
+      <Panel title="Payments over time">
+        <div className="relative h-56">
+          {d && d.series.every((x) => x.paid === 0 && x.outstanding === 0) ? (
+            <p className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center text-sm text-muted-foreground">
+              <b className="text-foreground">No Trend to Show</b>
+              There is not enough data in the selected timeframe.
+            </p>
+          ) : null}
+          {d ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={d.series.map((x) => ({ ...x, label: new Date(x.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short" }) }))}>
+                <XAxis dataKey="label" tickLine={false} axisLine={false} interval={4} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} />
+                <Tooltip
+                  formatter={(v, name) => [inr.format(Number(v)), name === "paid" ? "Payments to date" : "Outstanding payment"]}
+                  contentStyle={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--card)", fontSize: 12 }}
+                />
+                <Bar dataKey="paid" stackId="a" fill="var(--color-brand)" />
+                <Bar dataKey="outstanding" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full animate-pulse rounded-xl bg-mist" />
+          )}
+        </div>
+        <p className="mt-2 flex gap-4 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-brand" /> Payments to Date</span>
+          <span className="inline-flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-sm bg-[#94a3b8]" /> Outstanding Payment</span>
+          <span>Daily view of the last 30 days</span>
+        </p>
+      </Panel>
+
+      <section className="grid gap-5 lg:grid-cols-[1fr_1fr_1fr]">
+        <Panel title="Compensation & Recoveries" action={<button type="button" className="text-xs font-semibold text-ink hover:underline dark:text-brand" onClick={() => { setView("ledger"); setPage(1); }}>View Details</button>}>
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between"><dt className="text-muted-foreground">Compensations</dt><dd className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr2.format(d?.compensation.compensation ?? 0)}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Recoveries</dt><dd className="font-semibold tabular-nums text-red-600">{inr2.format(d?.compensation.recoveries ?? 0)}</dd></div>
+            <div className="flex justify-between border-t border-border-soft pt-2"><dt className="font-semibold">Total</dt><dd className="font-semibold tabular-nums">{inr2.format(d?.compensation.total ?? 0)}</dd></div>
+          </dl>
+          <p className="mt-2 text-xs text-muted-foreground">Last 30 days</p>
         </Panel>
+        {ADS_ENABLED ? (
+          <Panel title="Ads Cost">
+            {d && d.adsCost.last30Days > 0 ? (
+              <p className="text-2xl font-semibold tabular-nums">{inr2.format(d.adsCost.last30Days)}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">You have not spent on Ads in the last 30 days.</p>
+            )}
+          </Panel>
+        ) : (
+          <Panel title="Have a query?">
+            <p className="text-sm text-muted-foreground">Raise a ticket for your payment related matters.</p>
+            <Link href="/seller/support?topic=payments" className="mt-3 inline-block">
+              <Btn variant="outline">Raise a ticket</Btn>
+            </Link>
+          </Panel>
+        )}
         <Panel title="Settlement breakdown">
           {s ? (
             <dl className="space-y-2 text-sm">
@@ -241,5 +299,55 @@ export default function PaymentsPage() {
         <Pager page={page} totalPages={(view === "ledger" ? ledger?.pagination.totalPages : rows?.pagination.totalPages) ?? 1} onPage={setPage} />
       </div>
     </PageShell>
+  );
+}
+
+function PayCard({
+  icon,
+  title,
+  badge,
+  rows,
+  empty,
+  emptyText,
+  onView,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  badge: string;
+  rows: { date: string; amount: number; orders: number }[];
+  empty: string;
+  emptyText: string;
+  onView: () => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-border-soft bg-card p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          {icon} {title}
+        </h2>
+        <button type="button" onClick={onView} className="inline-flex items-center gap-1 rounded-lg border border-border-soft px-2.5 py-1 text-xs font-semibold hover:bg-mist">
+          {badge} <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <div className="flex flex-col items-center py-8 text-center">
+          <IndianRupee className="h-8 w-8 text-muted-foreground" />
+          <p className="mt-2 text-sm font-semibold">{empty}</p>
+          <p className="max-w-xs text-xs text-muted-foreground">{emptyText}</p>
+        </div>
+      ) : (
+        <ul className="mt-4 divide-y divide-border-soft">
+          {rows.map((r) => (
+            <li key={r.date} className="flex items-center justify-between py-3 text-sm">
+              <span>
+                <span className="block font-medium">{fmtDate(r.date)}</span>
+                <span className="text-xs text-muted-foreground">{r.orders} order(s)</span>
+              </span>
+              <span className="font-semibold tabular-nums">{inr2.format(r.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
