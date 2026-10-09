@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BadgeCheck, RotateCcw, ShieldCheck, Store } from "lucide-react";
-import { CategoryArt } from "@/components/storefront/category-visuals";
+import { CategoryArt, defaultBannerImage, defaultCategoryImage } from "@/components/storefront/category-visuals";
 import { categoryHref, findNode, type CategoryNode } from "@/lib/category-tree";
 import type { HomeBanner } from "@/components/home/HomeHero";
 
@@ -53,8 +53,8 @@ export function CategoryArches({ tree }: { tree: CategoryNode[] }) {
 /* ── Festive promo band (dark banner with four arch tiles) ────────────────── */
 
 const FESTIVE_TILES = [
-  { slug: "sarees", label: "Sarees", art: "kurti-saree" },
-  { slug: "lehengas-and-gowns", label: "Lehengas", art: "women-western" },
+  { slug: "sarees", label: "Sarees", art: "sarees" },
+  { slug: "kurtis", label: "Kurtis", art: "kurtis" },
   { slug: "ethnic-wear", label: "Men Ethnic", art: "men" },
   { slug: "women-jewellery", label: "Jewellery", art: "jewellery-accessories" },
 ];
@@ -71,9 +71,17 @@ export function FestivePromo({ tree, banner }: { tree: CategoryNode[]; banner: H
     return <section className="py-4">{banner.href ? <Link href={banner.href}>{img}</Link> : img}</section>;
   }
   const tiles = FESTIVE_TILES.filter((t) => findNode(tree, t.slug));
+  const photo = defaultBannerImage("promo-festive");
   return (
-    <section className="my-4 bg-[radial-gradient(circle_at_20%_30%,#5B3A1E_0%,#2E1D10_70%)] text-white">
-      <div className="mx-auto grid max-w-[1440px] items-center gap-8 px-6 py-10 md:grid-cols-2 md:px-12 md:py-14">
+    <section className="relative my-4 overflow-hidden bg-[radial-gradient(circle_at_20%_30%,#5B3A1E_0%,#2E1D10_70%)] text-white">
+      {photo ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={photo} alt="" aria-hidden className="block aspect-[3/2] w-full object-cover md:absolute md:inset-0 md:aspect-auto md:h-full md:object-[75%_center]" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 hidden bg-gradient-to-r from-[#2E1D10] via-[#2E1D10]/85 to-transparent md:block" />
+        </>
+      ) : null}
+      <div className="relative mx-auto grid max-w-[1440px] items-center gap-8 px-6 py-10 md:grid-cols-2 md:px-12 md:py-16">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[#F5C76B] ktm-keep-case">KTMONA Festive</p>
           <h2 className="mt-2 text-4xl font-bold text-[#F5D58A] sm:text-5xl">Wedding & Festive Edit</h2>
@@ -81,16 +89,16 @@ export function FestivePromo({ tree, banner }: { tree: CategoryNode[]; banner: H
           <Link href="/collections/kurti-saree" className="mt-6 inline-flex h-11 items-center rounded-md border border-[#F5C76B] px-6 text-sm font-semibold text-[#F5D58A] hover:bg-white/10">
             Shop Now
           </Link>
-        </div>
-        <div className="grid w-full grid-cols-4 gap-3 md:grid-cols-2 md:gap-5 lg:mx-auto lg:max-w-sm">
-          {tiles.map((t) => (
-            <Link key={t.slug} href={categoryHref(t.slug)} className="group relative block">
-              <CategoryArt slug={t.art} name={t.label} className="aspect-[4/5] rounded-t-full border-2 border-[#F5C76B]/70" />
-              <span className="absolute inset-x-0 bottom-0 rounded-b bg-gradient-to-t from-black/70 to-transparent px-1 pb-1.5 pt-5 text-center text-xs font-semibold text-white sm:text-sm">
-                {t.label}
-              </span>
-            </Link>
-          ))}
+          <div className="mt-8 grid max-w-md grid-cols-4 gap-3">
+            {tiles.map((t) => (
+              <Link key={t.slug} href={categoryHref(t.slug)} className="group relative block">
+                <CategoryArt slug={t.art} name={t.label} className="aspect-[4/5] rounded-t-full border-2 border-[#F5C76B]/70 transition-transform group-hover:-translate-y-1" />
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1 pb-1.5 pt-5 text-center text-[11px] font-semibold text-white sm:text-xs">
+                  {t.label}
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -127,7 +135,7 @@ export function ShopByCategory({ tree }: { tree: CategoryNode[] }) {
             <Link href={categoryHref(node.slug)} className="group block overflow-hidden rounded-xl border border-border-soft bg-card shadow-sm transition-shadow hover:shadow-md">
               <CategoryArt
                 slug={main?.slug ?? node.slug}
-                image={node.image}
+                image={node.image ?? defaultCategoryImage(node.slug)}
                 name={node.name}
                 className="aspect-square rounded-b-[40%_18%]"
                 iconClassName="transition-transform group-hover:scale-110"

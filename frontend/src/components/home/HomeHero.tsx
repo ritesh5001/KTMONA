@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { CategoryArt } from "@/components/storefront/category-visuals";
+import { CategoryArt, defaultBannerImage } from "@/components/storefront/category-visuals";
 import { cn } from "@/lib/utils";
 
 export interface HomeBanner {
@@ -103,6 +103,8 @@ function ImageSlide({ banner, priority }: { banner: HomeBanner; priority: boolea
 
 function DesignedSlide({
   gradient,
+  fade,
+  photo,
   eyebrow,
   title,
   subtitle,
@@ -112,6 +114,10 @@ function DesignedSlide({
   dark = true,
 }: {
   gradient: string;
+  /** Tailwind `from-*` colour matching the left of the gradient, for the photo fade. */
+  fade: string;
+  /** Built-in banner photo key; the tiles show instead when it is missing. */
+  photo: string;
   eyebrow: string;
   title: React.ReactNode;
   subtitle: string;
@@ -120,23 +126,40 @@ function DesignedSlide({
   tiles: Array<{ slug: string; label: string }>;
   dark?: boolean;
 }) {
+  const src = defaultBannerImage(photo);
   return (
-    <Link href={href} className={cn("block", gradient)}>
-      <div className="mx-auto flex min-h-[220px] max-w-[1440px] items-center gap-6 px-6 py-8 sm:min-h-[300px] md:min-h-[360px] md:px-12">
-        <div className={cn("max-w-md flex-1", dark ? "text-white" : "text-ink")}>
+    <Link href={href} className={cn("relative block overflow-hidden", gradient)}>
+      {src ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt=""
+            aria-hidden
+            className="absolute inset-y-0 right-0 h-full w-[68%] object-cover object-[70%_center] md:w-[58%]"
+            fetchPriority={photo === "hero-smart" ? "high" : "auto"}
+            decoding="async"
+          />
+          <div className={cn("absolute inset-y-0 right-0 w-[68%] bg-gradient-to-r via-transparent to-transparent md:w-[58%]", fade)} />
+        </>
+      ) : null}
+      <div className="relative mx-auto flex min-h-[220px] max-w-[1440px] items-center gap-6 px-6 py-8 sm:min-h-[300px] md:min-h-[380px] md:px-12">
+        <div className={cn("max-w-[60%] flex-1 sm:max-w-md", dark ? "text-white" : "text-ink")}>
           <p className={cn("text-xs font-semibold uppercase tracking-[0.2em] ktm-keep-case", dark ? "text-brand-light" : "text-brand-dark")}>{eyebrow}</p>
-          <h2 className="mt-2 text-3xl font-bold leading-tight sm:text-4xl md:text-5xl">{title}</h2>
-          <p className={cn("mt-3 text-sm sm:text-base", dark ? "text-white/80" : "text-ink/75")}>{subtitle}</p>
-          <span className={cn("mt-5 inline-flex h-11 items-center rounded-md px-6 text-sm font-semibold", dark ? "bg-white text-ink" : "bg-ink text-white")}>{cta}</span>
+          <h2 className="mt-2 text-2xl font-bold leading-tight sm:text-4xl md:text-5xl">{title}</h2>
+          <p className={cn("mt-3 hidden text-sm sm:block sm:text-base", dark ? "text-white/80" : "text-ink/75")}>{subtitle}</p>
+          <span className={cn("mt-5 inline-flex h-10 items-center rounded-md px-5 text-sm font-semibold sm:h-11 sm:px-6", dark ? "bg-white text-ink" : "bg-ink text-white")}>{cta}</span>
         </div>
-        <div className="hidden flex-1 justify-end gap-3 sm:flex">
-          {tiles.map((t, i) => (
-            <div key={t.slug} className={cn("w-[22%] max-w-[150px]", i % 2 === 1 && "mt-10")}>
-              <CategoryArt slug={t.slug} name={t.label} className="aspect-[3/4] rounded-t-full border-4 border-white/80 shadow-lg" />
-              <p className={cn("mt-2 text-center text-sm font-semibold", dark ? "text-white" : "text-ink")}>{t.label}</p>
-            </div>
-          ))}
-        </div>
+        {src ? null : (
+          <div className="hidden flex-1 justify-end gap-3 sm:flex">
+            {tiles.map((t, i) => (
+              <div key={t.slug} className={cn("w-[22%] max-w-[150px]", i % 2 === 1 && "mt-10")}>
+                <CategoryArt slug={t.slug} name={t.label} className="aspect-[3/4] rounded-t-full border-4 border-white/80 shadow-lg" />
+                <p className={cn("mt-2 text-center text-sm font-semibold", dark ? "text-white" : "text-ink")}>{t.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Link>
   );
@@ -146,6 +169,8 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="smart"
     gradient="bg-[linear-gradient(110deg,#0C1B42_0%,#1F2F7A_55%,#6B2A86_100%)]"
+    fade="from-[#1F2F7A]"
+    photo="hero-smart"
     eyebrow="Trust every click"
     title={<>Smart Shopping,<br />Verified Sellers</>}
     subtitle="Fashion, home, beauty, electronics and more from sellers across India."
@@ -161,6 +186,8 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="ethnic"
     gradient="bg-[linear-gradient(110deg,#FF8A00_0%,#FFAA02_60%,#FFD27A_100%)]"
+    fade="from-[#FFA000]"
+    photo="hero-ethnic"
     dark={false}
     eyebrow="Festive edit"
     title={<>Sarees, Kurtis<br />& Kurta Sets</>}
@@ -177,6 +204,8 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="gadgets"
     gradient="bg-[linear-gradient(110deg,#0B3B5C_0%,#0E6E8C_60%,#22A6B3_100%)]"
+    fade="from-[#0D5A78]"
+    photo="hero-gadgets"
     eyebrow="Gadgets & appliances"
     title={<>Electronics,<br />Watches & More</>}
     subtitle="Earbuds, chargers, smartwatches and everyday appliances."

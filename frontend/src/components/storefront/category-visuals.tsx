@@ -21,12 +21,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BANNER_IMAGES, CARD_IMAGE_SLUGS, CATEGORY_IMAGE_SLUGS } from "@/components/storefront/storefront-images";
 
-/**
- * Placeholder art for the main categories until real photos are uploaded in
- * Admin → Categories. Each main category gets an icon and a soft colour; a
- * category with an `image` set shows that photo instead.
- */
+/** Icon and colours for a main category, used when it has no photo. */
 interface Visual {
   icon: LucideIcon;
   /** Tile background (light) and icon colour. */
@@ -62,7 +59,25 @@ export function categoryVisual(slug: string): Visual {
   return VISUALS[slug] ?? FALLBACK;
 }
 
-/** Category art: the uploaded image when there is one, otherwise the icon. */
+/**
+ * Built-in photo for a category (main categories and the homepage cards),
+ * used until an image is uploaded for it in Admin → Categories.
+ */
+export function defaultCategoryImage(slug: string): string | null {
+  if (CATEGORY_IMAGE_SLUGS.has(slug)) return `/storefront/categories/${slug}.webp`;
+  if (CARD_IMAGE_SLUGS.has(slug)) return `/storefront/cards/${slug}.webp`;
+  return null;
+}
+
+/** Built-in banner photo by key (e.g. "hero-smart"), or null if not present. */
+export function defaultBannerImage(key: string): string | null {
+  return BANNER_IMAGES.has(key) ? `/storefront/banners/${key}.webp` : null;
+}
+
+/**
+ * Category art. Order of preference: the image uploaded in Admin → Categories,
+ * the built-in photo in public/storefront, then an icon on the category colour.
+ */
 export function CategoryArt({
   slug,
   image,
@@ -78,11 +93,12 @@ export function CategoryArt({
 }) {
   const v = categoryVisual(slug);
   const Icon = v.icon;
+  const src = image ?? defaultCategoryImage(slug);
   return (
     <div className={cn("relative flex items-center justify-center overflow-hidden", className)} style={{ backgroundColor: v.bg }}>
-      {image ? (
+      {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={image} alt={name} className="h-full w-full object-cover" loading="lazy" />
+        <img src={src} alt={name} className="h-full w-full object-cover" loading="lazy" decoding="async" />
       ) : (
         <Icon className={cn("h-1/2 w-1/2", iconClassName)} style={{ color: v.fg }} strokeWidth={1.4} aria-hidden />
       )}
