@@ -16,6 +16,7 @@ import { adminPayoutsService } from '../services/admin-center/payouts.service.js
 import { adminPenaltiesService } from '../services/admin-center/penalties.service.js';
 import { campaignsService } from '../services/admin-center/campaigns.service.js';
 import { adsEnabledGuard } from './seller-center.routes.js';
+import { priceLockReviewSchema, priceLockService } from '../services/price-lock.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -39,6 +40,10 @@ adminCenterRouter.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
 // Dashboard
 adminCenterRouter.get('/dashboard', h((req) => adminOpsService.dashboard(Number(req.query.days) || 30)));
 
+// KTMONA Price Lock review queue
+adminCenterRouter.get('/price-lock', h((req) => priceLockService.adminQueue(req.query)));
+adminCenterRouter.post('/price-lock/review', h((req) => priceLockService.adminReview(aid(req), priceLockReviewSchema.parse(req.body))));
+
 // Sellers
 adminCenterRouter.get('/sellers', h((req) => adminSellersService.list(req.query)));
 adminCenterRouter.get('/sellers/:id', h((req) => adminSellersService.detail(param(req, 'id'))));
@@ -48,7 +53,7 @@ adminCenterRouter.post(
 );
 adminCenterRouter.post(
     '/sellers/:id/status',
-    h((req) => adminSellersService.setStatus(aid(req), param(req, 'id'), z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']), reason: z.string().max(300).optional() }).parse(req.body)))
+    h((req) => adminSellersService.setStatus(aid(req), param(req, 'id'), z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']), reason: z.string().max(300).optional(), days: z.number().int().min(1).max(365).optional() }).parse(req.body)))
 );
 adminCenterRouter.post(
     '/sellers/:id/payout-hold',

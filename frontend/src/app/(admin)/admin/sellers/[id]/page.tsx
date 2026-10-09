@@ -17,6 +17,7 @@ export default function AdminSellerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: s, error, isLoading, mutate } = useSWR(["admin-seller", id], () => adminCenter.seller(id));
   const [dialog, setDialog] = React.useState<Dialog>(null);
+  const [suspendDays, setSuspendDays] = React.useState(0);
   const [busy, setBusy] = React.useState<string | null>(null);
 
   const act = async (key: string, fn: () => Promise<AdminSellerDetail | unknown>, message: string) => {
@@ -56,7 +57,7 @@ export default function AdminSellerDetailPage() {
       />
 
       {s.statusReason && s.status === "SUSPENDED" ? (
-        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" />Suspended: {s.statusReason}. All listings are hidden.</div>
+        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" />Suspended: {s.statusReason}. All listings are hidden.{s.suspendedUntil ? ` Lifts automatically on ${fmtDate(s.suspendedUntil, true)}.` : " Stays until you reactivate."}</div>
       ) : null}
       {s.payoutHold ? (
         <div className="flex gap-2 rounded-xl border border-brand/30 bg-brand/8 p-3 text-sm text-brand-strong"><PauseCircle className="h-4 w-4" />Payouts on hold: {s.payoutHoldReason}</div>
@@ -209,8 +210,27 @@ export default function AdminSellerDetailPage() {
         confirm="Suspend & hide listings"
         busy={busy === "suspend"}
         onClose={() => setDialog(null)}
-        onConfirm={(reason) => act("suspend", () => adminCenter.setSellerStatus(s.id, "SUSPENDED", reason), "Seller suspended. Listings hidden and the seller is signed out.")}
-      />
+        onConfirm={(reason) =>
+          act(
+            "suspend",
+            () => adminCenter.setSellerStatus(s.id, "SUSPENDED", reason, suspendDays || undefined),
+            suspendDays
+              ? `Seller suspended for ${suspendDays} day${suspendDays === 1 ? "" : "s"}. Listings hidden and the seller is signed out.`
+              : "Seller suspended until you reactivate. Listings hidden and the seller is signed out."
+          )
+        }
+      >
+        <Field label="How long?" hint="A temporary block lifts by itself. You can reactivate earlier at any time after reviewing.">
+          <select className={inputCls} value={suspendDays} onChange={(e) => setSuspendDays(Number(e.target.value))}>
+            <option value={0}>Until I review and reactivate</option>
+            <option value={1}>1 day</option>
+            <option value={3}>3 days</option>
+            <option value={7}>7 days</option>
+            <option value={15}>15 days</option>
+            <option value={30}>30 days</option>
+          </select>
+        </Field>
+      </ReasonDialog>
       <ReasonDialog
         open={dialog === "hold" && !s.payoutHold}
         title="Hold payouts"

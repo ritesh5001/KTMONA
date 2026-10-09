@@ -46,8 +46,13 @@ const LEGACY_COOKIE_NAMES: SessionCookieNames = {
   user: "ktmona_user",
 };
 
-/** Cookie lifetime, matched to the refresh token's 7 days. */
-export const SESSION_COOKIE_MAX_AGE_SECONDS = 604800;
+/**
+ * Cookie lifetime: one year, renewed on every token refresh. Buyer and seller
+ * sessions stay signed in until a manual logout (the server's refresh token is
+ * long-lived and sliding); whether a token is still valid is read from its own
+ * `exp`, never from the cookie's age.
+ */
+export const SESSION_COOKIE_MAX_AGE_SECONDS = 365 * 24 * 60 * 60;
 
 /** Cookie names holding the session for `portal`. */
 export function sessionCookieNames(portal: Portal): SessionCookieNames {

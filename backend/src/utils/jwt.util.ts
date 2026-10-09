@@ -73,9 +73,12 @@ export function generateAccessToken(payload: AccessTokenPayload): string {
  * @param payload - Session data to encode in the token
  * @returns Signed JWT refresh token
  */
-export function generateRefreshToken(payload: RefreshTokenPayload): string {
+export function generateRefreshToken(
+    payload: RefreshTokenPayload,
+    expiresIn: string = env.REFRESH_TOKEN_EXPIRY
+): string {
     const options: SignOptions = {
-        expiresIn: env.REFRESH_TOKEN_EXPIRY as StringValue,
+        expiresIn: expiresIn as StringValue,
         algorithm: 'HS256',
     };
 

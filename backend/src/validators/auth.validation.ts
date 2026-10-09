@@ -11,17 +11,22 @@ export const registerUserSchema = z.object({
 
     email: z
         .string()
-        .email('Invalid email address'),
+        .email('Invalid email address')
+        .optional(),
 
     phone: z
         .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
+        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
+        .optional(),
 
     password: z
         .string()
         .min(8, 'Password must be at least 8 characters')
         .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
         .regex(/[0-9]/, 'Password must contain at least 1 number'),
+}).refine((data) => Boolean(data.email || data.phone), {
+    message: 'Enter an email address or a mobile number',
+    path: ['email'],
 });
 
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
@@ -153,14 +158,41 @@ export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
 export const verifyOtpSchema = z.object({
     phone: z
         .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
+        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
+        .optional(),
+    /** Email-only signups verify the code that was emailed to them. */
+    email: z
+        .string()
+        .email('Invalid email address')
+        .optional(),
     otp: z
         .string()
         .length(6, 'OTP must be exactly 6 digits')
         .regex(/^\d{6}$/, 'OTP must be 6 digits'),
+}).refine((data) => Boolean(data.phone || data.email), {
+    message: 'Phone number or email is required',
+    path: ['phone'],
 });
 
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+
+/**
+ * Resend Sign-up OTP Validation Schema
+ * POST /v1/auth/resend-signup-otp
+ */
+export const resendSignupOtpSchema = z.object({
+    phone: z
+        .string()
+        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
+        .optional(),
+    email: z
+        .string()
+        .email('Invalid email address')
+        .optional(),
+}).refine((data) => Boolean(data.phone || data.email), {
+    message: 'Phone number or email is required',
+    path: ['phone'],
+});
 
 /**
  * Forgot Password Validation Schema

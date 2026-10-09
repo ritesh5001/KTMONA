@@ -1,5 +1,6 @@
 import { BrandLogo } from "@/components/brand-logo";
 import Link from "next/link";
+import { AppStoreButtons, FollowUs } from "@/components/site/SiteLinks";
 import { COMPANY_ADDRESS, ONBOARDING_EMAIL, REFUND_EMAIL, SUPPORT_EMAIL, SUPPORT_PHONE_DISPLAY } from "@/lib/site-config";
 
 const policyLinks = [
@@ -17,6 +18,8 @@ const quickLinks = [
   { label: "About Us", href: "/about" },
   { label: "Shop", href: "/marketplace" },
   { label: "Become a Seller", href: "/register/seller" },
+  { label: "Careers", href: "/careers" },
+  { label: "Investors", href: "/investors" },
   { label: "Contact Support", href: "/contact" },
   { label: "My Account", href: "/login" },
 ];
@@ -105,6 +108,14 @@ export function PublicFooter() {
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="flex flex-col gap-6 border-t border-border-soft py-8 md:flex-row md:items-start md:justify-between">
+          <div>
+            <p className="mb-3 text-sm font-semibold uppercase tracking-[0.12em]">Download the KTMONA App</p>
+            <AppStoreButtons />
+          </div>
+          <FollowUs />
         </div>
       </div>
 

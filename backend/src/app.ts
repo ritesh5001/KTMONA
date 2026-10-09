@@ -64,6 +64,9 @@ import { apiReference } from "@scalar/express-api-reference";
 import { openApiSpec } from "./docs/openapi.js";
 import { sellerCenterRouter, adsRouter, adminSellerClaimsRouter } from './routes/seller-center.routes.js';
 import { adminCenterRouter, campaignsPublicRouter, storefrontPublicRouter } from './routes/admin-center.routes.js';
+import { adminActivityRouter, adminEmployeesRouter, adminMeRouter } from './routes/admin-staff.routes.js';
+import { siteAdminRouter, sitePublicRouter } from './routes/site-content.routes.js';
+import { activityLogger } from './middlewares/activity-log.middleware.js';
 
 const HOT_ENDPOINT_SLOW_THRESHOLD_MS = 400;
 
@@ -331,6 +334,10 @@ export function createApp(): Application {
     // API ROUTES
     // =========================================================================
 
+    // Every successful change made from the admin / seller panels is recorded
+    // (who, what, when) — see Admin → Activity Log.
+    app.use(activityLogger);
+
     app.use('/v1/auth', authRouter);
     app.use('/v1/me', profileRouter);
     app.use('/v1/seller', sellerRouter);
@@ -413,6 +420,13 @@ export function createApp(): Application {
 
     app.use('/v1/seller/shipments', sellerShipmentRouter);
     app.use('/v1/admin/shipments', adminShipmentRouter);
+
+    // Admin staff (employees + permissions), activity log, website content
+    app.use('/v1/admin/me', adminMeRouter);
+    app.use('/v1/admin/employees', adminEmployeesRouter);
+    app.use('/v1/admin/activity', adminActivityRouter);
+    app.use('/v1/admin/site', siteAdminRouter);
+    app.use('/v1/site', sitePublicRouter);
 
     // Admin domain
     app.use('/v1/admin', adminRouter);

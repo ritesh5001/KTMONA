@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { PriceLockBadge } from "@/components/storefront/ProductTile";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeftRight, ChevronDown, CircleHelp, Eye, Share2, Truck } from "lucide-react";
@@ -49,6 +50,8 @@ interface ProductDetailClientProps {
     sellerPrice?: number;
     adminPrice?: number;
     salePrice?: number;
+    /** KTMONA Price Lock badge (lowest market price, verified). */
+    priceLock?: boolean;
     variants: Variant[];
   };
   onVariantImagesChange?: (images: string[]) => void;
@@ -537,6 +540,12 @@ export default function ProductDetailClient({
       {/* Editorial Content Block */}
       <div className="space-y-6">
         {/* 1. Title */}
+        {product.priceLock ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <PriceLockBadge className="text-[11px]" />
+            <span className="text-xs text-muted-foreground">Lowest price in the market, verified by KTMONA</span>
+          </div>
+        ) : null}
         <h1 className="break-words font-serif text-2xl font-light leading-tight tracking-tight text-foreground sm:text-3xl lg:text-4xl xl:text-5xl">
           {product.title}
         </h1>

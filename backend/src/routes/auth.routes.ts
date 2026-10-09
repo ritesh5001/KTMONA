@@ -44,6 +44,12 @@ authRouter.post('/request-otp', authController.requestOtp);
 authRouter.post('/verify-otp', authController.verifyOtp);
 
 /**
+ * POST /v1/auth/resend-signup-otp
+ * Re-send the sign-up code for a pending registration (phone or email)
+ */
+authRouter.post('/resend-signup-otp', authController.resendSignupOtp);
+
+/**
  * POST /v1/auth/refresh
  * Refresh tokens with rotation
  */

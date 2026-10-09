@@ -22,10 +22,18 @@ function normalizePhone(value: string): string {
   return value.replace(/\D/g, "");
 }
 
+/** One field for both: anything with "@" or letters is an email, digits are a mobile number. */
+function detectIdentifier(value: string): "email" | "phone" | "unknown" {
+  const trimmed = value.trim();
+  if (!trimmed) return "unknown";
+  if (trimmed.includes("@") || /[a-zA-Z]/.test(trimmed)) return "email";
+  if (/^[+\d][\d\s\-()+]*$/.test(trimmed)) return "phone";
+  return "unknown";
+}
+
 export default function UserRegisterPage() {
   const [fullName, setFullName] = React.useState("");
-  const [email, setEmail] = React.useState("");
-  const [phone, setPhone] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -35,14 +43,24 @@ export default function UserRegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!fullName || !email || !phone || !password) {
+    if (!fullName || !identifier.trim() || !password) {
       toast.error("Please fill all required fields.");
       return;
     }
 
-    const normalizedPhone = normalizePhone(phone);
-    if (!/^\d{10,15}$/.test(normalizedPhone)) {
+    const kind = detectIdentifier(identifier);
+    const normalizedPhone = kind === "phone" ? normalizePhone(identifier) : "";
+    const normalizedEmail = kind === "email" ? identifier.trim().toLowerCase() : "";
+    if (kind === "phone" && !/^\d{10,15}$/.test(normalizedPhone)) {
       toast.error("Mobile number must be 10 to 15 digits.");
+      return;
+    }
+    if (kind === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      toast.error("Enter a valid email address.");
+      return;
+    }
+    if (kind === "unknown") {
+      toast.error("Enter your email address or mobile number.");
       return;
     }
 
@@ -68,16 +86,18 @@ export default function UserRegisterPage() {
 
     setLoading(true);
     try {
-      console.info("[auth-ui][register-user] submit", { email: email.trim().toLowerCase(), phone: normalizedPhone });
-      await registerUser({
+      console.info("[auth-ui][register-user] submit", { kind });
+      const result = await registerUser({
         fullName: fullName.trim(),
-        email: email.trim().toLowerCase(),
-        phone: normalizedPhone,
+        ...(kind === "phone" ? { phone: normalizedPhone } : { email: normalizedEmail }),
         password,
       });
-      console.info("[auth-ui][register-user] otp-sent", { phone: "[present]" });
-      toast.success("OTP sent to your mobile number.");
-      window.location.href = `/verify-otp?phone=${encodeURIComponent(normalizedPhone)}`;
+      console.info("[auth-ui][register-user] otp-sent", { kind });
+      toast.success(result.message);
+      window.location.href =
+        kind === "phone"
+          ? `/verify-otp?signup=1&phone=${encodeURIComponent(normalizedPhone)}`
+          : `/verify-otp?signup=1&email=${encodeURIComponent(normalizedEmail)}`;
     } catch (error) {
       console.error("[auth-ui][register-user] failed", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");
@@ -162,32 +182,27 @@ export default function UserRegisterPage() {
                   <Input
                     id="name"
                     placeholder="Aarav Sharma"
+                    autoComplete="off"
                     value={fullName}
                     onChange={(event) => setFullName(event.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" required>Email address</Label>
+                  <Label htmlFor="identifier" required>Email or mobile number</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@email.com"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone" required>Mobile number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
+                    id="identifier"
+                    type="text"
+                    placeholder="you@email.com or 9876543210"
+                    value={identifier}
+                    autoComplete="off"
+                    onChange={(event) => setIdentifier(event.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    We&apos;ll send a verification code to this number by SMS.
+                    {detectIdentifier(identifier) === "email"
+                      ? "We'll email a verification code to this address."
+                      : detectIdentifier(identifier) === "phone"
+                        ? "We'll send a verification code to this number by SMS."
+                        : "Use whichever you prefer — we'll send a verification code to it."}
                   </p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -197,6 +212,7 @@ export default function UserRegisterPage() {
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
@@ -219,6 +235,7 @@ export default function UserRegisterPage() {
                       <Input
                         id="confirm"
                         type={showConfirm ? "text" : "password"}
+                        autoComplete="new-password"
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(event) => setConfirmPassword(event.target.value)}

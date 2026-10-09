@@ -170,6 +170,7 @@ const PUBLIC_SHOP_PREFIXES = [
   "/categories",
   "/sale",
   "/user",
+  "/investors",
 ];
 
 /** Check if a path is a public storefront page (including exact "/" root). */

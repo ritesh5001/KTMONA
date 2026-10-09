@@ -290,7 +290,7 @@ export default function LoginPage() {
 
             <CardContent className="space-y-6">
 
-              <form className="space-y-5" onSubmit={handleSubmit}>
+              <form className="space-y-5" onSubmit={handleSubmit} autoComplete="off">
                 {/* Error Display */}
                 {error && (
                   <div className="rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300">
@@ -308,7 +308,9 @@ export default function LoginPage() {
                     placeholder={identifierPlaceholder}
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    autoComplete={isMainPortal && inputType === "phone" ? "tel" : "username"}
+                    // Login forms always open blank on every portal: no
+                    // browser autofill of saved identifiers or passwords.
+                    autoComplete="off"
                     className={error ? "border-red-500 focus:ring-red-500" : ""}
                     autoFocus
                   />
@@ -325,7 +327,7 @@ export default function LoginPage() {
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        autoComplete="current-password"
+                        autoComplete="new-password"
                       />
                       <button
                         type="button"

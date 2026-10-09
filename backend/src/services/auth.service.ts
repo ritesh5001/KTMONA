@@ -23,6 +23,7 @@ import { OtpPurpose } from '@prisma/client';
 import type { Role, UserStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { authLogger } from '../config/logger.js';
+import { sellerSuspensionService } from './seller-suspension.service.js';
 
 
 /**
@@ -30,6 +31,16 @@ import { authLogger } from '../config/logger.js';
  * Contains all business logic for authentication
  * Testable and independent of HTTP layer
  */
+/**
+ * Refresh-token lifetime for a role. Buyers and sellers stay signed in until
+ * they log out (long, sliding sessions); staff accounts keep the short one.
+ */
+function refreshExpiryFor(role: Role): string {
+    return role === 'USER' || role === 'SELLER'
+        ? env.PERSISTENT_REFRESH_TOKEN_EXPIRY
+        : env.REFRESH_TOKEN_EXPIRY;
+}
+
 export class AuthService {
     constructor(private readonly repository: AuthRepository) { }
     private readonly logger = authLogger.child({ component: 'auth-service' });
@@ -59,14 +70,15 @@ export class AuthService {
             isPhoneVerified: user.isPhoneVerified,
         });
 
+        const refreshExpiry = refreshExpiryFor(user.role);
         const refreshToken = generateRefreshToken({
             userId: user.id,
             sessionId,
             isEmailVerified: user.isEmailVerified,
             isPhoneVerified: user.isPhoneVerified,
-        });
+        }, refreshExpiry);
 
-        const refreshTokenExpiryMs = ms(env.REFRESH_TOKEN_EXPIRY as StringValue);
+        const refreshTokenExpiryMs = ms(refreshExpiry as StringValue);
         const expiresAt = new Date(Date.now() + refreshTokenExpiryMs);
         const hashedRefreshToken = await hashToken(refreshToken);
 
@@ -105,10 +117,12 @@ export class AuthService {
      * 4. No JWT generation, no auto-login
      */
     async registerUser(data: RegisterUserRequest): Promise<RegisterSuccessResponse> {
-        const phone = normalizeIndianMobile(data.phone);
-        this.logger.info({ email: data.email, phone: phone ? '[present]' : '[missing]', role: 'USER' }, 'register_user_started');
+        // Customers sign up with an email address OR a mobile number.
+        const phone = data.phone ? normalizeIndianMobile(data.phone) : null;
+        const email = data.email?.trim().toLowerCase() || null;
+        this.logger.info({ email, phone: phone ? '[present]' : '[missing]', role: 'USER' }, 'register_user_started');
         // 1. Check if email or phone already exists
-        const exists = await this.repository.existsByEmailOrPhone(data.email, phone);
+        const exists = await this.repository.existsByEmailOrPhone(email, phone);
         if (exists) {
             this.logger.warn({ email: data.email, phone }, 'register_user_conflict');
             throw ApiError.conflict('Email or phone already in use');
@@ -119,18 +133,18 @@ export class AuthService {
 
         // 3. Send OTP for signup (account will be created after verification)
         const payload: SignupOtpPayload = {
-            email: data.email,
+            email,
             phone,
             passwordHash,
             role: 'USER',
             fullName: data.fullName,
         };
-        await otpService.sendSignupOtp(payload);
-        this.logger.info({ email: data.email, phone: '[present]', role: 'USER' }, 'register_user_otp_sent');
+        const channel = await otpService.sendSignupOtp(payload);
+        this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel, role: 'USER' }, 'register_user_otp_sent');
 
         // 4. Return success message (no token, no auto-login)
         return {
-            message: 'OTP sent to your mobile number',
+            message: channel === 'email' ? 'OTP sent to your email address' : 'OTP sent to your mobile number',
         };
     }
 
@@ -253,9 +267,22 @@ export class AuthService {
             throw ApiError.unauthorized('Incorrect password. Please try again.');
         }
 
-        // 3. Check status (must be ACTIVE)
+        // 3. Check status (must be ACTIVE). A temporary seller suspension
+        //    whose period has ended is lifted here.
+        if (user.status === 'SUSPENDED' && user.role === 'SELLER' && (await sellerSuspensionService.liftIfExpired(user.id))) {
+            user.status = 'ACTIVE';
+        }
         if (user.status !== 'ACTIVE') {
             this.logger.warn({ userId: user.id, status: user.status, role: user.role }, 'login_account_inactive');
+            if (user.role === 'SELLER' && user.status === 'SUSPENDED') {
+                const { reason, until } = await sellerSuspensionService.describe(user.id);
+                const when = until
+                    ? ` until ${until.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })}`
+                    : ' until our team completes its review';
+                throw ApiError.forbidden(
+                    `Your seller account is temporarily suspended${when}.${reason ? ` Reason: ${reason}.` : ''} Contact support if you think this is a mistake.`
+                );
+            }
             if (user.role === 'SELLER') {
                 throw ApiError.forbidden('Your seller account is pending admin approval.');
             }
@@ -304,29 +331,55 @@ export class AuthService {
         };
     }
 
+    /**
+     * Re-send the code for a registration still waiting for verification.
+     * The pending account details are reused from the original sign-up.
+     */
+    async resendSignupOtp(input: { phone?: string | undefined; email?: string | undefined }): Promise<MessageResponse> {
+        const key = input.phone
+            ? normalizeIndianMobile(input.phone)
+            : (input.email ?? '').trim().toLowerCase();
+        const payload = key ? await otpService.getLatestSignupPayloadForKey(key) : null;
+        if (!payload) {
+            throw ApiError.badRequest('Your sign-up has expired. Please register again.');
+        }
+        if (await this.repository.existsByEmailOrPhone(payload.email, payload.phone)) {
+            throw ApiError.conflict('This account is already verified. Please sign in.');
+        }
+        const channel = await otpService.sendSignupOtp(payload);
+        return {
+            message: channel === 'email' ? 'OTP sent to your email address' : 'OTP sent to your mobile number',
+        };
+    }
+
     async verifyOtp(
-        input: { phone?: string | undefined; otp: string },
+        input: { phone?: string | undefined; email?: string | undefined; otp: string },
         userAgent?: string,
         ipAddress?: string,
     ): Promise<LoginResponse | MessageResponse> {
         const phone = input.phone ? normalizeIndianMobile(input.phone) : undefined;
-        this.logger.info({ phone: phone ? '[present]' : null, otpLength: input.otp?.length ?? 0 }, 'verify_otp_started');
-        if (!phone) {
-            this.logger.warn({ phone: null }, 'verify_otp_missing_phone');
-            throw ApiError.badRequest('Phone number is required');
+        this.logger.info({ phone: phone ? '[present]' : null, email: input.email ? '[present]' : null, otpLength: input.otp?.length ?? 0 }, 'verify_otp_started');
+        if (phone) {
+            return this.verifyOtpFlow('phone', phone, input.otp, userAgent, ipAddress);
         }
-
-        return this.verifyPhoneOtpFlow(phone, input.otp, userAgent, ipAddress);
+        if (input.email) {
+            return this.verifyOtpFlow('email', input.email, input.otp, userAgent, ipAddress);
+        }
+        this.logger.warn({ phone: null }, 'verify_otp_missing_phone');
+        throw ApiError.badRequest('Phone number or email is required');
     }
 
-    private async verifyPhoneOtpFlow(
-        phone: string,
+    private async verifyOtpFlow(
+        channel: 'phone' | 'email',
+        identifier: string,
         code: string,
         userAgent?: string,
         ipAddress?: string,
     ): Promise<LoginResponse | MessageResponse> {
-        this.logger.debug({ phone: '[present]', userAgent: userAgent ?? null, ipAddress: ipAddress ?? null }, 'verify_phone_otp_lookup');
-        const otp = await otpService.verifyPhoneOtp(phone, code);
+        this.logger.debug({ channel, userAgent: userAgent ?? null, ipAddress: ipAddress ?? null }, 'verify_otp_lookup');
+        const otp = channel === 'phone'
+            ? await otpService.verifyPhoneOtp(identifier, code)
+            : await otpService.verifyEmailOtp(identifier, code);
         if (!otp.userId) {
             const payload = otp.payload as SignupOtpPayload | null;
             if (!payload) {
@@ -348,8 +401,9 @@ export class AuthService {
                 passwordHash: payload.passwordHash,
                 role: payload.role,
                 status,
-                isEmailVerified: false,
-                isPhoneVerified: true,
+                // Whichever channel received the code is now verified.
+                isEmailVerified: channel === 'email',
+                isPhoneVerified: channel === 'phone',
             }).catch((error: any) => {
                 if (error?.code === 'P2002' || String(error?.message ?? '').includes('Unique constraint')) {
                     throw ApiError.conflict('Email or phone already in use');
@@ -388,9 +442,13 @@ export class AuthService {
             throw ApiError.forbidden('Account not active');
         }
 
-        const updated = user.isPhoneVerified
+        const alreadyVerified = channel === 'phone' ? user.isPhoneVerified : user.isEmailVerified;
+        const updated = alreadyVerified
             ? user
-            : await this.repository.updateUser(user.id, { isPhoneVerified: true });
+            : await this.repository.updateUser(
+                user.id,
+                channel === 'phone' ? { isPhoneVerified: true } : { isEmailVerified: true },
+            );
 
         return this.issueTokens({
             id: updated.id,
@@ -473,16 +531,19 @@ export class AuthService {
             isPhoneVerified: user.isPhoneVerified,
         });
 
+        const refreshExpiry = refreshExpiryFor(user.role);
         const newRefreshToken = generateRefreshToken({
             userId: user.id,
             sessionId: sessionId,
             isEmailVerified: user.isEmailVerified,
             isPhoneVerified: user.isPhoneVerified,
-        });
+        }, refreshExpiry);
 
-        // 6. Hash new refresh token and update session
+        // 6. Hash new refresh token and update session. The expiry slides
+        // forward on every refresh, so an active session never times out.
         const hashedNewRefreshToken = await hashToken(newRefreshToken);
-        await this.repository.updateSessionRefreshToken(session.id, hashedNewRefreshToken);
+        const newExpiresAt = new Date(Date.now() + ms(refreshExpiry as StringValue));
+        await this.repository.updateSessionRefreshToken(session.id, hashedNewRefreshToken, newExpiresAt);
 
         // 7. Return new tokens
         return {

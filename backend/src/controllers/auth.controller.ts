@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AuthService, authService } from '../services/auth.service.js';
-import { registerUserSchema, registerSellerSchema, registerAdminSchema, loginSchema, refreshTokenSchema, logoutSchema, requestOtpSchema, verifyOtpSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validation.js';
+import { registerUserSchema, registerSellerSchema, registerAdminSchema, loginSchema, refreshTokenSchema, logoutSchema, requestOtpSchema, verifyOtpSchema, resendSignupOtpSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validation.js';
 import { ApiError } from '../errors/ApiError.js';
 import { ZodError } from 'zod';
 import { authLogger } from '../config/logger.js';
@@ -177,6 +177,32 @@ export class AuthController {
                     return acc;
                 }, {} as Record<string, string>);
 
+                next(ApiError.badRequest('Validation failed', details));
+                return;
+            }
+            next(error);
+        }
+    };
+
+    /**
+     * POST /v1/auth/resend-signup-otp
+     * Re-send the code for a registration that is waiting for verification
+     */
+    resendSignupOtp = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ): Promise<void> => {
+        try {
+            const validatedData = resendSignupOtpSchema.parse(req.body);
+            const result = await this.service.resendSignupOtp(validatedData);
+            res.status(200).json(result);
+        } catch (error) {
+            if (error instanceof ZodError) {
+                const details = error.errors.reduce((acc, err) => {
+                    acc[err.path.join('.')] = err.message;
+                    return acc;
+                }, {} as Record<string, string>);
                 next(ApiError.badRequest('Validation failed', details));
                 return;
             }

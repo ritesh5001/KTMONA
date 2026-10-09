@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Lock, Star } from "lucide-react";
 
 const inr = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
@@ -12,6 +12,8 @@ export interface ProductTileData {
   salePrice?: number | null;
   regularPrice?: number | null;
   rating?: { average: number | null; count: number } | null;
+  /** KTMONA Price Lock: seller's lowest market price, approved by KTMONA. */
+  priceLock?: boolean;
 }
 
 /**
@@ -40,6 +42,7 @@ export function ProductTile({ product, freeDelivery }: { product: ProductTileDat
           sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 22vw"
           className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
+        {product.priceLock ? <PriceLockBadge className="absolute left-2 top-2" /> : null}
       </div>
       <div className="space-y-1.5 p-3">
         <h3 className="truncate text-sm text-muted-foreground">{product.title}</h3>
@@ -73,5 +76,17 @@ export function ProductTile({ product, freeDelivery }: { product: ProductTileDat
         </div>
       </div>
     </Link>
+  );
+}
+
+/** "KTMONA Price Lock" badge for products sold at the seller's lowest market price. */
+export function PriceLockBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md bg-ink px-1.5 py-1 text-[10px] font-bold uppercase tracking-wide text-brand shadow-sm ${className ?? ""}`}
+      title="KTMONA Price Lock: the lowest price in the market, verified by KTMONA"
+    >
+      <Lock className="h-3 w-3" aria-hidden /> Price Lock
+    </span>
   );
 }

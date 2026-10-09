@@ -5,7 +5,7 @@ import { Btn, Field, Modal, inputCls } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 
 /** Confirm dialog with one-click reason presets and a free-text reason. */
-export function ReasonDialog({ open, title, label, presets, confirm, busy, onClose, onConfirm }: { open: boolean; title: string; label: string; presets: string[]; confirm: string; busy: boolean; onClose: () => void; onConfirm: (reason: string) => void }) {
+export function ReasonDialog({ open, title, label, presets, confirm, busy, onClose, onConfirm, children }: { open: boolean; title: string; label: string; presets: string[]; confirm: string; busy: boolean; onClose: () => void; onConfirm: (reason: string) => void; children?: React.ReactNode }) {
   const [reason, setReason] = React.useState("");
   React.useEffect(() => setReason(presets[0] ?? ""), [open, presets]);
   return (
@@ -17,6 +17,7 @@ export function ReasonDialog({ open, title, label, presets, confirm, busy, onClo
           ))}
         </div>
         <Field label={label}><textarea rows={3} className={`${inputCls} h-auto py-2`} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        {children}
       </div>
     </Modal>
   );

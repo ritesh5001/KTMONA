@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CircleUserRound, Menu, Search, ShoppingCart, Store } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CircleUserRound, Menu, Search, ShoppingCart, Smartphone, Store } from "lucide-react";
+import { VoiceSearchButton } from "@/components/site/VoiceSearchButton";
+import { openAppPromo } from "@/components/site/AppDownloadPromo";
 import { BrandLogo } from "@/components/brand-logo";
 import { CategoryMegaMenu } from "@/components/layout/CategoryMegaMenu";
 import { MobileCategoryDrawer } from "@/components/layout/MobileCategoryDrawer";
@@ -13,18 +16,31 @@ import { signOut } from "@/services/auth";
 const SEARCH_PLACEHOLDER = "Try Saree, Kurti or search by product name";
 
 function SearchForm({ className, autoFocus }: { className?: string; autoFocus?: boolean }) {
+  const router = useRouter();
+  const inputRef = React.useRef<HTMLInputElement>(null);
   return (
     <form action="/search" method="get" role="search" className={className}>
       <label className="relative block">
         <span className="sr-only">Search products</span>
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <input
+          ref={inputRef}
           type="search"
           name="q"
           placeholder={SEARCH_PLACEHOLDER}
           autoComplete="off"
           autoFocus={autoFocus}
-          className="h-10 w-full rounded-md border border-border-soft bg-background pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
+          className="h-10 w-full rounded-md border border-border-soft bg-background pl-10 pr-11 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
+        />
+        <VoiceSearchButton
+          className="absolute right-1.5 top-1/2 -translate-y-1/2"
+          onInterim={(text) => {
+            if (inputRef.current) inputRef.current.value = text;
+          }}
+          onResult={(text) => {
+            if (inputRef.current) inputRef.current.value = text;
+            router.push(`/search?q=${encodeURIComponent(text)}`);
+          }}
         />
       </label>
     </form>
@@ -70,9 +86,16 @@ export function PublicHeader() {
         <SearchForm className="w-full max-w-[460px] flex-1" />
 
         <div className="ml-auto flex h-full items-center">
+          <button
+            type="button"
+            onClick={openAppPromo}
+            className="hidden h-10 items-center gap-2 border-r border-border-soft pr-5 text-sm font-medium text-foreground/85 hover:text-foreground md:flex"
+          >
+            <Smartphone className="h-4 w-4 text-brand-strong" aria-hidden /> Download App
+          </button>
           <Link
             href="/register/seller"
-            className="hidden h-10 items-center gap-2 border-r border-border-soft pr-5 text-sm text-foreground/85 hover:text-foreground lg:flex"
+            className="hidden h-10 items-center gap-2 border-r border-border-soft px-5 text-sm text-foreground/85 hover:text-foreground lg:flex"
           >
             <Store className="h-4 w-4" aria-hidden /> Become a Seller
           </Link>
@@ -133,6 +156,14 @@ export function PublicHeader() {
           <Link href="/" prefetch className="flex-1">
             <BrandLogo className="h-7" priority />
           </Link>
+          <button
+            type="button"
+            onClick={openAppPromo}
+            className="inline-flex items-center gap-1 rounded-md bg-brand/10 px-2 py-1.5 text-xs font-semibold text-brand-strong"
+            aria-label="Download the KTMONA app"
+          >
+            <Smartphone className="h-4 w-4" aria-hidden /> App
+          </button>
           <Link href={isSignedIn ? (isShopper ? "/user/dashboard" : accountHref) : "/login"} className="rounded-md p-2 hover:bg-mist" aria-label="Account">
             <CircleUserRound className="h-5 w-5" />
           </Link>
@@ -157,6 +188,8 @@ export function PublicHeader() {
                 { href: "/login", label: "Sign Up / Log In" },
                 { href: "/register/seller", label: "Become a Seller" },
                 { href: "/support", label: "Help & Support" },
+                { href: "/careers", label: "Careers" },
+                { href: "/investors", label: "Investors" },
               ]
         }
       />

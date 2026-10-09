@@ -94,6 +94,8 @@ export interface AdminSellerDetail {
   whatsapp: string | null;
   status: "PENDING" | "ACTIVE" | "SUSPENDED";
   statusReason: string | null;
+  /** End of a temporary suspension (null = until an admin reactivates). */
+  suspendedUntil?: string | null;
   joinedAt: string;
   store: null | { name: string; slug: string; description: string | null; supportEmail: string | null; supportPhone: string | null; vacationMode: boolean };
   kyc: null | {
@@ -285,7 +287,9 @@ export const adminCenter = {
     get<{ tab: SellerTab; counts: Record<string, number>; sellers: AdminSellerRow[]; pagination: Pagination }>(`/sellers${qs(params)}`),
   seller: (id: string) => get<AdminSellerDetail>(`/sellers/${id}`),
   reviewKyc: (id: string, status: "VERIFIED" | "REJECTED", reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc`, { status, reason }),
-  setSellerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/status`, { status, reason }),
+  /** `days` makes a suspension temporary: it lifts by itself after that many days. */
+  setSellerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string, days?: number) =>
+    send<AdminSellerDetail>("POST", `/sellers/${id}/status`, { status, reason, ...(days ? { days } : {}) }),
   setPayoutHold: (id: string, hold: boolean, reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/payout-hold`, { hold, reason }),
   setCommission: (id: string, commissionPct: number, platformFee: number) => send<AdminSellerDetail>("PUT", `/sellers/${id}/commission`, { commissionPct, platformFee }),
 

@@ -8,6 +8,7 @@ import { prisma } from '../../config/db.js';
 import { ApiError } from '../../errors/ApiError.js';
 import { adminService } from '../admin.service.js';
 import { invalidateProductCaches } from '../../utils/cache.util.js';
+import { sellerSuspensionService } from '../seller-suspension.service.js';
 import { sellerInsightsService } from '../seller-center/insights.service.js';
 import { sellerOrdersService } from '../seller-center/orders.service.js';
 import { DEFAULT_COMMISSION_PCT, addDays, parseLimit, parsePage, round2, sellerCode } from '../seller-center/common.js';
@@ -45,6 +46,8 @@ class AdminSellersService {
     }
 
     async list(query: Record<string, unknown>) {
+        // Temporary suspensions whose period has ended lift before listing.
+        await sellerSuspensionService.liftAllExpired().catch(() => 0);
         const tab = (SELLER_TABS as readonly string[]).includes(String(query.tab)) ? (query.tab as SellerTab) : 'all';
         const page = parsePage(query.page);
         const limit = parseLimit(query.limit, 25);
@@ -168,6 +171,7 @@ class AdminSellersService {
             whatsapp: user.whatsappNumber,
             status: user.status,
             statusReason: p?.status_reason ?? null,
+            suspendedUntil: p?.suspended_until ?? null,
             joinedAt: user.createdAt,
             store: p && { name: p.store_name, slug: p.store_slug, description: p.store_description, supportEmail: p.support_email, supportPhone: p.support_phone, vacationMode: p.vacation_mode },
             kyc: p && {
@@ -224,8 +228,16 @@ class AdminSellersService {
         return this.detail(sellerId);
     }
 
-    /** Approve / reactivate / suspend. Suspension hides every listing. */
-    async setStatus(adminId: string, sellerId: string, input: { status: 'ACTIVE' | 'SUSPENDED'; reason?: string | undefined }) {
+    /**
+     * Approve / reactivate / suspend. Suspension hides every listing and signs
+     * the seller out; with `days` it lifts automatically after that period,
+     * otherwise it lasts until an admin reactivates the account.
+     */
+    async setStatus(
+        adminId: string,
+        sellerId: string,
+        input: { status: 'ACTIVE' | 'SUSPENDED'; reason?: string | undefined; days?: number | undefined }
+    ) {
         const user = await prisma.user.findFirst({ where: { id: sellerId, role: 'SELLER' } });
         if (!user) throw ApiError.notFound('Seller not found');
         if (input.status === 'SUSPENDED' && !input.reason?.trim()) throw ApiError.badRequest('Give a reason for the suspension');
@@ -237,16 +249,14 @@ class AdminSellersService {
             await prisma.product.updateMany({ where: { sellerId, isPublished: true }, data: { isPublished: false } });
             await prisma.loginSession.deleteMany({ where: { userId: sellerId } }).catch(() => undefined);
         } else if (input.status === 'ACTIVE' && user.status === 'SUSPENDED') {
-            await prisma.user.update({ where: { id: sellerId }, data: { status: 'ACTIVE' } });
-            const products = await prisma.product.findMany({
-                where: { sellerId, deletedByAdmin: false, pausedBySeller: false, pausedForVacation: false },
-                select: { id: true, variants: { select: { status: true } } },
-            });
-            for (const pr of products) {
-                if (pr.variants.some((v) => v.status === 'APPROVED')) await prisma.product.update({ where: { id: pr.id }, data: { isPublished: true } });
-            }
+            await sellerSuspensionService.reactivate(sellerId);
         }
-        await prisma.seller_profiles.updateMany({ where: { user_id: sellerId }, data: { status_reason: input.reason ?? null, updated_at: new Date() } });
+        const suspendedUntil =
+            input.status === 'SUSPENDED' && input.days ? new Date(Date.now() + input.days * 24 * 60 * 60 * 1000) : null;
+        await prisma.seller_profiles.updateMany({
+            where: { user_id: sellerId },
+            data: { status_reason: input.reason ?? null, suspended_until: suspendedUntil, updated_at: new Date() },
+        });
         await invalidateProductCaches();
         return this.detail(sellerId);
     }

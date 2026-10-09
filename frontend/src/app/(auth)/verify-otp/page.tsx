@@ -13,7 +13,12 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { requestAuthOtp, verifyAuthOtp, persistAuthCookies } from "@/services/auth";
+import {
+  requestAuthOtp,
+  resendSignupOtp,
+  verifyAuthOtp,
+  persistAuthCookies,
+} from "@/services/auth";
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 import { buyerReturnPath } from "@/lib/login-redirect";
@@ -21,7 +26,13 @@ import { buyerReturnPath } from "@/lib/login-redirect";
 function VerifyOtpContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const prefill = searchParams.get("phone") ?? "";
+  // Sign-ups land here with ?phone= or (email-only accounts) ?email=, plus
+  // ?signup=1 so "Resend" re-sends the sign-up code instead of a login code.
+  const emailPrefill = searchParams.get("email") ?? "";
+  const prefill = searchParams.get("phone") ?? emailPrefill;
+  const isEmail = Boolean(emailPrefill) && !searchParams.get("phone");
+  const isSignup = searchParams.get("signup") === "1";
+  const channelLabel = isEmail ? "email address" : "mobile number";
 
   const [identifier, setIdentifier] = React.useState(prefill);
   const [otp, setOtp] = React.useState("");
@@ -36,18 +47,20 @@ function VerifyOtpContent() {
 
     if (!identifier || !otp) {
       console.warn("[auth-ui][verify-otp] blocked submit", { hasPhone: Boolean(identifier), hasOtp: Boolean(otp) });
-      toast.error("Enter your mobile number and OTP.");
+      toast.error(`Enter your ${channelLabel} and OTP.`);
       return;
     }
 
     setLoading(true);
     try {
       console.info("[auth-ui][verify-otp] submit", { phone: "[present]", otpLength: otp.length });
-      const result = await verifyAuthOtp({ phone: identifier, otp });
+      const result = await verifyAuthOtp(
+        isEmail ? { email: identifier, otp } : { phone: identifier, otp }
+      );
       if (result.accessToken && result.refreshToken && result.user) {
         persistAuthCookies(result.accessToken, result.refreshToken, result.user);
 
-        toast.success("Number verified successfully.");
+        toast.success(isEmail ? "Email verified successfully." : "Number verified successfully.");
 
         const role = result.user.role?.toUpperCase();
         // Staff → dashboards; buyers → where they came from, else homepage.
@@ -68,19 +81,24 @@ function VerifyOtpContent() {
     } finally {
       setLoading(false);
     }
-  }, [identifier, otp, router]);
+  }, [identifier, isEmail, channelLabel, otp, router]);
 
   const handleResend = async () => {
     if (!identifier) {
       console.warn("[auth-ui][verify-otp] resend blocked", { hasPhone: false });
-      toast.error(`Enter your mobile number first.`);
+      toast.error(`Enter your ${channelLabel} first.`);
       return;
     }
     setSending(true);
     try {
       console.info("[auth-ui][verify-otp] resend", { phone: "[present]" });
-      await requestAuthOtp({ phone: identifier });
-      toast.success(`OTP sent to your mobile number.`);
+      if (isSignup || isEmail) {
+        const result = await resendSignupOtp(isEmail ? { email: identifier } : { phone: identifier });
+        toast.success(result.message);
+      } else {
+        await requestAuthOtp({ phone: identifier });
+        toast.success(`OTP sent to your mobile number.`);
+      }
     } catch (error) {
       console.error("[auth-ui][verify-otp] resend failed", error);
       toast.error(error instanceof Error ? error.message : "OTP request failed");
@@ -118,13 +136,13 @@ function VerifyOtpContent() {
           >
             Confirm your
             <br />
-            <span className="italic">mobile number</span>.
+            <span className="italic">{channelLabel}</span>.
           </motion.h1>
           <motion.p
             variants={heroItemVariants}
             className="text-base leading-relaxed text-muted-foreground"
           >
-            We sent a 6-digit OTP to your mobile number. Enter it below to continue with your account.
+            We sent a 6-digit OTP to your {channelLabel}. Enter it below to continue with your account.
           </motion.p>
         </motion.div>
 
@@ -140,20 +158,24 @@ function VerifyOtpContent() {
                 Verify OTP
               </CardTitle>
               <CardDescription>
-                Enter your mobile number and OTP to continue.
+                Enter your {channelLabel} and OTP to continue.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <form className="space-y-5" onSubmit={handleVerify}>
                 <div className="space-y-2">
-                  <Label htmlFor="identifier" required>Mobile number</Label>
+                  <Label htmlFor="identifier" required>
+                    {isEmail ? "Email address" : "Mobile number"}
+                  </Label>
                   <Input
                     id="identifier"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="9876543210"
+                    type={isEmail ? "email" : "tel"}
+                    inputMode={isEmail ? "email" : "numeric"}
+                    placeholder={isEmail ? "you@email.com" : "9876543210"}
                     value={identifier}
-                    onChange={(event) => setIdentifier(event.target.value.replace(/\D/g, ""))}
+                    onChange={(event) =>
+                      setIdentifier(isEmail ? event.target.value : event.target.value.replace(/\D/g, ""))
+                    }
                     disabled={Boolean(prefill)}
                   />
                 </div>

@@ -90,7 +90,7 @@ export default function SellerRegisterPage() {
       await registerSeller({ email, phone: normalizedPhone, whatsappNumber, password });
       console.info("[auth-ui][register-seller] otp-sent", { phone: "[present]" });
       toast.success("OTP sent to your mobile number.");
-      window.location.href = `/verify-otp?phone=${encodeURIComponent(normalizedPhone)}`;
+      window.location.href = `/verify-otp?signup=1&phone=${encodeURIComponent(normalizedPhone)}`;
     } catch (error) {
       console.error("[auth-ui][register-seller] failed", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");

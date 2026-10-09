@@ -207,6 +207,15 @@ export class ProductService {
             .filter((coupon) => coupon.value > 0);
     }
 
+    /** Price Lock badge: approved, and the price is still at or below the locked price. */
+    private hasPriceLock(product: any, sellingPrice: number): boolean {
+        return (
+            product.priceLockStatus === 'APPROVED' &&
+            typeof product.priceLockPrice === 'number' &&
+            sellingPrice <= product.priceLockPrice + 0.001
+        );
+    }
+
     private toPublicProduct(product: any, coupons: ActiveCouponCandidate[] = []): PublicProductWithCategory {
         const { sellingPrice, regularPrice } = this.resolveListingPricing(product);
         return {
@@ -226,6 +235,7 @@ export class ProductService {
             salePrice: sellingPrice,
             price: sellingPrice,
             activeCoupon: this.getBestCouponPreview(sellingPrice, product.sellerId, coupons),
+            priceLock: this.hasPriceLock(product, sellingPrice),
             ...(product.ratingCount !== undefined && {
                 rating: { average: product.ratingAverage ?? null, count: product.ratingCount },
             }),
@@ -252,6 +262,7 @@ export class ProductService {
             salePrice: sellingPrice,
             price: sellingPrice,
             activeCoupon: this.getBestCouponPreview(sellingPrice, product.sellerId, coupons),
+            priceLock: this.hasPriceLock(product, sellingPrice),
             variants: (product.variants ?? []).map((variant: any) => ({
                 id: variant.id,
                 size: variant.size ?? 'Default',
@@ -418,8 +429,9 @@ export class ProductService {
             normalizedFilters.sort,
             normalizedFilters.minPrice,
             normalizedFilters.maxPrice,
+            normalizedFilters.priceLock || undefined,
         ].some((v) => v !== undefined)
-            ? `${normalizedFilters.audience ?? '_'}:${normalizedFilters.sort ?? '_'}:${normalizedFilters.minPrice ?? '_'}:${normalizedFilters.maxPrice ?? '_'}`
+            ? `${normalizedFilters.audience ?? '_'}:${normalizedFilters.sort ?? '_'}:${normalizedFilters.minPrice ?? '_'}:${normalizedFilters.maxPrice ?? '_'}:${normalizedFilters.priceLock ? 'lock' : '_'}`
             : undefined;
         const cacheKey =
             !normalizedFilters.categoryId && !normalizedFilters.search && !normalizedFilters.occasion && !extraKey && page === 1 && limit === 20

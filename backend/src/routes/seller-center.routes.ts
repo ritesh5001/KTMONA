@@ -7,6 +7,7 @@
  */
 
 import express, { Router, type NextFunction, type Request, type Response } from 'express';
+import { priceLockIdsSchema, priceLockService } from '../services/price-lock.service.js';
 import { z } from 'zod';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { ApiError } from '../errors/ApiError.js';
@@ -317,6 +318,11 @@ sellerCenterRouter.post(
 sellerCenterRouter.post('/offers/:offerId/cancel', h((req) => sellerPricingService.cancelOffer(sid(req), param(req, 'offerId'))));
 
 // Ads
+// KTMONA Price Lock: nominate lowest-price products for the storefront badge
+sellerCenterRouter.get('/price-lock', h((req) => priceLockService.sellerList(sid(req), req.query)));
+sellerCenterRouter.post('/price-lock/request', h((req) => priceLockService.sellerRequest(sid(req), priceLockIdsSchema.parse(req.body))));
+sellerCenterRouter.post('/price-lock/withdraw', h((req) => priceLockService.sellerWithdraw(sid(req), priceLockIdsSchema.parse(req.body))));
+
 sellerCenterRouter.use('/ads', adsEnabledGuard);
 sellerCenterRouter.get('/ads', h((req) => sellerAdsService.listCampaigns(sid(req), req.query)));
 const campaignBody = z.object({

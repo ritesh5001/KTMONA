@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PriceLockBadge } from "@/components/storefront/ProductTile";
 import Image from "next/image";
 import { QuickBuyButton } from "@/components/quick-buy-button";
 
@@ -28,6 +29,8 @@ export interface MarketplaceCardProduct {
   adminListingPrice?: number | null;
   minPrice?: number | null;
   activeCoupon?: MarketplaceCardCouponPreview | null;
+  /** KTMONA Price Lock badge (lowest market price, verified). */
+  priceLock?: boolean;
   coupon?: MarketplaceCardCouponPreview | null;
   couponPreview?: MarketplaceCardCouponPreview | null;
   coupons?: MarketplaceCardCouponPreview[] | null;
@@ -224,9 +227,13 @@ export function MarketplaceProductCard({ product }: { product: MarketplaceCardPr
           <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/18 via-transparent to-transparent opacity-70" />
 
           <div className="absolute left-2 top-2 sm:left-3 sm:top-3">
-            <span className="inline-flex items-center bg-white/95 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-foreground/80 backdrop-blur-sm sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.18em]">
-              Trending
-            </span>
+            {product.priceLock ? (
+              <PriceLockBadge />
+            ) : (
+              <span className="inline-flex items-center bg-white/95 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] text-foreground/80 backdrop-blur-sm sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.18em]">
+                Trending
+              </span>
+            )}
           </div>
 
           <div className="absolute bottom-2 left-2 sm:bottom-3 sm:left-3">

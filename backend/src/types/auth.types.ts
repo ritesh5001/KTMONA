@@ -54,10 +54,11 @@ export interface LoginSessionEntity {
 /**
  * User registration request (USER role via /v1/auth/register)
  */
+/** Customers sign up with an email address OR a mobile number (at least one). */
 export interface RegisterUserRequest {
     fullName: string;
-    email: string;
-    phone: string;
+    email?: string | undefined;
+    phone?: string | undefined;
     password: string;
 }
 
@@ -195,7 +196,8 @@ export interface CreateSessionData {
 export interface CreateUserData {
     /** Null for phone-only signups; schema allows it. */
     email: string | null;
-    phone: string;
+    /** Null for email-only signups; schema allows it. */
+    phone: string | null;
     whatsappNumber?: string | null;
     passwordHash: string;
     role: Role;

@@ -45,10 +45,15 @@ export class AuthRepository {
     /**
      * Check if email or phone already exists
      */
-    async existsByEmailOrPhone(email: string, phone: string): Promise<boolean> {
+    async existsByEmailOrPhone(
+        email: string | null | undefined,
+        phone: string | null | undefined
+    ): Promise<boolean> {
+        const or = [...(email ? [{ email }] : []), ...(phone ? [{ phone }] : [])];
+        if (or.length === 0) return false;
         const user = await prisma.user.findFirst({
             where: {
-                OR: [{ email }, { phone }],
+                OR: or,
             },
             select: { id: true },
         });
@@ -207,10 +212,15 @@ export class AuthRepository {
      * refresh, so at ~2.3s per round-trip in production that was the single most
      * expensive part of staying signed in.
      */
-    async updateSessionRefreshToken(sessionId: string, refreshToken: string): Promise<void> {
+    async updateSessionRefreshToken(
+        sessionId: string,
+        refreshToken: string,
+        expiresAt: Date
+    ): Promise<void> {
         await prisma.$executeRaw`
             UPDATE "login_sessions"
             SET "refresh_token" = ${refreshToken},
+                "expires_at" = ${expiresAt},
                 "updated_at" = NOW()
             WHERE "id" = ${sessionId}
         `;

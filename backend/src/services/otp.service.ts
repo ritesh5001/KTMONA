@@ -22,8 +22,9 @@ function renderOtpSms(code: string): string {
 }
 
 export type SignupOtpPayload = {
-    email: string;
-    phone: string;
+    /** At least one of email / phone is set (customers may sign up with either). */
+    email: string | null;
+    phone: string | null;
     whatsappNumber?: string;
     passwordHash: string;
     role: 'USER' | 'SELLER';
@@ -159,13 +160,33 @@ export class OtpService {
      * pending account payload; the account is created on verification.
      * Delivered by SMS with email fallback.
      */
-    async sendSignupOtp(payload: SignupOtpPayload): Promise<void> {
+    async sendSignupOtp(payload: SignupOtpPayload): Promise<OtpChannel> {
+        const normalizedEmail = payload.email?.trim().toLowerCase() || null;
+
+        if (!payload.phone) {
+            // Email-only signup: the OTP record is keyed by the email address
+            // and the code is emailed directly.
+            if (!normalizedEmail) {
+                throw ApiError.badRequest('Enter an email address or a mobile number');
+            }
+            const code = generateOtpCode();
+            await otpRepository.createOtp({
+                email: normalizedEmail,
+                codeHash: hashOtp(code),
+                purpose: OtpPurpose.EMAIL_VERIFY,
+                expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+                payload: { ...payload, email: normalizedEmail, phone: null },
+            });
+            const { subject, html } = this.renderOtpEmail(code, 'signup');
+            await sendEmail(normalizedEmail, subject, html);
+            this.logger.info({ email: normalizedEmail, role: payload.role }, 'signup_email_otp_sent');
+            return 'email';
+        }
+
         const normalizedPhone = normalizeIndianMobile(payload.phone);
         if (!/^\d{10}$/.test(normalizedPhone)) {
             throw ApiError.badRequest('A valid 10-digit mobile number is required');
         }
-
-        const normalizedEmail = payload.email.trim().toLowerCase();
 
         const code = generateOtpCode();
         const codeHash = hashOtp(code);
@@ -185,7 +206,7 @@ export class OtpService {
             },
         });
 
-        await this.deliverOtp({ phone: normalizedPhone, code, context: 'signup', fallbackEmail: normalizedEmail });
+        return this.deliverOtp({ phone: normalizedPhone, code, context: 'signup', fallbackEmail: normalizedEmail });
     }
 
     /**
@@ -216,7 +237,15 @@ export class OtpService {
     }
 
     async verifyPhoneOtp(phone: string, code: string) {
-        const normalizedPhone = normalizeIndianMobile(phone);
+        return this.verifyOtpForKey(normalizeIndianMobile(phone), code);
+    }
+
+    /** Verify the latest OTP for an email-only signup. */
+    async verifyEmailOtp(email: string, code: string) {
+        return this.verifyOtpForKey(email.trim().toLowerCase(), code);
+    }
+
+    private async verifyOtpForKey(normalizedPhone: string, code: string) {
         const otp = await otpRepository.findLatestValid(normalizedPhone, OtpPurpose.EMAIL_VERIFY);
         if (!otp) {
             this.logger.warn({ phone: normalizedPhone }, 'phone_otp_not_found');
@@ -234,8 +263,12 @@ export class OtpService {
     }
 
     async getLatestSignupPayload(phone: string): Promise<SignupOtpPayload | null> {
-        const normalizedPhone = normalizeIndianMobile(phone);
-        const latest = await otpRepository.findLatestByEmail(normalizedPhone, OtpPurpose.EMAIL_VERIFY);
+        return this.getLatestSignupPayloadForKey(normalizeIndianMobile(phone));
+    }
+
+    /** The pending sign-up stored under a phone number or (email-only) address. */
+    async getLatestSignupPayloadForKey(key: string): Promise<SignupOtpPayload | null> {
+        const latest = await otpRepository.findLatestByEmail(key, OtpPurpose.EMAIL_VERIFY);
         if (!latest || !('payload' in latest) || !latest.payload) {
             return null;
         }

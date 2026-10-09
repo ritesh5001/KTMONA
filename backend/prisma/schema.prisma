@@ -26,6 +26,11 @@ model User {
   status                       UserStatus
   isEmailVerified              Boolean                 @default(false) @map("is_email_verified")
   isPhoneVerified              Boolean                 @default(false) @map("is_phone_verified")
+  /// Admin-panel employee created by an admin: limited to `staffPermissions`.
+  /// Regular ADMIN / SUPER_ADMIN accounts (false) keep full access.
+  isEmployee                   Boolean                 @default(false) @map("is_employee")
+  /// Admin-panel modules an employee may use (see staff-permissions.ts).
+  staffPermissions             String[]                @default([]) @map("staff_permissions")
   createdAt                    DateTime                @default(now()) @map("created_at")
   updatedAt                    DateTime                @updatedAt @map("updated_at")
   adminProfile                 AdminProfile?
@@ -212,6 +217,15 @@ model Product {
   styleCode            String?                  @map("style_code")
   /// Catalog upload this product was created in (Meesho-style catalog).
   catalogUploadId      String?                  @map("catalog_upload_id")
+  /// KTMONA Price Lock: seller promises this is the lowest market price.
+  /// Null = not opted in. The badge shows only while APPROVED and the current
+  /// lowest variant price is at or below `priceLockPrice`.
+  priceLockStatus      PriceLockStatus?         @map("price_lock_status")
+  priceLockPrice       Float?                   @map("price_lock_price")
+  priceLockRequestedAt DateTime?                @map("price_lock_requested_at")
+  priceLockReviewedAt  DateTime?                @map("price_lock_reviewed_at")
+  priceLockReviewedBy  String?                  @map("price_lock_reviewed_by")
+  priceLockNote        String?                  @map("price_lock_note")
   catalogUpload        CatalogUpload?           @relation(fields: [catalogUploadId], references: [id], onDelete: SetNull)
   searchVector         Unsupported("tsvector")? @map("search_vector")
   moderation           ProductModeration?
@@ -230,6 +244,7 @@ model Product {
 
   @@index([sellerId])
   @@index([categoryId])
+  @@index([priceLockStatus])
   @@index([status])
   @@index([adminListingPrice])
   @@index([priceApprovedById])
@@ -847,6 +862,8 @@ model seller_profiles {
   payout_hold_reason   String?
   /// Why the seller account was suspended / reactivated (shown to the seller).
   status_reason        String?
+  /// Temporary suspension: the account reactivates automatically after this.
+  suspended_until      DateTime?              @db.Timestamp(6)
   kyc_status           KycStatus              @default(PENDING)
   created_at           DateTime               @default(now())
   updated_at           DateTime
@@ -1812,4 +1829,88 @@ model ProductViewDaily {
   @@id([productId, day])
   @@index([sellerId, day])
   @@map("product_view_daily")
+}
+
+enum PriceLockStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Every change made through the admin / seller panels: who, what, when.
+model ActivityLog {
+  id         String   @id @default(cuid())
+  /// No FK: the trail must survive the account being deleted.
+  actorId    String?  @map("actor_id")
+  actorRole  String   @map("actor_role")
+  /// Email / phone / name of the actor at the time of the change.
+  actorLabel String?  @map("actor_label")
+  panel      String
+  method     String
+  path       String
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  statusCode Int      @map("status_code")
+  details    Json?
+  ip         String?
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([panel, createdAt])
+  @@map("activity_logs")
+}
+
+/// Job openings shown on the Careers pages (storefront and seller panel).
+model JobOpening {
+  id           String           @id @default(cuid())
+  title        String
+  department   String?
+  location     String?
+  type         String           @default("FULL_TIME")
+  description  String
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  applications JobApplication[]
+
+  @@index([isActive, createdAt])
+  @@map("job_openings")
+}
+
+model JobApplication {
+  id        String      @id @default(cuid())
+  jobId     String?     @map("job_id")
+  job       JobOpening? @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  name      String
+  email     String
+  phone     String?
+  resumeUrl String?     @map("resume_url")
+  message   String?
+  /// Where it was submitted from: "customer" or "seller".
+  source    String      @default("customer")
+  userId    String?     @map("user_id")
+  status    String      @default("NEW")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([jobId])
+  @@map("job_applications")
+}
+
+/// Enquiries sent from the Investors page.
+model InvestorInquiry {
+  id           String   @id @default(cuid())
+  name         String
+  email        String
+  phone        String?
+  organization String?
+  message      String
+  status       String   @default("NEW")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("investor_inquiries")
 }

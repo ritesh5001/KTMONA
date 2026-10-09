@@ -348,6 +348,8 @@ export function PanelShell({
                 <a
                   key={link.href}
                   href={link.href}
+                  target="_blank"
+                  rel="noopener"
                   className="hidden h-9 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-mist hover:text-foreground xl:inline-flex"
                 >
                   {link.label}
@@ -396,6 +398,8 @@ export function PanelShell({
                         key={link.href}
                         role="menuitem"
                         href={link.href}
+                        target="_blank"
+                        rel="noopener"
                         className="block px-4 py-2 text-sm text-popover-foreground hover:bg-accent xl:hidden"
                       >
                         {link.label}

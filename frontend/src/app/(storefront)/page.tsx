@@ -9,6 +9,7 @@ import {
   TrustStrip,
 } from "@/components/home/HomeSections";
 import { HomeProductFeed } from "@/components/home/HomeProductFeed";
+import { PriceLockBand } from "@/components/home/PriceLockBand";
 import type { CategoryListResponse } from "@/services/catalog";
 import { buildCategoryTree } from "@/lib/category-tree";
 import { BRAND_FULL_FORM, BRAND_TAGLINE, SITE_URL, SUPPORT_EMAIL, SUPPORT_PHONE_DIAL } from "@/lib/site-config";
@@ -162,6 +163,7 @@ export default async function Home() {
         <CategoryArches tree={tree} />
         <FestivePromo tree={tree} banner={banners?.data?.promo ?? null} />
         <ShopByCategory tree={tree} />
+        <PriceLockBand />
         <SellerOfferBand />
         <HomeProductFeed mains={tree} />
         <MoreAbout tree={tree} />

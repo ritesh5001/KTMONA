@@ -63,6 +63,12 @@ const envSchema = z.object({
     // Token Expiry
     ACCESS_TOKEN_EXPIRY: z.string().default('15m'),
     REFRESH_TOKEN_EXPIRY: z.string().default('7d'),
+    /**
+     * Buyer and seller sessions stay signed in until a manual logout: their
+     * refresh token gets this lifetime, renewed on every refresh (sliding).
+     * Admin/staff sessions keep the shorter REFRESH_TOKEN_EXPIRY.
+     */
+    PERSISTENT_REFRESH_TOKEN_EXPIRY: z.string().default('365d'),
 
     // Public portal URLs (used in email CTA links)
     FRONTEND_BASE_URL: z.string().url('FRONTEND_BASE_URL must be a valid URL').optional(),

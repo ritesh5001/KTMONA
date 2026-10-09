@@ -137,7 +137,7 @@ export class ProductRepository {
         products: ProductWithCategory[];
         total: number;
     }> {
-        const { page = 1, limit = 20, categoryId, audience, search, occasion, sort, minPrice, maxPrice } = filters;
+        const { page = 1, limit = 20, categoryId, audience, search, occasion, sort, minPrice, maxPrice, priceLock } = filters;
         const { skip, take } = this.resolvePagination(page, Math.min(limit, 20));
         const conditions: string[] = [
             `p."status" = 'APPROVED'`,
@@ -183,6 +183,15 @@ export class ProductRepository {
                 params.push(maxPrice);
                 paramIndex += 1;
             }
+        }
+
+        if (priceLock) {
+            // Approved lock, and the price has not been raised above it since.
+            conditions.push(`p."price_lock_status" = 'APPROVED' AND (
+                SELECT MIN(pv_lock."price")
+                FROM "product_variants" pv_lock
+                WHERE pv_lock."product_id" = p."id" AND pv_lock."status" = 'APPROVED'
+            ) <= p."price_lock_price" + 0.001`);
         }
 
         if (audience) {
@@ -261,6 +270,8 @@ export class ProductRepository {
                 p."deleted_by_admin_reason" AS "deletedByAdminReason",
                 p."created_at" AS "createdAt",
                 p."updated_at" AS "updatedAt",
+                p."price_lock_status" AS "priceLockStatus",
+                p."price_lock_price" AS "priceLockPrice",
                 cv."price" AS "cheapestVariantPrice",
                 cv."compare_at_price" AS "cheapestVariantCompareAt",
                 rv."avg" AS "ratingAverage",
@@ -335,6 +346,8 @@ export class ProductRepository {
                 id: true,
                 sellerId: true,
                 sellerPrice: true,
+                priceLockStatus: true,
+                priceLockPrice: true,
                 categoryId: true,
                 title: true,
                 description: true,
@@ -382,7 +395,7 @@ export class ProductRepository {
             return null;
         }
 
-        return this.mapProductWithVariants(product) as ProductWithDetails;
+        return this.mapProductWithVariants(product) as unknown as ProductWithDetails;
     }
 
     /**

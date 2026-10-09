@@ -19,6 +19,8 @@ interface Variant {
 
 interface ProductDetailMainProps {
   product: {
+    /** KTMONA Price Lock badge (lowest market price, verified). */
+    priceLock?: boolean;
     id: string;
     title: string;
     description?: string | null;

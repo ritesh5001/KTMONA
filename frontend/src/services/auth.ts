@@ -5,10 +5,11 @@ export interface LoginPayload {
   password: string;
 }
 
+/** Customers register with an email address OR a mobile number. */
 export interface RegisterUserPayload {
   fullName: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   password: string;
 }
 
@@ -262,7 +263,9 @@ export interface RequestAuthOtpPayload {
 }
 
 export interface VerifyAuthOtpPayload {
-  phone: string;
+  phone?: string;
+  /** Email-only signups verify the code that was emailed to them. */
+  email?: string;
   otp: string;
 }
 
@@ -294,6 +297,25 @@ export async function requestAuthOtp(payload: RequestAuthOtpPayload): Promise<Ot
 
   console.info("[auth][request-otp] success", { phone: payload.phone ? "[present]" : undefined });
 
+  return data as OtpRequestResponse;
+}
+
+/** POST /v1/auth/resend-signup-otp — re-send the code for a pending registration. */
+export async function resendSignupOtp(
+  payload: { phone: string } | { email: string }
+): Promise<OtpRequestResponse> {
+  if (!API_BASE_URL) throw new Error("API base URL is not configured");
+
+  const response = await fetch(`${API_BASE_URL}/v1/auth/resend-signup-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw buildApiError(data as ApiErrorResponse | null, "OTP request failed");
+  }
   return data as OtpRequestResponse;
 }
 

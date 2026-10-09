@@ -147,6 +147,8 @@ export interface PublicProductWithCategory {
     salePrice: number;
     price: number;
     activeCoupon?: PublicProductCouponPreview | null;
+    /** Seller promises the lowest market price and the admin approved it. */
+    priceLock?: boolean;
     /** Shopper reviews; only on list responses. */
     rating?: { average: number | null; count: number } | undefined;
 }
@@ -170,6 +172,8 @@ export interface PublicProductWithDetails {
     salePrice: number;
     price: number;
     activeCoupon?: PublicProductCouponPreview | null;
+    /** Seller promises the lowest market price and the admin approved it. */
+    priceLock?: boolean;
     /** Public store identity of the seller (detail responses only). */
     seller?: { storeName: string; storeSlug: string } | null;
 }
@@ -278,6 +282,8 @@ export interface ProductQueryFilters {
     sort?: ProductListSort | undefined;
     minPrice?: number | undefined;
     maxPrice?: number | undefined;
+    /** Only products with an active KTMONA Price Lock. */
+    priceLock?: boolean | undefined;
 }
 
 export type ProductListSort = 'newest' | 'price_asc' | 'price_desc' | 'discount';

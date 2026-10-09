@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken, extractBearerToken } from '../utils/jwt.util.js';
 import { ApiError } from '../errors/ApiError.js';
 import type { Role } from '@prisma/client';
+import { staffAccessService } from '../services/staff-access.service.js';
 
 /**
  * Auth Middleware
@@ -77,7 +78,14 @@ export function authorize(...roles: Role[]) {
                 throw ApiError.forbidden('Insufficient permissions');
             }
 
-            // 3. Call next()
+            // 3. Admin-panel employees are limited to the sections they were
+            //    granted (full admins pass straight through).
+            if (req.user.role === 'ADMIN') {
+                staffAccessService.assertAllowed(req).then(() => next(), next);
+                return;
+            }
+
+            // 4. Call next()
             next();
         } catch (error) {
             next(error);
