@@ -1,0 +1,142 @@
+[2026-10-09T16:55:21.482Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:55:21.506Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:55:21.550Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:55:21.552Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:55:21.606Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:56:07.773Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:56:07.783Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:56:07.798Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:56:07.799Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:56:07.823Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:56:16.222Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:56:16.230Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:56:16.245Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:56:16.245Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:56:16.264Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:56:54.980Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:56:55.004Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:56:55.046Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:56:55.048Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:56:55.090Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:57:21.537Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:57:21.545Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:57:21.560Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:57:21.560Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:57:21.587Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:57:29.991Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:57:30.000Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:57:30.015Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:57:30.015Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:57:30.035Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:57:30.044Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[2026-10-09T16:59:01.520Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:59:01.544Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:59:01.587Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:59:01.589Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:59:01.632Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:59:10.022Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T16:59:10.030Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T16:59:10.045Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T16:59:10.046Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T16:59:10.069Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T16:59:10.094Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[2026-10-09T17:00:09.440Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:00:09.468Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:00:09.511Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:00:09.514Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:00:09.562Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:00:18.410Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:00:18.418Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:00:18.432Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:00:18.433Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:00:18.453Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:00:46.361Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:00:46.370Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:00:46.385Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:00:46.385Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:00:46.405Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:00:59.113Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:00:59.122Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:00:59.136Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:00:59.137Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:00:59.156Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:00:59.166Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[2026-10-09T17:01:28.770Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:01:28.779Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:01:28.794Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:01:28.794Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:01:28.811Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:01:36.891Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[2026-10-09T17:01:41.314Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:01:41.324Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:01:41.340Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:01:41.340Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:01:41.360Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:01:41.368Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+[2026-10-09T17:02:03.325Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:02:03.333Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:02:03.347Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:02:03.348Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:02:03.366Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:02:16.911Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:02:16.921Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:02:16.937Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:02:16.938Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:02:16.964Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:02:25.350Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-09T17:02:25.358Z] [log] Running application "main" with appParams:
+ {rootTag: #root, hydrate: undefined} 
+Development-level warnings: ON.
+Performance optimizations: OFF.
+[2026-10-09T17:02:25.371Z] [log] [mobile-api] base {apiBaseUrl: http://localhost:5057, localBaseUrl: http://localhost:5057, productionBaseUrl: https://api.ktmona.com, useLocalApiInDev: true}
+[2026-10-09T17:02:25.372Z] [warning] "shadow*" style props are deprecated. Use "boxShadow".
+[2026-10-09T17:02:25.392Z] [warning] props.pointerEvents is deprecated. Use style.pointerEvents
+[2026-10-09T17:02:25.400Z] [warning] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md

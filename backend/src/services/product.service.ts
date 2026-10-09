@@ -477,8 +477,20 @@ export class ProductService {
             throw ApiError.notFound('Product not found');
         }
 
-        const coupons = await this.getActiveCouponsForSellers([product.sellerId]);
-        const response: ProductDetailResponse = { product: this.toPublicProductDetail(product, coupons) };
+        const [coupons, store] = await Promise.all([
+            this.getActiveCouponsForSellers([product.sellerId]),
+            // Public store identity for the "Sold by" card (same as the store page).
+            prisma.seller_profiles.findUnique({
+                where: { user_id: product.sellerId },
+                select: { store_name: true, store_slug: true },
+            }),
+        ]);
+        const response: ProductDetailResponse = {
+            product: {
+                ...this.toPublicProductDetail(product, coupons),
+                seller: store ? { storeName: store.store_name, storeSlug: store.store_slug } : null,
+            },
+        };
 
         // Cache the result
         // 30 min TTL. Freshness comes from invalidateProductCaches(), which every

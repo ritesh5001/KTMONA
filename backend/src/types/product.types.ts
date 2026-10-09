@@ -170,6 +170,8 @@ export interface PublicProductWithDetails {
     salePrice: number;
     price: number;
     activeCoupon?: PublicProductCouponPreview | null;
+    /** Public store identity of the seller (detail responses only). */
+    seller?: { storeName: string; storeSlug: string } | null;
 }
 
 export interface SellerProductVariant {

@@ -121,7 +121,13 @@ export const productQuerySchema = z.object({
         .max(100)
         .optional(),
 
-    sort: z.enum(['newest', 'price_asc', 'price_desc', 'discount']).optional(),
+    // Apps also send values such as "popularity" and "relevance"; anything
+    // other than a supported sort lists newest first instead of failing.
+    sort: z
+        .string()
+        .max(40)
+        .optional()
+        .transform((v) => (v === 'price_asc' || v === 'price_desc' || v === 'discount' ? v : v ? 'newest' : undefined)),
 
     minPrice: z
         .string()

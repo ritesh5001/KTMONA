@@ -1,17 +1,18 @@
 import type { TextStyle } from "react-native";
 
 export const typography = {
-  heading: "CormorantGaramond_400Regular",
-  serif: "CormorantGaramond_400Regular",
-  serifLight: "CormorantGaramond_300Light",
+  // Meesho-style storefront: clean sans headings instead of the old serif.
+  heading: "Inter_600SemiBold",
+  serif: "Inter_600SemiBold",
+  serifLight: "Inter_500Medium",
   body: "Inter_400Regular",
   bodyMedium: "Inter_500Medium",
   sans: "Inter_400Regular",
   sansMedium: "Inter_500Medium",
   sizes: {
-    heroTitle: 40,
-    sectionTitle: 32,
-    pageTitle: 26,
+    heroTitle: 28,
+    sectionTitle: 22,
+    pageTitle: 20,
     cardTitle: 18,
     productTitle: 16,
     bodyText: 15,
@@ -26,13 +27,13 @@ export const textStyles: Record<
   header: {
     fontFamily: typography.heading,
     fontSize: typography.sizes.heroTitle,
-    lineHeight: 44,
+    lineHeight: 34,
     letterSpacing: -0.3,
   },
   sectionTitle: {
     fontFamily: typography.heading,
     fontSize: typography.sizes.sectionTitle,
-    lineHeight: 36,
+    lineHeight: 28,
     letterSpacing: -0.2,
   },
   productTitle: {

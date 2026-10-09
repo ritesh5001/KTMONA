@@ -94,6 +94,7 @@ function AppShell() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="product/[id]/index" />
+        <Stack.Screen name="category/[slug]" />
         <Stack.Screen name="checkout/index" />
 
         <Stack.Screen name="orders/[id]/index" />
@@ -131,6 +132,8 @@ export default function RootLayout() {
     CormorantGaramond_400Regular: require("../assets/fonts/CormorantGaramond_400Regular.ttf"),
     Inter_400Regular: require("../assets/fonts/Inter_400Regular.ttf"),
     Inter_500Medium: require("../assets/fonts/Inter_500Medium.ttf"),
+    Inter_600SemiBold: require("../assets/fonts/Inter_600SemiBold.ttf"),
+    Inter_700Bold: require("../assets/fonts/Inter_700Bold.ttf"),
   });
 
   React.useEffect(() => {

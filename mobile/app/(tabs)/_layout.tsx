@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Tabs } from "expo-router";
-import { AnimatedTabBar } from "../../src/components/AnimatedTabBar";
+import { MeeshoTabBar } from "../../src/ui/TabBar";
 import { colors } from "../../src/theme/tokens";
 
 export default function TabsLayout() {
@@ -9,7 +9,7 @@ export default function TabsLayout() {
       initialRouteName="home/index"
       // The bar itself is ours — the default one has no transition between tabs,
       // which is the flat moment the app was judged on. See AnimatedTabBar.
-      tabBar={(props) => <AnimatedTabBar {...props} />}
+      tabBar={(props) => <MeeshoTabBar {...props} />}
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
@@ -36,7 +36,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="marketplace/index"
         options={{
-          title: "Shop",
+          href: null,
         }}
       />
       <Tabs.Screen
@@ -54,7 +54,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: "Account",
         }}
       />
 
@@ -79,7 +79,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="orders/index"
         options={{
-          href: null,
+          title: "Orders",
         }}
       />
       <Tabs.Screen
@@ -91,7 +91,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="categories"
         options={{
-          href: null,
+          title: "Categories",
         }}
       />
       <Tabs.Screen
