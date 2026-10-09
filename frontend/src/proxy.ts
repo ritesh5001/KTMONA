@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { portalForLocation, portalForRole, readPortalSession } from "@/lib/session";
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 /*  SUBDOMAIN ROUTING                                                         */
@@ -46,14 +47,8 @@ function isRootLevelPage(pathname: string): boolean {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────── */
-/*  ROLE–SUBDOMAIN ENFORCEMENT                                                */
+/*  ROLE → PORTAL ROUTING                                                     */
 /* ──────────────────────────────────────────────────────────────────────────── */
-
-/** Which roles are permitted on each subdomain */
-const SUBDOMAIN_ALLOWED_ROLES: Record<string, string[]> = {
-  admin: ["ADMIN", "SUPER_ADMIN"],
-  seller: ["SELLER"],
-};
 
 /** Map a role to the subdomain it belongs to (null = main domain) */
 const ROLE_TO_SUBDOMAIN: Record<string, string | null> = {
@@ -125,13 +120,23 @@ function isPrefetchRequest(request: NextRequest): boolean {
   );
 }
 
-/** Check if a role is allowed on a given subdomain (null = main domain). */
-function isRoleAllowedOnSubdomain(
-  role: string,
-  subPrefix: string | null
-): boolean {
-  if (!subPrefix) return role === "USER";
-  return SUBDOMAIN_ALLOWED_ROLES[subPrefix]?.includes(role) ?? false;
+/**
+ * Redirect to another subdomain without tripping CORS.
+ *
+ * Client-side navigations and prefetches load RSC payloads with `fetch()`.
+ * Next strips the RSC headers and `_rsc` param before the proxy sees them, but
+ * the browser's `Sec-Fetch-Mode` still tells a fetch (`cors`) from a page load
+ * (`navigate`). A redirect to a different origin makes that fetch fail with a
+ * CORS error. Answering such a request with a plain, non-RSC response
+ * instead makes the router fall back to a full page load of the same URL,
+ * which then receives the real redirect as an ordinary document navigation.
+ */
+function redirectAcrossSubdomains(target: URL, request: NextRequest): NextResponse {
+  const fetchMode = request.headers.get("sec-fetch-mode");
+  if (fetchMode && fetchMode !== "navigate") {
+    return new NextResponse(null, { status: 204 });
+  }
+  return NextResponse.redirect(target);
 }
 
 /**
@@ -265,22 +270,7 @@ export function proxy(request: NextRequest) {
     }
   }
 
-  /* ── STEP 2: Register page subdomain enforcement ───────────────────────── */
-
-  if (crossDomain) {
-    for (const [regPath, allowedSub] of Object.entries(REGISTER_ALLOWED_SUBDOMAIN)) {
-      if (pathname === regPath || pathname.startsWith(regPath + "/")) {
-        if (subPrefix !== allowedSub) {
-          return NextResponse.redirect(
-            buildSubdomainUrl(allowedSub, regPath, request)
-          );
-        }
-        break;
-      }
-    }
-  }
-
-  /* ── STEP 2.5: A prefetch is never answered with a redirect ─────────────── */
+  /* ── STEP 1.5: A prefetch is never answered with a redirect ─────────────── */
 
   /*
    * Next stores whatever a prefetch returned in the client Router Cache, keyed
@@ -294,6 +284,10 @@ export function proxy(request: NextRequest) {
    * after a hard refresh"). That is exactly the Buy Now / Proceed to Checkout
    * loop.
    *
+   * This runs before the register-page subdomain redirect too: a prefetch
+   * answered with a redirect to ANOTHER subdomain is a cross-origin fetch the
+   * browser blocks (the CORS errors on the admin login page).
+   *
    * A prefetch fetches markup nobody has navigated to yet, so letting it
    * through leaks nothing: the real navigation is still gated below, and every
    * API call behind these pages is authenticated on its own.
@@ -306,63 +300,45 @@ export function proxy(request: NextRequest) {
     return prefetchResponse;
   }
 
-  /* ── STEP 3: SESSION LOCK — role must match subdomain ────────────────────── */
+  /* ── STEP 2: Register page subdomain enforcement ───────────────────────── */
+
+  if (crossDomain) {
+    for (const [regPath, allowedSub] of Object.entries(REGISTER_ALLOWED_SUBDOMAIN)) {
+      if (pathname === regPath || pathname.startsWith(regPath + "/")) {
+        if (subPrefix !== allowedSub) {
+          return redirectAcrossSubdomains(
+            buildSubdomainUrl(allowedSub, regPath, request),
+            request
+          );
+        }
+        break;
+      }
+    }
+  }
+
+  /* ── STEP 3: Read THIS portal's session ──────────────────────────────── */
+  /*
+   * The storefront, seller panel and admin panel keep separate sessions
+   * (separate cookie names), so a browser can be signed in to all three at
+   * once. Only the session of the portal being visited is consulted here, and
+   * nothing is ever cleared: the old "wrong role on this subdomain → wipe every
+   * cookie" lock is what logged people out of the admin panel the moment they
+   * signed in to the seller panel in another tab.
+   */
   const isProtected = protectedRoutes.some((route) => pathname.startsWith(route));
   const isAuthPage = authPages.some((route) => pathname.startsWith(route));
 
-  const accessToken = request.cookies.get("ktmona_access")?.value;
-  const refreshToken = request.cookies.get("ktmona_refresh")?.value;
-  const role = request.cookies.get("ktmona_role")?.value?.toUpperCase();
+  const portal = portalForLocation(host?.split(":")[0] ?? "", pathname);
+  const session = readPortalSession((name) => request.cookies.get(name)?.value, portal);
+  // A role that does not belong to this portal is not a session for it.
+  const role =
+    session.role && portalForRole(session.role) === portal ? session.role : undefined;
+  const accessToken = role ? session.access : undefined;
   // The access cookie expires daily; a live refresh cookie still means an
   // authenticated session (the client restores it silently on first API call).
-  const hasSession = Boolean(accessToken || refreshToken);
+  const hasSession = Boolean(role && (session.access || session.refresh));
 
   const forceLogin = request.nextUrl.searchParams.get("force") === "1";
-
-  /**
-   * Hard lock: if an authenticated user is on the WRONG subdomain,
-   * clear all auth cookies and redirect to the correct login page.
-   * Skip on auth pages with ?force=1 to avoid redirect loops after logout.
-   */
-  if (crossDomain && accessToken && role && !forceLogin) {
-    const roleAllowed = isRoleAllowedOnSubdomain(role, subPrefix);
-
-    if (!roleAllowed) {
-      // Build redirect to the correct portal's login
-      const correctSub = ROLE_TO_SUBDOMAIN[role] ?? null;
-      const loginUrl = buildSubdomainUrl(correctSub, "/login?force=1", request);
-      const response = NextResponse.redirect(loginUrl);
-
-      // Clear all auth cookies via Set-Cookie headers.
-      //
-      // Both scopes must be cleared: the client writes a domain-scoped cookie
-      // and falls back to a host-only one when the browser rejects the domain,
-      // so clearing only `Domain=.base` can leave a stale host-only cookie
-      // behind — which then shadows the next login and loops the user.
-      const cookieExpiry = "Thu, 01 Jan 1970 00:00:00 GMT";
-      const cookieDomain = getBaseDomain(host || "");
-      const secure = request.nextUrl.protocol === "https:" ? "; Secure" : "";
-      const clearScopes = [
-        `Path=/; Expires=${cookieExpiry}; Domain=.${cookieDomain}; SameSite=Lax${secure}`,
-        `Path=/; Expires=${cookieExpiry}; SameSite=Lax${secure}`,
-      ];
-      for (const clearOpts of clearScopes) {
-        for (const name of [
-          "ktmona_access",
-          "ktmona_refresh",
-          "ktmona_role",
-          "ktmona_user",
-        ]) {
-          response.headers.append("Set-Cookie", `${name}=; ${clearOpts}`);
-        }
-      }
-
-      if (subPrefix) {
-        response.headers.set("x-robots-tag", "noindex, nofollow");
-      }
-      return response;
-    }
-  }
 
   /* ── STEP 4: Auth guards ───────────────────────────────────────────────── */
 
@@ -375,8 +351,9 @@ export function proxy(request: NextRequest) {
 
     if (crossDomain && subPrefix !== correctSub) {
       // Wrong subdomain → redirect to correct subdomain's dashboard
-      response = NextResponse.redirect(
-        buildSubdomainUrl(correctSub, dashboard, request)
+      response = redirectAcrossSubdomains(
+        buildSubdomainUrl(correctSub, dashboard, request),
+        request
       );
     } else {
       // Correct subdomain (or localhost) → same-origin redirect
@@ -394,13 +371,6 @@ export function proxy(request: NextRequest) {
     loginUrl.searchParams.set("returnTo", pathname);
     loginUrl.searchParams.set("force", "1");
     response = NextResponse.redirect(loginUrl);
-  } else if (crossDomain && subPrefix && !isRoleAllowedOnSubdomain(role, subPrefix)) {
-    // Authenticated on a subdomain but wrong role → correct subdomain dashboard
-    const correctSub = ROLE_TO_SUBDOMAIN[role] ?? null;
-    const dashboard = ROLE_DASHBOARD[role] ?? "/";
-    response = NextResponse.redirect(
-      buildSubdomainUrl(correctSub, dashboard, request)
-    );
   } else if (
     (pathname.startsWith("/seller") && role !== "SELLER") ||
     (pathname.startsWith("/admin") && role !== "ADMIN" && role !== "SUPER_ADMIN") ||
@@ -410,8 +380,9 @@ export function proxy(request: NextRequest) {
     if (crossDomain) {
       const correctSub = ROLE_TO_SUBDOMAIN[role] ?? null;
       const dashboard = ROLE_DASHBOARD[role] ?? "/";
-      response = NextResponse.redirect(
-        buildSubdomainUrl(correctSub, dashboard, request)
+      response = redirectAcrossSubdomains(
+        buildSubdomainUrl(correctSub, dashboard, request),
+        request
       );
     } else {
       response = NextResponse.redirect(new URL("/marketplace", request.url));

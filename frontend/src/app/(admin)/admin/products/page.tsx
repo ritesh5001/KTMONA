@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { readPortalSession } from "@/lib/session";
 import AdminProductsClient, {
   type AdminProductsInitialData,
 } from "./page.client";
@@ -7,7 +8,9 @@ import { getCategories } from "@/services/catalog";
 import { getOccasions } from "@/services/occasions";
 
 export default async function AdminProductsPage() {
-  const token = (await cookies()).get("ktmona_access")?.value ?? null;
+  const cookieStore = await cookies();
+  const token =
+    readPortalSession((name) => cookieStore.get(name)?.value, "admin").access ?? null;
 
   if (!token) {
     return <AdminProductsClient initialData={null} />;

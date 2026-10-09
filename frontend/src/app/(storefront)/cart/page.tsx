@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { startNavigationFeedback } from "@/lib/navigation-feedback";
 import { persistCheckoutCartSnapshot } from "@/lib/checkout-snapshot";
 import { loginUrlWithReturn } from "@/lib/login-redirect";
-import { hasSession } from "@/lib/session";
+import { getSessionRole, hasSession } from "@/lib/session";
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -70,13 +70,6 @@ export default function CartPage() {
   }, [router]);
 
   React.useEffect(() => {
-    const getCookie = (name: string) => {
-      const match = document.cookie.match(
-        new RegExp(`(?:^|; )${name.replace(/([.$?*|{}()\[\]\\/+^])/g, "\\$1")}=([^;]*)`)
-      );
-      return match ? decodeURIComponent(match[1]) : undefined;
-    };
-
     // Gate on the shared session check, not on the access cookie alone. An
     // expired access token with a live refresh token is still a session, and
     // demanding the access cookie here bounced signed-in buyers to a login page
@@ -88,7 +81,7 @@ export default function CartPage() {
       return;
     }
 
-    const role = getCookie("ktmona_role")?.toUpperCase();
+    const role = getSessionRole();
     if (role && role !== "USER") {
       toast.error("Cart is available for customers only.");
       startNavigationFeedback();

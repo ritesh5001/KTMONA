@@ -1,14 +1,13 @@
-import { setSessionCookie, clearSessionCookie } from "@/lib/cookie";
 import { reportApiActivity } from "@/lib/navigation-feedback";
 import {
-  ACCESS_COOKIE,
-  REFRESH_COOKIE,
-  ROLE_COOKIE,
-  USER_COOKIE,
   canRefreshSession,
+  clearPortalSession,
+  currentPortal,
   getAccessToken,
   getRefreshToken,
   isTokenExpired,
+  writeRefreshedTokens,
+  type Portal,
 } from "@/lib/session";
 
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
@@ -29,17 +28,6 @@ const API_BASE_URL =
   (process.env.NODE_ENV === "development" ? "http://localhost:5000" : "");
 
 const DEV_FALLBACK_API_BASE_URL = "http://localhost:5000";
-
-/**
- * Lifetime for BOTH session cookies, matched to the refresh token's 7 days.
- *
- * The access cookie used to expire after 1 day while the refresh cookie lasted
- * 7, so on days 2-7 the browser held "half" a session: pages that gated on the
- * access cookie bounced the buyer to login while the middleware happily let
- * them through — the login loop. Cookie lifetime now says only "we hold a
- * token"; whether that token is still *valid* is read from its own `exp`.
- */
-const SESSION_COOKIE_MAX_AGE_SECONDS = 604800;
 
 /**
  * Default request timeout. Measured latencies against the live stack: ~2.5s for a
@@ -130,12 +118,9 @@ function getActivityLabel(method: string) {
  * signed people out mid-session and looped them back to login.
  */
 function clearAuthCookies() {
-  if (typeof document === "undefined") return;
-  clearSessionCookie(ACCESS_COOKIE);
-  clearSessionCookie(REFRESH_COOKIE);
-  clearSessionCookie(ROLE_COOKIE);
-  clearSessionCookie(USER_COOKIE);
-  window.dispatchEvent(new Event("ktmona-auth"));
+  // Only this tab's portal: a dead seller session must not sign the same
+  // browser out of the admin panel or the storefront.
+  clearPortalSession();
 }
 
 /**
@@ -145,7 +130,10 @@ function clearAuthCookies() {
  */
 let _refreshPromise: Promise<string | null> | null = null;
 
-async function requestNewTokens(refreshToken: string): Promise<string | null> {
+async function requestNewTokens(
+  portal: Portal,
+  refreshToken: string
+): Promise<string | null> {
   const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -157,11 +145,9 @@ async function requestNewTokens(refreshToken: string): Promise<string | null> {
   const data = await response.json().catch(() => null);
   if (!data?.accessToken) return null;
 
-  // Persist new tokens (host-only fallback if domain-scoped write is rejected)
-  setSessionCookie(ACCESS_COOKIE, data.accessToken, SESSION_COOKIE_MAX_AGE_SECONDS);
-  if (data.refreshToken) {
-    setSessionCookie(REFRESH_COOKIE, data.refreshToken, SESSION_COOKIE_MAX_AGE_SECONDS);
-  }
+  // Persist under the portal the refresh token came from, even if the tab
+  // navigated to another portal while the request was in flight.
+  writeRefreshedTokens(portal, data.accessToken, data.refreshToken);
 
   return data.accessToken as string;
 }
@@ -172,10 +158,11 @@ async function silentRefresh(): Promise<string | null> {
 
   _refreshPromise = (async () => {
     try {
-      const refreshToken = getRefreshToken();
+      const portal = currentPortal();
+      const refreshToken = getRefreshToken(portal);
       if (!refreshToken || !API_BASE_URL) return null;
 
-      const accessToken = await requestNewTokens(refreshToken);
+      const accessToken = await requestNewTokens(portal, refreshToken);
       if (accessToken) return accessToken;
 
       // Refresh tokens rotate on every use, so a concurrent refresh from
@@ -183,9 +170,9 @@ async function silentRefresh(): Promise<string | null> {
       // changed since we read it, the other tab won the race — retry once
       // with the rotated token instead of dropping the session.
       await new Promise((resolve) => setTimeout(resolve, 750));
-      const latestRefreshToken = getRefreshToken();
+      const latestRefreshToken = getRefreshToken(portal);
       if (latestRefreshToken && latestRefreshToken !== refreshToken) {
-        return await requestNewTokens(latestRefreshToken);
+        return await requestNewTokens(portal, latestRefreshToken);
       }
 
       return null;

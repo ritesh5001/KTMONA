@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { readPortalSession } from "@/lib/session";
 import UserOrdersClient, {
   type UserOrdersInitialData,
 } from "./page.client";
@@ -7,7 +8,9 @@ import { listMyCancellations } from "@/services/cancellations";
 import { listMyReturns } from "@/services/returns";
 
 export default async function UserOrdersPage() {
-  const token = (await cookies()).get("ktmona_access")?.value ?? null;
+  const cookieStore = await cookies();
+  const token =
+    readPortalSession((name) => cookieStore.get(name)?.value, "user").access ?? null;
 
   if (!token) {
     return <UserOrdersClient initialData={null} />;

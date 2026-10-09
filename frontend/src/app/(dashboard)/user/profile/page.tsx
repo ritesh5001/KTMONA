@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { getSessionUser } from "@/lib/session";
 
 export default function ProfilePage() {
   const [user, setUser] = React.useState<{
@@ -16,14 +17,7 @@ export default function ProfilePage() {
   } | null>(null);
 
   React.useEffect(() => {
-    const match = document.cookie.match(/(?:^|; )ktmona_user=([^;]*)/);
-    if (match) {
-      try {
-        setUser(JSON.parse(decodeURIComponent(match[1])));
-      } catch {
-        setUser(null);
-      }
-    }
+    setUser(getSessionUser());
   }, []);
 
   const accountFields = [

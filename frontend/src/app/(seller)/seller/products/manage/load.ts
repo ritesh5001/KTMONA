@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { readPortalSession } from "@/lib/session";
 import type { SellerProductsInitialData } from "./page.client";
 import { getCategories } from "@/services/catalog";
 import { getOccasions } from "@/services/occasions";
@@ -6,7 +7,9 @@ import { listSellerProducts } from "@/services/seller-products";
 
 /** Server-side data for the product editor (categories, products, occasions). */
 export async function loadEditorData(): Promise<SellerProductsInitialData> {
-  const token = (await cookies()).get("ktmona_access")?.value ?? null;
+  const cookieStore = await cookies();
+  const token =
+    readPortalSession((name) => cookieStore.get(name)?.value, "seller").access ?? null;
   const [categoriesResult, productsResult, occasionsResult] = await Promise.allSettled([
     getCategories(),
     listSellerProducts(token),

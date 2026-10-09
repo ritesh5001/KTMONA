@@ -1,17 +1,4 @@
-import { setSessionCookie, clearSessionCookie } from "@/lib/cookie";
-import {
-  ACCESS_COOKIE,
-  REFRESH_COOKIE,
-  ROLE_COOKIE,
-  USER_COOKIE,
-} from "@/lib/session";
-
-/**
- * Lifetime for every session cookie, matched to the refresh token's 7 days so
- * the cookies never expire out of step with each other. Token validity is a
- * property of the JWT, not of how long we kept the cookie.
- */
-const SESSION_COOKIE_MAX_AGE_SECONDS = 604800;
+import { clearPortalSession, writePortalSession } from "@/lib/session";
 
 export interface LoginPayload {
   identifier: string;
@@ -104,20 +91,17 @@ export interface VerifyOtpResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
+/** Sign out of this tab's portal only; other portals stay signed in. */
 export function clearAuthSession(): void {
-  if (typeof document === "undefined") return;
-  clearSessionCookie(ACCESS_COOKIE);
-  clearSessionCookie(REFRESH_COOKIE);
-  clearSessionCookie(ROLE_COOKIE);
-  clearSessionCookie(USER_COOKIE);
-  window.dispatchEvent(new Event("ktmona-auth"));
+  clearPortalSession();
 }
 
 /**
- * Store all auth cookies after a successful login / token refresh.
- * Uses setSessionCookie so a domain-scoped write that the browser rejects
- * falls back to a host-only cookie (prevents the "logged in but bounced to
- * login" loop on a domain mismatch).
+ * Store all auth cookies after a successful login, under the signed-in role's
+ * portal (buyer / seller / admin) so each portal keeps its own session.
+ * A domain-scoped write that the browser rejects falls back to a host-only
+ * cookie (prevents the "logged in but bounced to login" loop on a domain
+ * mismatch).
  */
 export function persistAuthCookies(
   accessToken: string,
@@ -127,18 +111,7 @@ export function persistAuthCookies(
   // All four share one lifetime. When the access cookie expired a day before
   // the others, the browser was left holding half a session and the app
   // disagreed with itself about whether the user was signed in.
-  const stored = setSessionCookie(
-    ACCESS_COOKIE,
-    accessToken,
-    SESSION_COOKIE_MAX_AGE_SECONDS
-  );
-  setSessionCookie(REFRESH_COOKIE, refreshToken, SESSION_COOKIE_MAX_AGE_SECONDS);
-  setSessionCookie(ROLE_COOKIE, user.role, SESSION_COOKIE_MAX_AGE_SECONDS);
-  setSessionCookie(
-    USER_COOKIE,
-    encodeURIComponent(JSON.stringify(user)),
-    SESSION_COOKIE_MAX_AGE_SECONDS
-  );
+  const stored = writePortalSession(accessToken, refreshToken, user);
   window.dispatchEvent(new Event("ktmona-auth"));
 
   if (!stored) {

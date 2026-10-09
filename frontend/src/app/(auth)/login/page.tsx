@@ -21,6 +21,7 @@ import {
   getSubdomain,
   SUBDOMAIN_ALLOWED_ROLES,
   getCorrectLoginUrl,
+  isLocalhost,
   type SubdomainType,
 } from "@/lib/subdomain";
 
@@ -195,7 +196,9 @@ export default function LoginPage() {
       const role = result.user.role?.toUpperCase();
       const allowedRoles = SUBDOMAIN_ALLOWED_ROLES[subdomain];
 
-      if (!allowedRoles.includes(role)) {
+      // Hosts without subdomains (localhost) have one login page for every
+      // portal; the session is stored under the role's own portal either way.
+      if (!isLocalhost() && !allowedRoles.includes(role)) {
         const portalLabel = subdomain === "main" ? "customer" : subdomain;
         const correctUrl = getCorrectLoginUrl(role);
         const errorMsg = `This portal is for ${portalLabel} accounts only. Redirecting...`;
