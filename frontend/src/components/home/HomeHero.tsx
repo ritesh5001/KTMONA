@@ -103,7 +103,6 @@ function ImageSlide({ banner, priority }: { banner: HomeBanner; priority: boolea
 
 function DesignedSlide({
   gradient,
-  fade,
   photo,
   eyebrow,
   title,
@@ -114,8 +113,6 @@ function DesignedSlide({
   dark = true,
 }: {
   gradient: string;
-  /** Tailwind `from-*` colour matching the left of the gradient, for the photo fade. */
-  fade: string;
   /** Built-in banner photo key; the tiles show instead when it is missing. */
   photo: string;
   eyebrow: string;
@@ -136,11 +133,10 @@ function DesignedSlide({
             src={src}
             alt=""
             aria-hidden
-            className="absolute inset-y-0 right-0 h-full w-[68%] object-cover object-[70%_center] md:w-[58%]"
+            className="absolute inset-y-0 right-0 h-full w-[72%] object-cover object-[70%_18%] [mask-image:linear-gradient(to_right,transparent,black_45%)] md:w-[62%]"
             fetchPriority={photo === "hero-smart" ? "high" : "auto"}
             decoding="async"
           />
-          <div className={cn("absolute inset-y-0 right-0 w-[68%] bg-gradient-to-r via-transparent to-transparent md:w-[58%]", fade)} />
         </>
       ) : null}
       <div className="relative mx-auto flex min-h-[220px] max-w-[1440px] items-center gap-6 px-6 py-8 sm:min-h-[300px] md:min-h-[380px] md:px-12">
@@ -169,7 +165,6 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="smart"
     gradient="bg-[linear-gradient(110deg,#0C1B42_0%,#1F2F7A_55%,#6B2A86_100%)]"
-    fade="from-[#1F2F7A]"
     photo="hero-smart"
     eyebrow="Trust every click"
     title={<>Smart Shopping,<br />Verified Sellers</>}
@@ -186,7 +181,6 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="ethnic"
     gradient="bg-[linear-gradient(110deg,#FF8A00_0%,#FFAA02_60%,#FFD27A_100%)]"
-    fade="from-[#FFA000]"
     photo="hero-ethnic"
     dark={false}
     eyebrow="Festive edit"
@@ -204,7 +198,6 @@ const BUILT_IN_SLIDES: React.ReactNode[] = [
   <DesignedSlide
     key="gadgets"
     gradient="bg-[linear-gradient(110deg,#0B3B5C_0%,#0E6E8C_60%,#22A6B3_100%)]"
-    fade="from-[#0D5A78]"
     photo="hero-gadgets"
     eyebrow="Gadgets & appliances"
     title={<>Electronics,<br />Watches & More</>}

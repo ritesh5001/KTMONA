@@ -1,9 +1,0 @@
-{
-  "pid": 67741,
-  "port": 34567,
-  "token": "908d91d9-3593-4e45-be83-8abdf3719760",
-  "startedAt": "2026-10-09T04:28:20.213Z",
-  "serverPath": "/Users/ritesh5001/.claude/skills/gstack/browse/src/server.ts",
-  "mode": "headed",
-  "configHash": "303a7eeccc03078b"
-}
