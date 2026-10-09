@@ -22,7 +22,7 @@ export const logger = pino({
             return { level: label };
         },
     },
-    base: { service: 'tatvivah-api' },
+    base: { service: 'ktmona-api' },
     timestamp: pino.stdTimeFunctions.isoTime,
 });
 // ─── Domain-specific child loggers ──────────────────────────────────

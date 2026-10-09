@@ -39,6 +39,8 @@ export class ProductRepository {
             select: {
                 id: true,
                 deletedByAdmin: true,
+                pausedBySeller: true,
+                pausedForVacation: true,
                 variants: {
                     select: {
                         id: true,
@@ -75,7 +77,12 @@ export class ProductRepository {
                 rejectionReason: product.deletedByAdmin ? rejectionReason : rejectionReason,
                 approvedAt: approvedVariants.length > 0 ? approvedVariants[0]?.approvedAt ?? null : null,
                 approvedById: approvedVariants.length > 0 ? approvedVariants[0]?.approvedById ?? null : null,
-                isPublished: !product.deletedByAdmin && approvedVariants.length > 0,
+                // A seller-paused (or holiday-mode) listing stays unpublished
+                // until the seller resumes it, whatever its variants say.
+                isPublished: !product.deletedByAdmin &&
+                    !product.pausedBySeller &&
+                    !product.pausedForVacation &&
+                    approvedVariants.length > 0,
             },
         });
         return this.mapProductDecimals(updated);
@@ -84,7 +91,7 @@ export class ProductRepository {
      * Find published products with pagination and filters
      */
     async findPublished(filters) {
-        const { page = 1, limit = 20, categoryId, audience, search, occasion } = filters;
+        const { page = 1, limit = 20, categoryId, audience, search, occasion, sort, minPrice, maxPrice } = filters;
         const { skip, take } = this.resolvePagination(page, Math.min(limit, 20));
         const conditions = [
             `p."status" = 'APPROVED'`,
@@ -99,9 +106,35 @@ export class ProductRepository {
         const params = [];
         let paramIndex = 1;
         if (categoryId) {
-            conditions.push(`p."category_id" = $${paramIndex}`);
+            // A main category or group matches products listed under any of
+            // its descendants, not only products attached to it directly.
+            conditions.push(`p."category_id" IN (
+                WITH RECURSIVE tree AS (
+                    SELECT "id" FROM "categories" WHERE "id" = $${paramIndex}
+                    UNION ALL
+                    SELECT ch."id" FROM "categories" ch INNER JOIN tree t ON ch."parent_id" = t."id"
+                )
+                SELECT "id" FROM tree
+            )`);
             params.push(categoryId);
             paramIndex += 1;
+        }
+        if (minPrice !== undefined || maxPrice !== undefined) {
+            const priceExpr = `(
+                SELECT MIN(pv_price."price")
+                FROM "product_variants" pv_price
+                WHERE pv_price."product_id" = p."id" AND pv_price."status" = 'APPROVED'
+            )`;
+            if (minPrice !== undefined) {
+                conditions.push(`${priceExpr} >= $${paramIndex}`);
+                params.push(minPrice);
+                paramIndex += 1;
+            }
+            if (maxPrice !== undefined) {
+                conditions.push(`${priceExpr} <= $${paramIndex}`);
+                params.push(maxPrice);
+                paramIndex += 1;
+            }
         }
         if (audience) {
             conditions.push(`p."audience" = $${paramIndex}::"ProductAudience"`);
@@ -140,6 +173,12 @@ export class ProductRepository {
             paramIndex += 1;
         }
         const whereClause = conditions.join(' AND ');
+        const orderBy = {
+            newest: `p."created_at" DESC`,
+            price_asc: `cv."price" ASC NULLS LAST, p."created_at" DESC`,
+            price_desc: `cv."price" DESC NULLS LAST, p."created_at" DESC`,
+            discount: `CASE WHEN cv."compare_at_price" > cv."price" THEN (cv."compare_at_price" - cv."price") / cv."compare_at_price" ELSE 0 END DESC, p."created_at" DESC`,
+        }[sort ?? 'newest'];
         const countQuery = `
             SELECT COUNT(*)::int AS total
             FROM "products" p
@@ -171,6 +210,8 @@ export class ProductRepository {
                 p."updated_at" AS "updatedAt",
                 cv."price" AS "cheapestVariantPrice",
                 cv."compare_at_price" AS "cheapestVariantCompareAt",
+                rv."avg" AS "ratingAverage",
+                COALESCE(rv."count", 0)::int AS "ratingCount",
                 json_build_object(
                     'id', c."id",
                     'name', c."name",
@@ -187,8 +228,13 @@ export class ProductRepository {
                 ORDER BY pv."price" ASC, pv."created_at" ASC
                 LIMIT 1
             ) cv ON true
+            LEFT JOIN LATERAL (
+                SELECT ROUND(AVG(r."rating")::numeric, 1) AS "avg", COUNT(*) AS "count"
+                FROM "reviews" r
+                WHERE r."product_id" = p."id" AND r."is_hidden" = false
+            ) rv ON true
             WHERE ${whereClause}
-            ORDER BY p."created_at" DESC
+            ORDER BY ${orderBy}
             LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
         `;
         const [countRows, rows] = await Promise.all([
@@ -201,6 +247,8 @@ export class ProductRepository {
             adminListingPrice: product.adminListingPrice == null ? null : Number(product.adminListingPrice),
             cheapestVariantPrice: product.cheapestVariantPrice == null ? null : Number(product.cheapestVariantPrice),
             cheapestVariantCompareAt: product.cheapestVariantCompareAt == null ? null : Number(product.cheapestVariantCompareAt),
+            ratingAverage: product.ratingAverage == null ? null : Number(product.ratingAverage),
+            ratingCount: Number(product.ratingCount ?? 0),
         }));
         return {
             products: products,
@@ -216,6 +264,9 @@ export class ProductRepository {
                 id,
                 status: 'APPROVED',
                 deletedByAdmin: false,
+                // Paused by the seller or by holiday mode: hidden from shoppers.
+                pausedBySeller: false,
+                pausedForVacation: false,
                 variants: {
                     some: {
                         status: 'APPROVED',

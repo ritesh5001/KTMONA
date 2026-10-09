@@ -59,6 +59,12 @@ export class WishlistService {
                         adminListingPrice: true,
                         isPublished: true,
                         category: { select: { id: true, name: true } },
+                        variants: {
+                            where: { status: 'APPROVED' },
+                            orderBy: [{ price: 'asc' }, { createdAt: 'asc' }],
+                            take: 1,
+                            select: { price: true, compareAtPrice: true },
+                        },
                     },
                 },
             },
@@ -67,20 +73,34 @@ export class WishlistService {
             wishlist: {
                 id: wishlist.id,
                 userId: wishlist.userId,
-                items: items.map((i) => ({
-                    id: i.id,
-                    productId: i.productId,
-                    createdAt: i.createdAt.toISOString(),
-                    product: {
-                        ...i.product,
-                        sellerPrice: i.product.sellerPrice
-                            ? Number(i.product.sellerPrice)
-                            : null,
-                        adminListingPrice: i.product.adminListingPrice
-                            ? Number(i.product.adminListingPrice)
-                            : null,
-                    },
-                })),
+                items: items.map((i) => {
+                    const { variants, ...product } = i.product;
+                    const cheapestVariant = variants[0];
+                    const fallbackSellingPrice = Math.max(Number(product.adminListingPrice ?? 0), Number(product.sellerPrice ?? 0));
+                    const variantPrice = Number(cheapestVariant?.price ?? 0);
+                    const sellingPrice = Number.isFinite(variantPrice) && variantPrice > 0
+                        ? variantPrice
+                        : fallbackSellingPrice;
+                    const compareAtPrice = Number(cheapestVariant?.compareAtPrice ?? 0);
+                    const regularPrice = Math.max(sellingPrice, Number.isFinite(compareAtPrice) && compareAtPrice > 0 ? compareAtPrice : 0);
+                    return {
+                        id: i.id,
+                        productId: i.productId,
+                        createdAt: i.createdAt.toISOString(),
+                        product: {
+                            ...product,
+                            // Preserve the legacy fields for the existing web
+                            // client while exposing the same canonical public
+                            // pricing contract used by `/v1/products`.
+                            sellerPrice: product.sellerPrice === null ? null : Number(product.sellerPrice),
+                            adminListingPrice: product.adminListingPrice === null ? null : Number(product.adminListingPrice),
+                            price: sellingPrice,
+                            adminPrice: sellingPrice,
+                            salePrice: sellingPrice,
+                            regularPrice,
+                        },
+                    };
+                }),
             },
         };
         await setCache(cacheKey, response, WISHLIST_CACHE_TTL_SECONDS);

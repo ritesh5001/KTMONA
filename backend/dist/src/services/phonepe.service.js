@@ -99,7 +99,7 @@ export class PhonePeService {
                 },
                 paymentFlow: {
                     type: 'PG_CHECKOUT',
-                    message: 'Tatvivah order payment',
+                    message: 'KTMONA order payment',
                     merchantUrls: { redirectUrl },
                 },
             });

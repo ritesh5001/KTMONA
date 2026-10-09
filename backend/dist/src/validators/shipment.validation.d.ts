@@ -18,13 +18,15 @@ export declare const updateShipmentStatusSchema: z.ZodObject<{
         CREATED: "CREATED";
         SHIPPED: "SHIPPED";
         DELIVERED: "DELIVERED";
+        RTO_INITIATED: "RTO_INITIATED";
+        RTO_DELIVERED: "RTO_DELIVERED";
     }>;
     note: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "CREATED" | "SHIPPED" | "DELIVERED";
+    status: "CREATED" | "SHIPPED" | "DELIVERED" | "RTO_INITIATED" | "RTO_DELIVERED";
     note?: string | undefined;
 }, {
-    status: "CREATED" | "SHIPPED" | "DELIVERED";
+    status: "CREATED" | "SHIPPED" | "DELIVERED" | "RTO_INITIATED" | "RTO_DELIVERED";
     note?: string | undefined;
 }>;
 export declare const adminOverrideSchema: z.ZodObject<{

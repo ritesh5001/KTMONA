@@ -3,7 +3,7 @@
  *
  * Shiprocket does not push to us — it polls three seller-built endpoints and
  * pulls the catalog in. Their contract is Shopify-shaped, so this maps the
- * Tatvivah schema onto that envelope rather than exposing our own product shape.
+ * KTMONA schema onto that envelope rather than exposing our own product shape.
  *
  * Two of their requirements are not free:
  *
@@ -244,7 +244,7 @@ export class ShiprocketCatalogService {
             id: toNumericId(row.externalId),
             title: row.title,
             body_html: toBodyHtml(row.description),
-            vendor: row.seller?.seller_profiles?.store_name?.trim() || 'Tatvivah Trends',
+            vendor: row.seller?.seller_profiles?.store_name?.trim() || 'KTMONA',
             product_type: categoryName,
             handle: toHandle(row.slug ?? null, row.title, row.externalId ?? null),
             status: 'active',

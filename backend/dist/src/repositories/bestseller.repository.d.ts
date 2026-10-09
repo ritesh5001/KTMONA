@@ -71,6 +71,8 @@ export declare class BestsellerRepository {
             approvedAt: Date | null;
             approvedById: string | null;
             isPublished: boolean;
+            pausedBySeller: boolean;
+            pausedForVacation: boolean;
             deletedByAdmin: boolean;
             deletedByAdminAt: Date | null;
             deletedByAdminReason: string | null;

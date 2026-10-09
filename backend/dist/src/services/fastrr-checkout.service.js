@@ -14,7 +14,7 @@
  * mint time and the order materialiser fails loudly rather than going negative.
  *
  * Pricing: every line is sent with `catalog_data`, so our price is authoritative
- * even if the catalog feed has not reached Fastrr yet. A *Tatvivah* coupon the
+ * even if the catalog feed has not reached Fastrr yet. A *KTMONA* coupon the
  * buyer applied before launching the overlay is passed as a fixed `cart_discount`
  * — which, per Fastrr's contract, disables their own coupon engine for that
  * session. With no local coupon we send no discount at all and the buyer can use
@@ -87,7 +87,7 @@ export class FastrrCheckoutService {
                     // Echoed back in some Fastrr payloads; useful for support even
                     // when it is not. Never relied on for correctness — the
                     // session lookup is by their order id.
-                    tatvivah_session_id: sessionId,
+                    ktmona_session_id: sessionId,
                 },
                 mobile_app: request.mobileApp === true,
             },

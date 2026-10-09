@@ -90,7 +90,7 @@ export class CheckoutService {
                 continue;
             }
             const availableStock = item.stock;
-            if (item.productDeleted || item.productStatus !== 'APPROVED') {
+            if (item.productDeleted || item.productPaused || item.productStatus !== 'APPROVED') {
                 validationErrors.push(`${title} is no longer available for purchase`);
                 continue;
             }

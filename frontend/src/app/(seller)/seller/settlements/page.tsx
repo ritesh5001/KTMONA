@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -32,7 +33,7 @@ const VIEWS: { key: View; label: string }[] = [
   { key: "outstanding", label: "In pipeline" },
   { key: "paid", label: "Paid" },
   { key: "all", label: "All orders" },
-  { key: "ledger", label: "Ads, claims & penalties" },
+  { key: "ledger", label: ADS_ENABLED ? "Ads, claims & penalties" : "Claims & penalties" },
 ];
 
 const LEDGER_LABEL = { AD_SPEND: "Ads spend", PENALTY: "Penalty", CLAIM_CREDIT: "Claim credit", ADJUSTMENT: "Adjustment" } as const;
@@ -73,7 +74,7 @@ export default function PaymentsPage() {
     <PageShell>
       <PageHeader
         title="Payments"
-        description={`You are paid ${s?.paymentCycleDays ?? 7} days after each order is delivered, straight to your bank account. Ads spend and penalties are deducted; approved claims are added.`}
+        description={`You are paid ${s?.paymentCycleDays ?? 7} days after each order is delivered, straight to your bank account. ${ADS_ENABLED ? "Ads spend and penalties are" : "Penalties are"} deducted; approved claims are added.`}
       />
       {sErr && !s ? <ErrorNote message={errorMessage(sErr)} onRetry={() => sMutate()} /> : null}
       {s?.payoutHold ? (
@@ -122,7 +123,7 @@ export default function PaymentsPage() {
                 ["Gross sales (your price)", s.totals.gross],
                 ["KTMONA commission", -s.totals.commission || 0],
                 ["Platform fees", -s.totals.platformFee || 0],
-                ["Ads spend (open)", s.ledger.adSpend],
+                ...(ADS_ENABLED || s.ledger.adSpend !== 0 ? [["Ads spend (open)", s.ledger.adSpend] as [string, number]] : []),
                 ["Penalties (open)", s.ledger.penalties],
                 ["Claim credits (open)", s.ledger.claimCredits],
               ].map(([label, value]) => (
@@ -135,7 +136,7 @@ export default function PaymentsPage() {
                 <dt className="font-semibold">Net payable now</dt>
                 <dd className="font-semibold tabular-nums">{inr2.format(s.netPayable)}</dd>
               </div>
-              {ledgerNet !== 0 ? <p className="text-xs text-muted-foreground">Ads, penalties and claims are settled with your next payout.</p> : null}
+              {ledgerNet !== 0 ? <p className="text-xs text-muted-foreground">{ADS_ENABLED ? "Ads, penalties" : "Penalties"} and claims are settled with your next payout.</p> : null}
             </dl>
           ) : (
             <Loading rows={3} />
@@ -171,7 +172,7 @@ export default function PaymentsPage() {
           ledgerLoading && !ledger ? (
             <Loading />
           ) : !ledger || ledger.entries.length === 0 ? (
-            <Empty icon={IndianRupee} title="No adjustments" text="Ads spend, penalties and claim credits will appear here." />
+            <Empty icon={IndianRupee} title="No adjustments" text={ADS_ENABLED ? "Ads spend, penalties and claim credits will appear here." : "Penalties and claim credits will appear here."} />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[640px] text-left text-sm">

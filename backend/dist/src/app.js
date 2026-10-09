@@ -14,6 +14,8 @@ shipmentRouter, sellerShipmentRouter, adminShipmentRouter, adminNotificationRout
 import { searchController } from './controllers/search.controller.js';
 import { apiReference } from "@scalar/express-api-reference";
 import { openApiSpec } from "./docs/openapi.js";
+import { sellerCenterRouter, adsRouter, adminSellerClaimsRouter } from './routes/seller-center.routes.js';
+import { adminCenterRouter, campaignsPublicRouter, storefrontPublicRouter } from './routes/admin-center.routes.js';
 const HOT_ENDPOINT_SLOW_THRESHOLD_MS = 400;
 function resolveHotEndpoint(path) {
     if (path === '/v1/products')
@@ -245,7 +247,7 @@ export function createApp() {
     });
     app.get('/', (_req, res) => {
         res.json({
-            message: 'Welcome to Tatvivah API',
+            message: 'Welcome to KTMONA API',
             version: '1.0.0'
         });
     });
@@ -283,6 +285,13 @@ export function createApp() {
     app.use('/v1/payments/webhook', webhookRouter); // before /v1/payments to skip auth
     app.use('/v1/payments', paymentRouter);
     app.use('/v1/seller/settlements', sellerSettlementRouter);
+    // Seller center (Meesho-style supplier panel), storefront ads, claim review
+    app.use('/v1/seller/center', sellerCenterRouter);
+    app.use('/v1/ads', adsRouter);
+    app.use('/v1/admin/seller-claims', adminSellerClaimsRouter);
+    app.use('/v1/admin/center', adminCenterRouter);
+    app.use('/v1/campaigns', campaignsPublicRouter);
+    app.use('/v1/storefront', storefrontPublicRouter);
     // Reviews domain
     app.use('/v1/reviews', reviewRouter);
     // Shipping & Fulfillment domain

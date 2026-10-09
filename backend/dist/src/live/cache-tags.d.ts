@@ -10,6 +10,7 @@ export declare const CACHE_TAGS: {
     readonly sellerOrders: "seller:orders";
     readonly adminProducts: "admin:products";
     readonly userOrders: "user:orders";
+    readonly storefront: "storefront";
 };
 export declare function productTag(productId: string): string;
 export declare function orderTag(orderId: string): string;

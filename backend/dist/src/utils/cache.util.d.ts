@@ -4,7 +4,7 @@
 export declare const CACHE_KEYS: {
     readonly CATEGORIES_LIST: "categories:list";
     readonly PRODUCTS_LIST: "products:list";
-    readonly PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string) => string;
+    readonly PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string, extra?: string) => string;
     readonly PRODUCT_DETAIL: (id: string) => string;
     readonly SELLER_PRODUCTS: (sellerId: string, page: number, limit: number) => string;
     readonly BESTSELLERS_LIST: "products:bestsellers";

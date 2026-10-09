@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import { MarketplaceProductCard, type MarketplaceCardProduct } from "@/components/marketplace-product-card";
 
@@ -28,7 +29,7 @@ export function SponsoredProducts({
   const exclude = excludeIds.slice(0, 50).join(",");
 
   React.useEffect(() => {
-    if (!API_BASE_URL) return;
+    if (!API_BASE_URL || !ADS_ENABLED) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ limit: String(limit) });
     if (categoryId) params.set("categoryId", categoryId);

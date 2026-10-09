@@ -1,5 +1,5 @@
 /**
- * Turning a completed Shiprocket Checkout (Fastrr) checkout into a Tatvivah order.
+ * Turning a completed Shiprocket Checkout (Fastrr) checkout into a KTMONA order.
  *
  * Three independent triggers call in here — the order webhook, the callback page
  * polling after the buyer is redirected back, and the reconciliation sweep — and

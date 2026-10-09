@@ -3,6 +3,7 @@
  * the late-dispatch penalty sweep.
  */
 
+import { env } from '../../config/env.js';
 import { prisma } from '../../config/db.js';
 import { logger } from '../../config/logger.js';
 import { DISPATCH_SLA_HOURS, LOW_STOCK_THRESHOLD, addDays, dispatchBy, pctChange, round2, utcDay } from './common.js';
@@ -212,7 +213,7 @@ class SellerInsightsService {
         if (restock.length) recommendations.push({ title: `Restock ${restock.length} fast-moving product(s)`, detail: 'These will sell out within two weeks at the current rate.', action: 'Update stock', href: '/seller/inventory?filter=low_stock' });
         if (notSelling.length) recommendations.push({ title: `${notSelling.length} live product(s) have no sales`, detail: 'Try a price cut, a limited-time offer or better photos.', action: 'Check pricing', href: '/seller/pricing' });
         if (highDemand.length) recommendations.push({ title: 'Wishlisted products are low on stock', detail: 'Customers saved these items. Add stock before they buy elsewhere.', action: 'Open inventory', href: '/seller/inventory' });
-        if (topProducts.length) recommendations.push({ title: 'Promote your bestsellers', detail: 'Ads on products that already sell bring the best return.', action: 'Create ad campaign', href: '/seller/ads' });
+        if (topProducts.length && env.FEATURE_ADS) recommendations.push({ title: 'Promote your bestsellers', detail: 'Ads on products that already sell bring the best return.', action: 'Create ad campaign', href: '/seller/ads' });
 
         return {
             days,

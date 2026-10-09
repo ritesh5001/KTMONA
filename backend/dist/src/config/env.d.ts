@@ -12,9 +12,12 @@ declare const envSchema: z.ZodObject<{
     JSON_BODY_LIMIT: z.ZodDefault<z.ZodString>;
     URLENCODED_BODY_LIMIT: z.ZodDefault<z.ZodString>;
     MAX_REQUESTS_PER_SOCKET: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
+    FEATURE_ADS: z.ZodEffects<z.ZodOptional<z.ZodString>, boolean, string | undefined>;
     RUN_BACKGROUND_JOBS: z.ZodEffects<z.ZodOptional<z.ZodString>, boolean | undefined, string | undefined>;
     BACKEND_WARMUP_URL: z.ZodOptional<z.ZodString>;
     BACKEND_WARMUP_INTERVAL_MS: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
+    MAINTENANCE_INTERVAL_MS: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
+    CATALOG_WARMUP_IDLE_AFTER_MS: z.ZodEffects<z.ZodDefault<z.ZodString>, number, string | undefined>;
     PRISMA_LOG_QUERIES: z.ZodEffects<z.ZodDefault<z.ZodString>, boolean, string | undefined>;
     DATABASE_URL: z.ZodString;
     DATABASE_URL_DIRECT: z.ZodOptional<z.ZodString>;
@@ -76,6 +79,8 @@ declare const envSchema: z.ZodObject<{
     PHONEPE_WEBHOOK_USERNAME: z.ZodOptional<z.ZodString>;
     PHONEPE_WEBHOOK_PASSWORD: z.ZodOptional<z.ZodString>;
     SHIPROCKET_API_KEY: z.ZodOptional<z.ZodString>;
+    SHIPROCKET_EMAIL: z.ZodOptional<z.ZodString>;
+    SHIPROCKET_PASSWORD: z.ZodOptional<z.ZodString>;
     FASTRR_API_KEY: z.ZodOptional<z.ZodString>;
     FASTRR_API_SECRET: z.ZodOptional<z.ZodString>;
     /**
@@ -112,7 +117,10 @@ declare const envSchema: z.ZodObject<{
     JSON_BODY_LIMIT: string;
     URLENCODED_BODY_LIMIT: string;
     MAX_REQUESTS_PER_SOCKET: number;
+    FEATURE_ADS: boolean;
     BACKEND_WARMUP_INTERVAL_MS: number;
+    MAINTENANCE_INTERVAL_MS: number;
+    CATALOG_WARMUP_IDLE_AFTER_MS: number;
     PRISMA_LOG_QUERIES: boolean;
     DATABASE_URL: string;
     JWT_ACCESS_SECRET: string;
@@ -161,6 +169,8 @@ declare const envSchema: z.ZodObject<{
     PHONEPE_WEBHOOK_USERNAME?: string | undefined;
     PHONEPE_WEBHOOK_PASSWORD?: string | undefined;
     SHIPROCKET_API_KEY?: string | undefined;
+    SHIPROCKET_EMAIL?: string | undefined;
+    SHIPROCKET_PASSWORD?: string | undefined;
     FASTRR_API_KEY?: string | undefined;
     FASTRR_API_SECRET?: string | undefined;
     FASTRR_BASE_URL?: string | undefined;
@@ -182,9 +192,12 @@ declare const envSchema: z.ZodObject<{
     JSON_BODY_LIMIT?: string | undefined;
     URLENCODED_BODY_LIMIT?: string | undefined;
     MAX_REQUESTS_PER_SOCKET?: string | undefined;
+    FEATURE_ADS?: string | undefined;
     RUN_BACKGROUND_JOBS?: string | undefined;
     BACKEND_WARMUP_URL?: string | undefined;
     BACKEND_WARMUP_INTERVAL_MS?: string | undefined;
+    MAINTENANCE_INTERVAL_MS?: string | undefined;
+    CATALOG_WARMUP_IDLE_AFTER_MS?: string | undefined;
     PRISMA_LOG_QUERIES?: string | undefined;
     DATABASE_URL_DIRECT?: string | undefined;
     ACCESS_TOKEN_EXPIRY?: string | undefined;
@@ -223,6 +236,8 @@ declare const envSchema: z.ZodObject<{
     PHONEPE_WEBHOOK_USERNAME?: string | undefined;
     PHONEPE_WEBHOOK_PASSWORD?: string | undefined;
     SHIPROCKET_API_KEY?: string | undefined;
+    SHIPROCKET_EMAIL?: string | undefined;
+    SHIPROCKET_PASSWORD?: string | undefined;
     FASTRR_API_KEY?: string | undefined;
     FASTRR_API_SECRET?: string | undefined;
     FASTRR_ENV?: "SANDBOX" | "PRODUCTION" | undefined;

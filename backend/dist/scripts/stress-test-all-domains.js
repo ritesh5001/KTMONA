@@ -295,7 +295,7 @@ async function testInventoryIntegrity() {
 // ═════════════════════════════════════════════════════════════════════
 async function main() {
     console.log('\n' + '═'.repeat(60));
-    console.log(`${COLORS.cyan}  Tatvivah Domain Stress Test${COLORS.reset}`);
+    console.log(`${COLORS.cyan}  KTMONA Domain Stress Test${COLORS.reset}`);
     console.log('═'.repeat(60));
     try {
         await testConcurrentRefundPrevention();

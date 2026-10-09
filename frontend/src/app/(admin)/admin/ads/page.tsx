@@ -1,5 +1,7 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
+import { AdsTurnedOff } from "@/components/seller/AdsTurnedOff";
 import * as React from "react";
 import Link from "next/link";
 import useSWR from "swr";
@@ -9,7 +11,7 @@ import { adminCenter } from "@/services/admin-center";
 import { inr, inr2 } from "@/services/seller-center";
 import { Btn, Empty, ErrorNote, Loading, PageHeader, PageShell, StatCard, StatusBadge, errorMessage } from "@/components/seller/kit";
 
-export default function AdminAdsPage() {
+function AdminAdsPage() {
   const [days, setDays] = React.useState(30);
   const { data, error, isLoading, mutate } = useSWR(["admin-ads", days], () => adminCenter.ads(days), { keepPreviousData: true });
   const [busy, setBusy] = React.useState<string | null>(null);
@@ -79,4 +81,9 @@ export default function AdminAdsPage() {
       </div>
     </PageShell>
   );
+}
+
+export default function AdminAdsPageGate() {
+  if (!ADS_ENABLED) return <AdsTurnedOff backHref="/admin/dashboard" backLabel="Back to dashboard" />;
+  return <AdminAdsPage />;
 }

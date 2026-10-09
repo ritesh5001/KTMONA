@@ -119,20 +119,29 @@ export declare const productQuerySchema: z.ZodObject<{
     audience: z.ZodOptional<z.ZodEnum<["MENS", "KIDS"]>>;
     search: z.ZodOptional<z.ZodString>;
     occasion: z.ZodOptional<z.ZodString>;
+    sort: z.ZodOptional<z.ZodEnum<["newest", "price_asc", "price_desc", "discount"]>>;
+    minPrice: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, number, string>, z.ZodNumber>>;
+    maxPrice: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, number, string>, z.ZodNumber>>;
 }, "strip", z.ZodTypeAny, {
     limit: number;
     page: number;
+    sort?: "newest" | "price_asc" | "price_desc" | "discount" | undefined;
     search?: string | undefined;
     categoryId?: string | undefined;
     audience?: "MENS" | "KIDS" | undefined;
     occasion?: string | undefined;
+    minPrice?: number | undefined;
+    maxPrice?: number | undefined;
 }, {
+    sort?: "newest" | "price_asc" | "price_desc" | "discount" | undefined;
     limit?: string | undefined;
     search?: string | undefined;
     categoryId?: string | undefined;
     audience?: "MENS" | "KIDS" | undefined;
     occasion?: string | undefined;
     page?: string | undefined;
+    minPrice?: string | undefined;
+    maxPrice?: string | undefined;
 }>;
 export type ProductQueryInput = z.infer<typeof productQuerySchema>;
 //# sourceMappingURL=product.validation.d.ts.map

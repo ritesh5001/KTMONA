@@ -24,6 +24,9 @@ const envSchema = z.object({
     JSON_BODY_LIMIT: z.string().default('5mb'),
     URLENCODED_BODY_LIMIT: z.string().default('5mb'),
     MAX_REQUESTS_PER_SOCKET: z.string().default('1000').transform(Number),
+    // KTMONA Ads (sponsored listings, seller campaigns, admin oversight).
+    // Off unless set to "true"; while off, every ads endpoint answers 404.
+    FEATURE_ADS: z.string().optional().transform((v) => (v ?? '').trim().toLowerCase() === 'true'),
     RUN_BACKGROUND_JOBS: z.string().optional().transform((v) => {
         if (!v) return undefined;
         const normalized = v.trim().toLowerCase();

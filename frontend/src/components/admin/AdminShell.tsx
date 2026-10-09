@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import useSWR from "swr";
 import {
@@ -84,7 +85,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       { section: "Money", href: "/admin/settlements", label: "Settlements", icon: Wallet },
       { section: "Money", href: "/admin/commissions", label: "Commissions", icon: Percent },
       { section: "Growth", href: "/admin/sale-events", label: "Sale Events", icon: Tag },
-      { section: "Growth", href: "/admin/ads", label: "Ads", icon: Megaphone },
+      ...(ADS_ENABLED ? [{ section: "Growth", href: "/admin/ads", label: "Ads", icon: Megaphone }] : []),
       { section: "Growth", href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
       { section: "Growth", href: "/admin/bestsellers", label: "Bestsellers", icon: Award },
       { section: "Growth", href: "/admin/reels", label: "Reels", icon: Clapperboard },

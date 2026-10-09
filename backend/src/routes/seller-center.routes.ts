@@ -19,6 +19,7 @@ import { sellerReturnsService } from '../services/seller-center/returns.service.
 import { sellerPaymentsService } from '../services/seller-center/payments.service.js';
 import { sellerPricingService } from '../services/seller-center/pricing.service.js';
 import { sellerAdsService } from '../services/seller-center/ads.service.js';
+import { env } from '../config/env.js';
 import { sellerInsightsService, LATE_DISPATCH_PENALTY_KEY } from '../services/seller-center/insights.service.js';
 import { sellerSettingsService } from '../services/seller-center/settings.service.js';
 import { campaignsService } from '../services/admin-center/campaigns.service.js';
@@ -60,6 +61,12 @@ const XLSX_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.s
 // =============================================================================
 // Seller center
 // =============================================================================
+
+/** 404s every ads endpoint while KTMONA Ads is switched off (FEATURE_ADS). */
+export function adsEnabledGuard(_req: Request, _res: Response, next: NextFunction): void {
+    if (env.FEATURE_ADS) return next();
+    next(ApiError.notFound('KTMONA Ads is turned off'));
+}
 
 export const sellerCenterRouter = Router();
 sellerCenterRouter.use(authenticate, authorize('SELLER'));
@@ -220,6 +227,7 @@ sellerCenterRouter.post(
 sellerCenterRouter.post('/offers/:offerId/cancel', h((req) => sellerPricingService.cancelOffer(sid(req), param(req, 'offerId'))));
 
 // Ads
+sellerCenterRouter.use('/ads', adsEnabledGuard);
 sellerCenterRouter.get('/ads', h((req) => sellerAdsService.listCampaigns(sid(req), req.query)));
 const campaignBody = z.object({
     name: z.string().trim().min(3).max(80),
@@ -332,6 +340,7 @@ sellerCenterRouter.put('/settings/vacation', h((req) => sellerSettingsService.se
 // =============================================================================
 
 export const adsRouter = Router();
+adsRouter.use(adsEnabledGuard);
 
 adsRouter.get(
     '/sponsored',

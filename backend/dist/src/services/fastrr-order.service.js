@@ -1,5 +1,5 @@
 /**
- * Turning a completed Shiprocket Checkout (Fastrr) checkout into a Tatvivah order.
+ * Turning a completed Shiprocket Checkout (Fastrr) checkout into a KTMONA order.
  *
  * Three independent triggers call in here — the order webhook, the callback page
  * polling after the buyer is redirected back, and the reconciliation sweep — and
@@ -36,6 +36,7 @@ import { getFastrrOrderDetails, isFastrrConfigured, } from './fastrr.client.js';
 import { invalidateCache, invalidateCacheByPattern, CACHE_KEYS, } from '../utils/cache.util.js';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS, orderTag, productTag } from '../live/cache-tags.js';
+import { sellerAdsService } from './seller-center/ads.service.js';
 const round2 = (value) => value.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 const TX_MAX_WAIT_MS = 20000;
 const TX_TIMEOUT_MS = 30000;
@@ -194,6 +195,24 @@ export class FastrrOrderService {
         const grossSubtotal = lines.reduce((sum, line) => sum.add(new Prisma.Decimal(line.unitPrice).mul(line.quantity)), new Prisma.Decimal(0));
         const totalDiscount = round2(new Prisma.Decimal(details.total_discount ?? 0));
         const grandTotal = round2(new Prisma.Decimal(details.total_amount_payable ?? 0));
+        // Line splits use our prices; the total the buyer paid is Fastrr's. Those
+        // agree only while the catalog feed is in sync. If a price changed here
+        // after Fastrr last pulled it, the two drift apart and the invoice lines
+        // stop adding up to the amount charged — visible to the buyer and wrong on
+        // the seller's settlement. It is not worth refusing a paid order over, but
+        // it must never pass silently.
+        if (details.subtotal_price != null) {
+            const theirSubtotal = round2(new Prisma.Decimal(details.subtotal_price));
+            if (!theirSubtotal.equals(grossSubtotal)) {
+                checkoutLogger.error({
+                    event: 'fastrr_price_drift',
+                    fastrrOrderId: details.order_id,
+                    ourSubtotal: grossSubtotal.toString(),
+                    theirSubtotal: theirSubtotal.toString(),
+                    difference: theirSubtotal.sub(grossSubtotal).toString(),
+                }, `Fastrr charged a subtotal we do not agree with for ${details.order_id} — catalog sync is stale`);
+            }
+        }
         // Discount is spread across lines in proportion to their value, with the
         // remainder landing on the last line so the parts always re-sum to the
         // whole — the same allocation the native checkout uses.
@@ -288,7 +307,7 @@ export class FastrrOrderService {
                     subTotalAmount: Number(subTotalAmount.toString()),
                     totalTaxAmount: Number(totalTaxAmount.toString()),
                     grandTotal: Number(grandTotal.toString()),
-                    // Fastrr's own coupons are reported per order; a Tatvivah coupon
+                    // Fastrr's own coupons are reported per order; a KTMONA coupon
                     // the buyer applied before the overlay is on the session.
                     couponCode: details.coupon_codes?.[0] ?? current.couponCode ?? null,
                     discountAmount: totalDiscount,
@@ -333,7 +352,7 @@ export class FastrrOrderService {
                     reason: 'CHECKOUT',
                 })),
             });
-            // A Tatvivah coupon is only burned now, once the money is in. Fastrr's
+            // A KTMONA coupon is only burned now, once the money is in. Fastrr's
             // own coupons live on their side and are not redeemed against our
             // ledger.
             if (current.couponCode) {
@@ -461,6 +480,8 @@ export class FastrrOrderService {
         paymentLogger.info({ event: 'fastrr_cod_confirmed', orderId, paymentId }, `COD order ${orderId} confirmed — payment pending collection`);
         await commissionService.calculateAndStoreSellerSettlement(orderId);
         await emitOrderPlaced(orderId);
+        // Credit the sale to any ad click that led to it (best-effort).
+        await sellerAdsService.attributeOrder(orderId).catch((err) => paymentLogger.warn({ err, orderId }, 'Ad attribution failed'));
     }
     /**
      * Map Fastrr's variant ids back onto our catalog.

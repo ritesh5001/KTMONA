@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -42,7 +43,7 @@ export default function AdminDashboardPage() {
           tone="green"
           label="Platform revenue"
           value={d ? inr.format(d.kpis.platformRevenue) : "—"}
-          sub={d ? `Commission ${inr.format(d.kpis.commission)} · Ads ${inr.format(d.kpis.adRevenue)}` : undefined}
+          sub={d ? `Commission ${inr.format(d.kpis.commission)}${ADS_ENABLED ? ` · Ads ${inr.format(d.kpis.adRevenue)}` : ""}` : undefined}
         />
         <StatCard icon={Store} tone="navy" label="Active sellers" value={d?.kpis.activeSellers ?? "—"} sub={d ? `${d.kpis.liveProducts} live products` : undefined} href="/admin/sellers?tab=active" />
       </section>

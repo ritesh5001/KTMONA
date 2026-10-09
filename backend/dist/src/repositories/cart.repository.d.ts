@@ -15,6 +15,8 @@ export interface CheckoutCartRow {
     taxRate: number | null;
     productStatus: string | null;
     productDeleted: boolean | null;
+    /** Seller paused the listing (or holiday mode); not purchasable. */
+    productPaused: boolean | null;
     variantPrice: number | null;
     variantSellerPrice: number | null;
     variantAdminPrice: number | null;

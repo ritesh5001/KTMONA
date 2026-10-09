@@ -9,6 +9,10 @@ export interface WishlistItemDetail {
         images: string[];
         sellerPrice: number | null;
         adminListingPrice: number | null;
+        price: number;
+        adminPrice: number;
+        salePrice: number;
+        regularPrice: number;
         isPublished: boolean;
         category: {
             id: string;

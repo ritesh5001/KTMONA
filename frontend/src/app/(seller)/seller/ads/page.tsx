@@ -1,5 +1,7 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
+import { AdsTurnedOff } from "@/components/seller/AdsTurnedOff";
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
@@ -23,7 +25,7 @@ import {
 } from "@/components/seller/kit";
 import { ProductPicker } from "@/components/seller/ProductPicker";
 
-export default function AdsPage() {
+function AdsPage() {
   const [days, setDays] = React.useState(30);
   const { data, error, isLoading, mutate } = useSWR(["seller-ads", days], () => sellerCenter.ads(days), { keepPreviousData: true });
   const [editing, setEditing] = React.useState<AdCampaign | "new" | null>(null);
@@ -256,4 +258,9 @@ function CampaignModal({ campaign, minBid, minBudget, onClose, onSaved }: { camp
       </div>
     </Modal>
   );
+}
+
+export default function AdsPageGate() {
+  if (!ADS_ENABLED) return <AdsTurnedOff backHref="/seller/pricing" backLabel="Go to Pricing & Offers" />;
+  return <AdsPage />;
 }

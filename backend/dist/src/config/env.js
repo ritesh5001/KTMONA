@@ -24,6 +24,9 @@ const envSchema = z.object({
     JSON_BODY_LIMIT: z.string().default('5mb'),
     URLENCODED_BODY_LIMIT: z.string().default('5mb'),
     MAX_REQUESTS_PER_SOCKET: z.string().default('1000').transform(Number),
+    // KTMONA Ads (sponsored listings, seller campaigns, admin oversight).
+    // Off unless set to "true"; while off, every ads endpoint answers 404.
+    FEATURE_ADS: z.string().optional().transform((v) => (v ?? '').trim().toLowerCase() === 'true'),
     RUN_BACKGROUND_JOBS: z.string().optional().transform((v) => {
         if (!v)
             return undefined;
@@ -31,7 +34,20 @@ const envSchema = z.object({
         return !(normalized === 'false' || normalized === '0' || normalized === 'off');
     }),
     BACKEND_WARMUP_URL: z.string().url('BACKEND_WARMUP_URL must be a valid URL').optional(),
-    BACKEND_WARMUP_INTERVAL_MS: z.string().default('240000').transform(Number),
+    // 14 minutes: Render's free tier spins a service down after 15 minutes
+    // without inbound traffic, so this is the longest ping that still keeps it
+    // up. It used to be 4 minutes, which kept Render awake 3x more often than
+    // necessary and — when BACKEND_WARMUP_URL points at a DB-backed route —
+    // kept Neon's compute awake with it.
+    BACKEND_WARMUP_INTERVAL_MS: z.string().default('840000').transform(Number),
+    // How often the consolidated maintenance sweep runs. See MAINTENANCE_INTERVAL_MS
+    // in server.ts for why this is deliberately long.
+    MAINTENANCE_INTERVAL_MS: z.string().default('1800000').transform(Number),
+    // How long after the last real request the storefront cache keeps being
+    // warmed. Warming exists so a shopper never pays for a cold read; with no
+    // shoppers there is nothing to protect, and the queries only serve to keep
+    // the database from ever suspending.
+    CATALOG_WARMUP_IDLE_AFTER_MS: z.string().default('1800000').transform(Number),
     PRISMA_LOG_QUERIES: z.string().default('false').transform((v) => {
         const normalized = v.trim().toLowerCase();
         return normalized === 'true' || normalized === '1' || normalized === 'on';
@@ -50,7 +66,7 @@ const envSchema = z.object({
     SELLER_BASE_URL: z.string().url('SELLER_BASE_URL must be a valid URL').optional(),
     FRONTEND_REVALIDATE_URL: z.string().url('FRONTEND_REVALIDATE_URL must be a valid URL').optional(),
     FRONTEND_REVALIDATE_SECRET: z.string().min(1, 'FRONTEND_REVALIDATE_SECRET cannot be empty').optional(),
-    LIVE_EVENTS_CHANNEL: z.string().default('tatvivah:live-events'),
+    LIVE_EVENTS_CHANNEL: z.string().default('ktmona:live-events'),
     // Redis
     REDIS_URL: z.string().url('REDIS_URL must be a valid URL').optional(),
     // Legacy Upstash vars retained as optional for backwards compatibility
@@ -86,7 +102,7 @@ const envSchema = z.object({
      */
     AQUASMS_OTP_TEMPLATE: z
         .string()
-        .default('{otp} is your OTP for TatVivah. Valid for 10 minutes. Do not share it with anyone.'),
+        .default('{otp} is your OTP for KTMONA. Valid for 10 minutes. Do not share it with anyone.'),
     AQUASMS_TIMEOUT_MS: z.string().default('20000').transform(Number),
     /**
      * Escape hatch: treat SMS as usable even without DLT ids. Off by default because
@@ -124,6 +140,11 @@ const envSchema = z.object({
     // documented requests send no auth header, so the endpoints launch open and
     // close the moment this is set on both sides.
     SHIPROCKET_API_KEY: z.string().optional(),
+    // Shiprocket shipping API (AWB, labels, pickups, manifests) for seller
+    // orders. Use a dedicated Shiprocket "API user" (Settings → API). Unset =
+    // sellers self-ship and enter the courier + AWB themselves.
+    SHIPROCKET_EMAIL: z.string().optional(),
+    SHIPROCKET_PASSWORD: z.string().optional(),
     // -------------------------------------------------------------------
     // Shiprocket Checkout (Fastrr)
     //

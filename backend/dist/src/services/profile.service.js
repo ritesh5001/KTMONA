@@ -25,7 +25,7 @@ function assertHostedImageUrl(url) {
         throw ApiError.badRequest('Avatar URL must use HTTPS');
     }
     if (!ALLOWED_AVATAR_HOSTS.includes(parsed.hostname)) {
-        throw ApiError.badRequest('Avatar must be uploaded through Tatvivah');
+        throw ApiError.badRequest('Avatar must be uploaded through KTMONA');
     }
 }
 export class ProfileService {

@@ -6,7 +6,7 @@ import { invoiceGeneratedTotal, invoiceDownloadTotal } from '../config/metrics.j
 /**
  * Platform constants
  */
-const PLATFORM_NAME = 'Tatvivah';
+const PLATFORM_NAME = 'KTMONA';
 const PLATFORM_GSTIN = '07AABCT1234F1ZH'; // Placeholder — replace with real GSTIN in env
 /**
  * Generate a GST-compliant PDF invoice buffer for a given order.

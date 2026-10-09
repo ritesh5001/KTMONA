@@ -15,6 +15,7 @@ import { adminQcService } from '../services/admin-center/qc.service.js';
 import { adminPayoutsService } from '../services/admin-center/payouts.service.js';
 import { adminPenaltiesService } from '../services/admin-center/penalties.service.js';
 import { campaignsService } from '../services/admin-center/campaigns.service.js';
+import { adsEnabledGuard } from './seller-center.routes.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -145,6 +146,7 @@ adminCenterRouter.patch(
 );
 
 // Ads oversight
+adminCenterRouter.use('/ads', adsEnabledGuard);
 adminCenterRouter.get('/ads', h((req) => adminOpsService.ads(Number(req.query.days) || 30)));
 adminCenterRouter.patch('/ads/:id', h((req) => adminOpsService.setAdStatus(param(req, 'id'), z.object({ status: z.enum(['ACTIVE', 'PAUSED', 'ENDED']) }).parse(req.body).status)));
 

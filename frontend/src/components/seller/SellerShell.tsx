@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import useSWR from "swr";
 import {
@@ -61,7 +62,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
       { href: "/seller/pricing", label: "Pricing & Offers", icon: BadgePercent },
       { href: "/seller/sale-events", label: "Sale Events", icon: Tag },
       { href: "/seller/settlements", label: "Payments", icon: Wallet },
-      { href: "/seller/ads", label: "Ads", icon: Megaphone },
+      ...(ADS_ENABLED ? [{ href: "/seller/ads", label: "Ads", icon: Megaphone }] : []),
       { href: "/seller/performance", label: "Performance", icon: BarChart3 },
       { href: "/seller/reels", label: "Reels", icon: Clapperboard },
       { href: "/seller/appointments", label: "Appointments", icon: CalendarClock },

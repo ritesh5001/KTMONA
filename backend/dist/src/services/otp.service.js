@@ -50,13 +50,13 @@ export class OtpService {
     renderOtpEmail(code, context) {
         if (context === 'reset') {
             return {
-                subject: 'Reset your Tatvivah password',
+                subject: 'Reset your KTMONA password',
                 html: renderBrandedEmail({
-                    preheader: 'Your password reset verification code for Tatvivah.',
+                    preheader: 'Your password reset verification code for KTMONA.',
                     eyebrow: 'Password Recovery',
                     title: 'Reset Your Password',
                     message: [
-                        'Use the one-time code below to reset your Tatvivah account password.',
+                        'Use the one-time code below to reset your KTMONA account password.',
                         `This code expires in ${OTP_EXPIRY_MINUTES} minutes and can only be used once.`,
                     ],
                     details: [{ label: 'Reset Code', value: code }],
@@ -66,15 +66,15 @@ export class OtpService {
         }
         const isLogin = context === 'login';
         return {
-            subject: isLogin ? 'Your Tatvivah login code' : 'Verify your Tatvivah account',
+            subject: isLogin ? 'Your KTMONA login code' : 'Verify your KTMONA account',
             html: renderBrandedEmail({
-                preheader: isLogin ? 'Your Tatvivah login code.' : 'Your Tatvivah verification code.',
+                preheader: isLogin ? 'Your KTMONA login code.' : 'Your KTMONA verification code.',
                 eyebrow: isLogin ? 'Login OTP' : 'Account Verification',
                 title: isLogin ? 'Complete Your Login' : 'Verify Your Account',
                 message: [
                     isLogin
-                        ? 'Use the one-time code below to sign in to your Tatvivah account.'
-                        : 'Use the one-time code below to verify your Tatvivah account.',
+                        ? 'Use the one-time code below to sign in to your KTMONA account.'
+                        : 'Use the one-time code below to verify your KTMONA account.',
                     `This code is valid for ${OTP_EXPIRY_MINUTES} minutes and can only be used once.`,
                 ],
                 details: [{ label: 'Verification Code', value: code }],

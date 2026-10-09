@@ -1,5 +1,6 @@
 "use client";
 
+import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -341,7 +342,9 @@ export default function SellerDashboardPage() {
       {/* Bottom cards */}
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          { icon: Megaphone, title: "Grow Your Sales", text: "Use offers, discounts, ads and better product images to get more orders.", cta: "Explore Marketing Tools", href: "/seller/ads", primary: true },
+          ADS_ENABLED
+            ? { icon: Megaphone, title: "Grow Your Sales", text: "Use offers, discounts, ads and better product images to get more orders.", cta: "Explore Marketing Tools", href: "/seller/ads", primary: true }
+            : { icon: Megaphone, title: "Grow Your Sales", text: "Use offers, discounts, sale events and better product images to get more orders.", cta: "Create an Offer", href: "/seller/pricing", primary: true },
           { icon: ShieldCheck, title: "Seller Protection", text: "Safe payments, easy returns and claims for damaged returns.", cta: "Know More", href: "/seller/returns?view=claims" },
           { icon: Headset, title: "Need Help?", text: "Get quick answers to your queries from our support team.", cta: "Contact Support", href: "/seller/support" },
         ].map((c) => (

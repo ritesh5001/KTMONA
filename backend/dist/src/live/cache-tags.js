@@ -10,6 +10,7 @@ export const CACHE_TAGS = {
     sellerOrders: 'seller:orders',
     adminProducts: 'admin:products',
     userOrders: 'user:orders',
+    storefront: 'storefront',
 };
 export function productTag(productId) {
     return `product:${productId}`;

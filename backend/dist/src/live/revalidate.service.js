@@ -4,7 +4,7 @@ import { dedupeTags } from './cache-tags.js';
 // Defaults so on-demand cache revalidation works out-of-the-box with no env setup.
 // DEFAULT_REVALIDATE_SECRET must stay identical to the frontend default in
 // frontend/src/app/api/internal/revalidate/route.ts. Override both via env for stronger security.
-const DEFAULT_FRONTEND_BASE_URL = 'https://www.tatvivahtrends.com';
+const DEFAULT_FRONTEND_BASE_URL = 'https://www.ktmona.com';
 const DEFAULT_REVALIDATE_SECRET = '48aba57348db9e7a3c077b11a97f511deaa9b6486e6b5a1950c1ffc2bb639557';
 function resolveRevalidateUrl() {
     if (env.FRONTEND_REVALIDATE_URL) {

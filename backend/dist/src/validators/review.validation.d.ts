@@ -45,11 +45,11 @@ export declare const reviewQuerySchema: z.ZodObject<{
     limit: z.ZodOptional<z.ZodNumber>;
     sort: z.ZodOptional<z.ZodEnum<["newest", "oldest", "highest", "lowest", "helpful"]>>;
 }, "strip", z.ZodTypeAny, {
-    sort?: "oldest" | "highest" | "lowest" | "helpful" | "newest" | undefined;
+    sort?: "newest" | "oldest" | "highest" | "lowest" | "helpful" | undefined;
     limit?: number | undefined;
     page?: number | undefined;
 }, {
-    sort?: "oldest" | "highest" | "lowest" | "helpful" | "newest" | undefined;
+    sort?: "newest" | "oldest" | "highest" | "lowest" | "helpful" | undefined;
     limit?: number | undefined;
     page?: number | undefined;
 }>;

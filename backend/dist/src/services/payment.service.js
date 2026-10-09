@@ -13,6 +13,7 @@ import { CACHE_TAGS, orderTag } from '../live/cache-tags.js';
 import { phonepeService } from './phonepe.service.js';
 import { isPhonePeConfigured } from './phonepe.client.js';
 import { env } from '../config/env.js';
+import { sellerAdsService } from './seller-center/ads.service.js';
 // =====================================================================
 // Payment service.
 //
@@ -71,7 +72,7 @@ function resolvePublicRedirectBase() {
     const candidates = [
         env.PHONEPE_WEB_REDIRECT_BASE_URL,
         env.FRONTEND_BASE_URL,
-        'https://www.tatvivahtrends.com',
+        'https://www.ktmona.com',
     ];
     for (const candidate of candidates) {
         if (!candidate)
@@ -85,7 +86,7 @@ function resolvePublicRedirectBase() {
         }
         return trimmed;
     }
-    return 'https://www.tatvivahtrends.com';
+    return 'https://www.ktmona.com';
 }
 function isTransactionStartTimeout(error) {
     if (!(error instanceof Error))
@@ -497,6 +498,8 @@ export class PaymentService {
         }, `Payment succeeded for order ${orderId}`);
         await commissionService.calculateAndStoreSellerSettlement(orderId);
         await emitPaymentSuccess(orderId);
+        // Credit the sale to any ad click that led to it (best-effort).
+        await sellerAdsService.attributeOrder(orderId).catch((err) => paymentLogger.warn({ err, orderId }, 'Ad attribution failed'));
         await dispatchFreshness({
             type: 'payment.updated',
             entityId: orderId,
@@ -562,9 +565,32 @@ export class PaymentService {
                 status: OrderStatus.PLACED,
                 createdAt: { lt: cutoff },
                 OR: [
-                    { payment: { status: { not: PaymentStatus.SUCCESS } } },
+                    // The exclusion lives inside this branch, not alongside it: a
+                    // sibling `payment: {...}` filter would AND with the null branch
+                    // and stop sweeping orders that have no payment row at all —
+                    // exactly the PhonePe orders whose payment init failed.
+                    {
+                        payment: {
+                            is: {
+                                status: { not: PaymentStatus.SUCCESS },
+                                provider: { not: PaymentProvider.FASTRR },
+                            },
+                        },
+                    },
                     { payment: null },
                 ],
+                // Fastrr orders are exempt, and the exemption is load-bearing.
+                //
+                // This sweep exists for the PhonePe flow, where an order is created
+                // *before* payment and a PLACED order past its TTL genuinely means
+                // the buyer walked away. Fastrr inverts that: an order only exists
+                // here because Shiprocket already confirmed the checkout, so PLACED
+                // means "paid, mid-confirmation" — and a COD order legitimately
+                // carries an INITIATED payment until it is collected on delivery.
+                //
+                // Without this, any hiccup between creating the order and confirming
+                // it would leave a paid order to be auto-cancelled 30 minutes later,
+                // with its stock released and the buyer's money already taken.
             },
             include: { payment: true },
         });

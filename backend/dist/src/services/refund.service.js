@@ -3,6 +3,7 @@ import { prisma } from '../config/db.js';
 import { refundLogger } from '../config/logger.js';
 import { phonepeService } from './phonepe.service.js';
 import { isPhonePeConfigured } from './phonepe.client.js';
+import { initiateFastrrRefund, isFastrrConfigured } from './fastrr.client.js';
 import { refundCreatedTotal, refundLedgerSuccessTotal, refundFailedTotal, refundOverLimitRejectedTotal, } from '../config/metrics.js';
 import { ApiError } from '../errors/ApiError.js';
 // ─────────────────────────────────────────────────────────────────
@@ -128,6 +129,26 @@ export class RefundService {
             }
             catch (error) {
                 refundLogger.error({ orderId, refundId: refund.id, error: error?.message }, 'phonepe_refund_api_failed');
+                providerSuccess = false;
+            }
+        }
+        else if (order.payment.provider === PaymentProvider.FASTRR
+            && order.payment.providerOrderId
+            && isFastrrConfigured()) {
+            // Shiprocket brokered the gateway, so they own the refund too — we
+            // hold no gateway handle we could refund against ourselves. Falling
+            // through to the manual branch below would mark the ledger refunded
+            // while no money actually moved, so this must be an explicit case.
+            try {
+                await initiateFastrrRefund(order.payment.providerOrderId, amount / 100);
+                // Fastrr queues refunds asynchronously and reports the outcome in
+                // their refund report; the ledger entry records the order it was
+                // raised against.
+                razorpayRefundId = `fastrr_${order.payment.providerOrderId}_${refund.id}`;
+                providerSuccess = true;
+            }
+            catch (error) {
+                refundLogger.error({ orderId, refundId: refund.id, error: error?.message }, 'fastrr_refund_api_failed');
                 providerSuccess = false;
             }
         }

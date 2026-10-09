@@ -7,7 +7,7 @@ export function orderPlacedTemplate(data) {
             preheader: `Order #${data.orderId} is confirmed and being prepared.`,
             eyebrow: 'Order Confirmation',
             title: 'Your Order Is Confirmed',
-            greeting: 'Thank you for choosing Tatvivah.',
+            greeting: 'Thank you for choosing KTMONA.',
             message: [
                 'We have successfully received your order and our partner seller has started processing it.',
                 'You will receive another update as soon as your shipment is dispatched.',

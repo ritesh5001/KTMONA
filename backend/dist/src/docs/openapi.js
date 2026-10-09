@@ -1,7 +1,7 @@
 export const openApiSpec = {
     openapi: "3.1.0",
     info: {
-        title: "Tat Vivah Marketplace API",
+        title: "KTMONA Marketplace API",
         description: "Multi-vendor e-commerce marketplace with GST taxation, coupon engine, RMA, cancellations, seller settlements, and personalization.",
         version: "2.0.0",
     },
