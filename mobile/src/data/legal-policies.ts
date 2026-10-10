@@ -216,6 +216,11 @@ export const aboutPolicy: PolicyDocument = {
         "KTMONA is a multi-vendor marketplace where small businesses, resellers and home-based sellers across India list their products, and customers shop with secure payments, tracked delivery and easy returns. Every seller is approved by our team and every product is reviewed before it goes live.",
     },
     {
+      title: "Meet Our Founder",
+      body:
+        "Mr. Kuldeep Yadav, Founder & CEO, KTMONA\n\nWith a vision to make online shopping simple, reliable and accessible for everyone, Mr. Kuldeep Yadav founded KTMONA with a strong belief in the power of technology and community. His goal is to create a platform where customers get the best products at great prices and sellers get the right support to grow their business.\n\n“My dream is to build a platform that brings trust, convenience and opportunity — for every customer and every seller.”\n— Mr. Kuldeep Yadav, Founder & CEO, KTMONA",
+    },
+    {
       title: "Our Mission",
       body:
         "Our mission is to give every seller in India a simple, transparent way to sell online, and every customer a marketplace they can trust with each click.\n\n• Knowledge: Clear product information, honest reviews and simple tools for first-time online sellers.\n• Trust: Verified sellers, admin-approved listings and secure payments.\n• Access: Shop or sell from anywhere on the web and on the KTMONA app for Android and iOS.",

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
     { id: "our-story", title: "Our Story" },
+    { id: "founder", title: "Meet Our Founder" },
     { id: "our-mission", title: "Our Mission" },
     { id: "why-choose-us", title: "Why Choose Us" },
     { id: "head-office", title: "Head Office" },
@@ -29,6 +30,19 @@ export default function AboutPage() {
                 <p>
                     KTMONA is a multi-vendor marketplace where small businesses, resellers and home-based sellers across India list their products, and customers shop with secure payments, tracked delivery and easy returns. Every seller is approved by our team and every product is reviewed before it goes live.
                 </p>
+            </section>
+
+            <section id="founder">
+                <p className="!mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-strong">Meet Our Founder</p>
+                <h2 className="!mt-0">Mr. Kuldeep Yadav</h2>
+                <p><strong>Founder &amp; CEO, KTMONA</strong></p>
+                <p>
+                    With a vision to make online shopping simple, reliable and accessible for everyone, Mr. Kuldeep Yadav founded KTMONA with a strong belief in the power of technology and community. His goal is to create a platform where customers get the best products at great prices and sellers get the right support to grow their business.
+                </p>
+                <blockquote>
+                    &ldquo;My dream is to build a platform that brings trust, convenience and opportunity &mdash; for every customer and every seller.&rdquo;
+                    <footer>&mdash; Mr. Kuldeep Yadav, Founder &amp; CEO, KTMONA</footer>
+                </blockquote>
             </section>
 
             <section id="our-mission">
