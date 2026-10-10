@@ -7,19 +7,41 @@ import { ProfileAvatar } from "../../components/ProfileAvatar";
 import { useAuth } from "../../hooks/useAuth";
 import { C } from "../theme";
 import { HeaderActions, PrimaryBtn, T } from "../kit";
+import { useT } from "../../i18n";
 
 type Row = { icon: React.ComponentProps<typeof Feather>["name"]; label: string; href?: string; url?: string };
+
+/** Rows that need a signed-in account. */
+const NEEDS_LOGIN = new Set(["My Orders", "My Addresses", "Notifications", "Bank & UPI Details", "Video Calls", "Edit Profile", "Change Password"]);
 
 const SHOPPING: Row[] = [
   { icon: "package", label: "My Orders", href: "/orders" },
   { icon: "heart", label: "My Wishlist", href: "/wishlist" },
+  { icon: "share-2", label: "Shared Products", href: "/account/shared" },
+  { icon: "eye", label: "Recently Viewed", href: "/account/recently-viewed" },
   { icon: "map-pin", label: "My Addresses", href: "/profile/addresses" },
+  { icon: "credit-card", label: "Bank & UPI Details", href: "/account/refund-details" },
+  { icon: "video", label: "Video Calls", href: "/account/appointments" },
   { icon: "bell", label: "Notifications", href: "/notifications" },
+];
+const EXPLORE: Row[] = [
+  { icon: "lock", label: "KTMONA Price Lock", href: "/price-lock" },
+  { icon: "shopping-bag", label: "All Products", href: "/marketplace" },
+  { icon: "book-open", label: "KTMONA Blog", href: "/blog" },
+];
+const SETTINGS: Row[] = [
+  { icon: "user", label: "Edit Profile", href: "/account/edit-profile" },
+  { icon: "globe", label: "Language", href: "/account/language" },
+  { icon: "key", label: "Change Password", href: "/forgot-password" },
 ];
 const HELP: Row[] = [
   { icon: "message-circle", label: "Help & Support", href: "/support" },
-  { icon: "lock", label: "Change Password", href: "/forgot-password" },
-  { icon: "briefcase", label: "Become a Seller", url: "https://www.ktmona.com/register/seller" },
+  { icon: "briefcase", label: "Become a Seller", url: "https://seller.ktmona.com/register/seller" },
+];
+const COMPANY: Row[] = [
+  { icon: "info", label: "About Us", href: "/about" },
+  { icon: "users", label: "Careers", href: "/careers" },
+  { icon: "trending-up", label: "Investors", href: "/investors" },
 ];
 const POLICIES: Row[] = [
   { icon: "file-text", label: "Terms & Conditions", href: "/terms" },
@@ -28,6 +50,7 @@ const POLICIES: Row[] = [
   { icon: "credit-card", label: "Refund Policy", href: "/refund-policy" },
   { icon: "shield", label: "Privacy Policy", href: "/privacy-policy" },
   { icon: "users", label: "Vendor Agreement", href: "/vendor-agreement" },
+  { icon: "alert-circle", label: "Disclaimer", href: "/disclaimer" },
   { icon: "phone", label: "Contact Us", href: "/contact" },
 ];
 
@@ -35,6 +58,7 @@ export default function AccountScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { session, signOut } = useAuth();
+  const t = useT();
   const user = session?.user;
 
   const open = (r: Row) => {
@@ -42,9 +66,9 @@ export default function AccountScreen() {
     else if (r.href) router.push(r.href as never);
   };
   const confirmLogout = () =>
-    Alert.alert("Log out?", "You'll need to sign in again to see your orders and cart.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => void signOut() },
+    Alert.alert(t("Log out?"), t("You'll need to sign in again to see your orders and cart."), [
+      { text: t("Cancel"), style: "cancel" },
+      { text: t("Log out"), style: "destructive", onPress: () => void signOut() },
     ]);
 
   return (
@@ -62,6 +86,9 @@ export default function AccountScreen() {
               {user.phone ? <T size={12} color={C.muted}>{user.phone}</T> : null}
               {user.email ? <T size={12} color={C.muted} numberOfLines={1}>{user.email}</T> : null}
             </View>
+            <Pressable onPress={() => router.push("/account/edit-profile" as never)} hitSlop={8} style={{ paddingLeft: 8 }}>
+              <T w="semibold" size={12} color={C.brandDark}>Edit</T>
+            </Pressable>
           </View>
         ) : (
           <View style={[styles.profile, { flexDirection: "column", alignItems: "stretch" }]}>
@@ -71,8 +98,11 @@ export default function AccountScreen() {
           </View>
         )}
 
-        <Section title="Shopping" rows={user ? SHOPPING : SHOPPING.slice(1, 2)} onPress={open} />
-        <Section title="Help" rows={user ? HELP : HELP.filter((r) => r.label !== "Change Password")} onPress={open} />
+        <Section title="Shopping" rows={user ? SHOPPING : SHOPPING.filter((r) => !NEEDS_LOGIN.has(r.label))} onPress={open} />
+        <Section title="Explore" rows={EXPLORE} onPress={open} />
+        <Section title="Settings" rows={user ? SETTINGS : SETTINGS.filter((r) => !NEEDS_LOGIN.has(r.label))} onPress={open} />
+        <Section title="Help" rows={HELP} onPress={open} />
+        <Section title="KTMONA" rows={COMPANY} onPress={open} />
         <Section title="Policies" rows={POLICIES} onPress={open} />
 
         {user ? (

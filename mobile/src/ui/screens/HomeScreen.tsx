@@ -9,6 +9,8 @@ import { CategoryArt, Gradient, HomeTopBar, SearchBarButton, T } from "../kit";
 import { ProductFeedList } from "../ProductFeedList";
 import { BANNER_IMAGES } from "../storefront-assets";
 import { bannerHrefToRoute, findBySlug, useCategoryTree, useHomeBanners, type CategoryNode, type RemoteBanner } from "../data";
+import { BestsellersStrip, CollectionsStrip, RecentlyViewedStrip, SaleEventsStrip } from "../HomeExtras";
+import { PriceLockBand } from "./CollectionScreens";
 
 /* Built-in banners: the website's hero photos with the same copy. */
 const BUILT_IN = [
@@ -55,8 +57,13 @@ export default function HomeScreen() {
           <View>
             <CategoryStrip tree={tree} />
             <HeroCarousel />
+            <SaleEventsStrip />
             <TrustStrip />
+            <PriceLockBand />
+            <RecentlyViewedStrip />
             <PopularCategories tree={tree} />
+            <BestsellersStrip />
+            <CollectionsStrip />
             <FestiveBand tree={tree} />
           </View>
         }

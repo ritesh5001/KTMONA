@@ -72,6 +72,7 @@ export class OrderRepository {
                 payment: {
                     select: {
                         status: true,
+                        provider: true,
                     },
                 },
                 cancellationRequest: {
@@ -108,6 +109,7 @@ export class OrderRepository {
             ...order,
             items: itemsWithDetails,
             paymentStatus: order.payment?.status ?? null,
+            paymentMethod: order.payment?.provider === 'COD' ? 'COD' : 'ONLINE',
             cancellationStatus: order.cancellationRequest?.status ?? null,
             returnStatus: order.returnRequests[0]?.status ?? null,
             shipmentStatus: order.shipments[0]?.status ?? null,
@@ -140,6 +142,7 @@ export class OrderRepository {
                 payment: {
                     select: {
                         status: true,
+                        provider: true,
                     },
                 },
                 cancellationRequest: {
@@ -218,6 +221,7 @@ export class OrderRepository {
                     };
                 }),
                 paymentStatus: order.payment?.status ?? null,
+                paymentMethod: order.payment?.provider === 'COD' ? 'COD' : 'ONLINE',
                 cancellationStatus: order.cancellationRequest?.status ?? null,
                 returnStatus: order.returnRequests[0]?.status ?? null,
                 shipmentStatus: latestShipmentStatus,

@@ -124,6 +124,8 @@ export default function TabsLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen name="about" options={{ href: null }} />
+      <Tabs.Screen name="disclaimer" options={{ href: null }} />
       <Tabs.Screen
         name="terms"
         options={{

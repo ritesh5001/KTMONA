@@ -3,7 +3,6 @@ import {
   Modal,
   Pressable,
   View,
-  Text,
   StyleSheet,
   Animated,
   Easing,
@@ -13,6 +12,7 @@ import {
   findNodeHandle,
   Platform,
 } from "react-native";
+import { Text } from "../i18n/Text";
 import { usePathname, useRouter } from "expo-router";
 // The drawer slide stays on RN Animated so it keeps the native driver that
 // stopped it freezing; reanimated handles only the per-row entrance and press

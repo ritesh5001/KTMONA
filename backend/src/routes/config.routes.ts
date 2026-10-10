@@ -12,6 +12,7 @@ import {
     settingsService,
     DEFAULT_SHIPPING_FEE_INR,
     FLAT_GST_FEE_INR,
+    COD_MAX_ORDER_INR,
 } from '../services/settings.service.js';
 import { fastrrController } from '../controllers/fastrr.controller.js';
 
@@ -49,6 +50,19 @@ configRouter.get('/gst', async (_req: Request, res: Response, next: NextFunction
     try {
         const enabled = await settingsService.isGstChargeEnabled();
         res.json({ enabled, amount: enabled ? FLAT_GST_FEE_INR : 0 });
+    } catch (error) {
+        next(error);
+    }
+});
+
+/**
+ * GET /v1/config/cod
+ * Whether Cash on Delivery is offered, and the largest order total it covers.
+ */
+configRouter.get('/cod', async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+        const enabled = await settingsService.isCodEnabled();
+        res.json({ enabled, maxOrderAmount: COD_MAX_ORDER_INR });
     } catch (error) {
         next(error);
     }

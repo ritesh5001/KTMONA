@@ -1,5 +1,9 @@
 import * as React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import {
+  View,
+  StyleSheet,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { colors, spacing, typography, radius } from "../theme/tokens";
 import type { ShipmentStatus } from "../services/shipping";
 

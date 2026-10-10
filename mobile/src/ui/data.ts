@@ -73,6 +73,8 @@ export interface FeedProduct {
   regularPrice?: number | null;
   category?: { id?: string; name: string } | null;
   rating?: { average: number | null; count: number } | null;
+  /** KTMONA Price Lock badge. */
+  priceLock?: boolean;
 }
 
 interface ListResponse {
@@ -100,6 +102,12 @@ export const PRICE_BUCKETS: { key: string; label: string; min?: number; max?: nu
 
 export interface FeedFilters {
   categoryId?: string;
+  /** One shop's products. */
+  sellerId?: string;
+  /** Only KTMONA Price Lock products. */
+  priceLock?: boolean;
+  /** Curated collection (occasion) slug. */
+  occasion?: string;
   search?: string;
   sort?: SortKey;
   priceKey?: string | null;
@@ -111,11 +119,14 @@ const PAGE = 20;
 export function useProductFeed(filters: FeedFilters) {
   const price = PRICE_BUCKETS.find((p) => p.key === filters.priceKey);
   const q = useInfiniteQuery({
-    queryKey: ["storefront", "feed", filters.categoryId ?? null, filters.search ?? null, filters.sort ?? "relevance", filters.priceKey ?? null],
+    queryKey: ["storefront", "feed", filters.categoryId ?? null, filters.search ?? null, filters.sort ?? "relevance", filters.priceKey ?? null, filters.sellerId ?? null, filters.priceLock ?? false, filters.occasion ?? null],
     initialPageParam: 1,
     queryFn: ({ pageParam, signal }) => {
       const qs = new URLSearchParams({ page: String(pageParam), limit: String(PAGE) });
       if (filters.categoryId) qs.set("categoryId", filters.categoryId);
+      if (filters.sellerId) qs.set("sellerId", filters.sellerId);
+      if (filters.priceLock) qs.set("priceLock", "1");
+      if (filters.occasion) qs.set("occasion", filters.occasion);
       if (filters.search) qs.set("search", filters.search);
       if (filters.sort && filters.sort !== "relevance") qs.set("sort", filters.sort);
       if (price?.min != null) qs.set("minPrice", String(price.min));
@@ -175,6 +186,15 @@ export function bannerHrefToRoute(href?: string | null): string | null {
   if (coll) return `/category/${coll[1]}`;
   const prod = path.match(/^\/product\/([^/?#]+)/);
   if (prod) return `/product/${prod[1]}`;
+  const sale = path.match(/^\/sale\/([^/?#]+)/);
+  if (sale) return `/sale/${sale[1]}`;
+  const occasion = path.match(/^\/occasion\/([^/?#]+)/);
+  if (occasion) return `/collection/${occasion[1]}`;
+  const shop = path.match(/^\/vendors\/([^/?#]+)/);
+  if (shop) return `/shop/${shop[1]}`;
+  if (path.startsWith("/price-lock")) return "/price-lock";
+  if (path.startsWith("/careers")) return "/careers";
+  if (path.startsWith("/investors")) return "/investors";
   if (path.startsWith("/marketplace") || path.startsWith("/search")) return "/marketplace";
   return null;
 }

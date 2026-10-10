@@ -15,10 +15,19 @@ export function ProductFeedList({
   search,
   categories,
   title = "Products For You",
+  sellerId,
+  priceLock,
+  occasion,
 }: {
   header?: React.ReactElement | null;
   categoryId?: string;
   search?: string;
+  /** One shop's products. */
+  sellerId?: string;
+  /** Only KTMONA Price Lock products. */
+  priceLock?: boolean;
+  /** Curated collection slug. */
+  occasion?: string;
   /** Offered in the Category sheet; tapping one opens that category. */
   categories?: CategoryNode[];
   title?: string | null;
@@ -29,7 +38,7 @@ export function ProductFeedList({
   const [sort, setSort] = React.useState<SortKey>("relevance");
   const [priceKey, setPriceKey] = React.useState<string | null>(null);
   const [sheet, setSheet] = React.useState<null | "sort" | "category" | "filter">(null);
-  const filters: FeedFilters = { categoryId, search, sort, priceKey };
+  const filters: FeedFilters = { categoryId, search, sort, priceKey, sellerId, priceLock, occasion };
   const feed = useProductFeed(filters);
   const freeDelivery = useFreeDelivery();
 

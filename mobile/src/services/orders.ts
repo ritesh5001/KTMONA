@@ -41,6 +41,8 @@ export interface BuyerOrderDetail {
   id: string;
   userId: string;
   status: string;
+  /** COD orders are paid in cash to the delivery partner. */
+  paymentMethod?: "ONLINE" | "COD";
   totalAmount: number;
   subTotalAmount?: number;
   totalTaxAmount?: number;

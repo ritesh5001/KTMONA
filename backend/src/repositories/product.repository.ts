@@ -137,7 +137,7 @@ export class ProductRepository {
         products: ProductWithCategory[];
         total: number;
     }> {
-        const { page = 1, limit = 20, categoryId, audience, search, occasion, sort, minPrice, maxPrice, priceLock } = filters;
+        const { page = 1, limit = 20, categoryId, audience, search, occasion, sort, minPrice, maxPrice, priceLock, sellerId } = filters;
         const { skip, take } = this.resolvePagination(page, Math.min(limit, 20));
         const conditions: string[] = [
             `p."status" = 'APPROVED'`,
@@ -183,6 +183,12 @@ export class ProductRepository {
                 params.push(maxPrice);
                 paramIndex += 1;
             }
+        }
+
+        if (sellerId) {
+            conditions.push(`p."seller_id" = $${paramIndex}`);
+            params.push(sellerId);
+            paramIndex += 1;
         }
 
         if (priceLock) {

@@ -6,6 +6,7 @@ import {
   type TextInput as NativeTextInput,
 } from "react-native";
 import { colors, radius, spacing, typography } from "../theme/tokens";
+import { useT } from "../i18n";
 
 export const AppInput = React.forwardRef<NativeTextInput, TextInputProps>(
   (
@@ -23,6 +24,9 @@ export const AppInput = React.forwardRef<NativeTextInput, TextInputProps>(
     ref
   ) => {
     const [focused, setFocused] = React.useState(false);
+    const t = useT();
+    // Placeholders follow the app language.
+    placeholder = typeof placeholder === "string" ? t(placeholder) : placeholder;
 
     return (
       <TextInput

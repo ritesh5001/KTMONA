@@ -199,11 +199,14 @@ export async function checkoutWithPayment(
     couponCode?: string;
     /** Buy-now: order only these variants, leaving the rest of the cart alone. */
     variantIds?: string[];
+    /** COD = Cash on Delivery: the order is confirmed with no payment step. */
+    paymentMethod?: "ONLINE" | "COD";
   },
   token?: string | null
 ) {
   return apiRequest<{
     message: string;
+    paymentMethod?: "ONLINE" | "COD";
     order: {
       id: string;
       totalAmount: number;

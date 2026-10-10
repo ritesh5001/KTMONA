@@ -16,6 +16,9 @@ import { FieldLabel } from "../../src/components/FieldLabel";
 import { flushPendingCartWrite } from "../../src/lib/pending-cart";
 import { checkoutWithPayment, validateCoupon, type CouponPreview } from "../../src/services/cart";
 import { initiatePayment, verifyPhonePePayment } from "../../src/services/payments";
+import { getCodConfig } from "../../src/services/extras";
+import { useQuery } from "@tanstack/react-query";
+import { useT } from "../../src/i18n";
 import { initPhonePe, startPhonePeTransaction } from "../../src/services/phonepe-sdk";
 import { ApiError } from "../../src/services/api";
 import { useAuth } from "../../src/hooks/useAuth";
@@ -431,6 +434,16 @@ export default function CheckoutScreen() {
 
   // ---- Checkout handler ----
 
+  /* Cash on Delivery (Meesho's default payment): offered when the admin has
+     it switched on and the order is within the courier cash limit. */
+  const t = useT();
+  const [paymentMethod, setPaymentMethod] = React.useState<"ONLINE" | "COD">("ONLINE");
+  const codQ = useQuery({ queryKey: ["config", "cod"], queryFn: ({ signal }) => getCodConfig(signal), staleTime: 5 * 60 * 1000 });
+  const codAllowed = Boolean(codQ.data?.enabled) && displayGrandTotal <= (codQ.data?.maxOrderAmount ?? 0);
+  React.useEffect(() => {
+    if (paymentMethod === "COD" && !codAllowed) setPaymentMethod("ONLINE");
+  }, [codAllowed, paymentMethod]);
+
   const handleCheckout = async () => {
     // --- Guard: prevent double submit ---
     if (isPaying) return;
@@ -519,14 +532,28 @@ export default function CheckoutScreen() {
       //    these as two sequential calls meant the buyer waited for two full
       //    round-trips before PhonePe opened.
       const orderResult = await checkoutWithPayment(
-        buyNowVariantId
-          ? { ...shippingPayload, variantIds: [buyNowVariantId] }
-          : shippingPayload,
+        {
+          ...shippingPayload,
+          ...(buyNowVariantId ? { variantIds: [buyNowVariantId] } : {}),
+          paymentMethod,
+        },
         token
       );
       const orderId = orderResult.order?.id;
       if (!orderId) {
         throw new Error("Order ID missing. Please try again.");
+      }
+
+      // Cash on Delivery: the order is already confirmed — no payment step.
+      if (orderResult.paymentMethod === "COD") {
+        notifySuccess();
+        if (!buyNowVariantId) clearCart();
+        showToast(t("Order placed! Pay in cash when it's delivered."), "success");
+        router.replace(`/orders/${orderId}`);
+        setTimeout(() => {
+          void refreshCart();
+        }, 0);
+        return;
       }
 
       if (!orderResult.payment && orderResult.paymentInitError) {
@@ -1023,6 +1050,40 @@ export default function CheckoutScreen() {
           </View>
         </View>
 
+        {/* ---- Payment method ---- */}
+        <View style={styles.card}>
+          <Text style={[styles.summaryLabel, { fontFamily: typography.sansMedium, color: colors.charcoal, marginBottom: spacing.sm }]}>Payment method</Text>
+          {([
+            { key: "ONLINE" as const, title: "Pay online", hint: "UPI, cards, net banking and wallets via PhonePe", enabled: true },
+            ...(codQ.data?.enabled
+              ? [{
+                  key: "COD" as const,
+                  title: "Cash on Delivery",
+                  hint: codAllowed
+                    ? "Pay in cash or UPI to the delivery partner"
+                    : `${t("Available for orders up to")} ₹${(codQ.data?.maxOrderAmount ?? 0).toLocaleString("en-IN")}`,
+                  enabled: codAllowed,
+                }]
+              : []),
+          ]).map((opt) => {
+            const on = paymentMethod === opt.key;
+            return (
+              <Pressable
+                key={opt.key}
+                disabled={!opt.enabled || isPaying}
+                onPress={() => setPaymentMethod(opt.key)}
+                style={[styles.payOption, on && styles.payOptionOn, !opt.enabled && { opacity: 0.5 }]}
+              >
+                <View style={[styles.payRadio, on && styles.payRadioOn]}>{on ? <View style={styles.payRadioDot} /> : null}</View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.payTitle}>{opt.title}</Text>
+                  <Text style={styles.payHint}>{opt.hint}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+
         {/* ---- CTA ---- */}
         <AnimatedPressable
           style={[
@@ -1043,7 +1104,9 @@ export default function CheckoutScreen() {
                   ? "Cart is empty"
                   : hasAddresses && !selectedAddressId
                     ? "Select address"
-                    : "Proceed to Payment"}
+                    : paymentMethod === "COD"
+                      ? "Place Order"
+                      : "Proceed to Payment"}
             </Text>
           )}
         </AnimatedPressable>
@@ -1097,6 +1160,13 @@ export default function CheckoutScreen() {
 }
 
 const styles = StyleSheet.create({
+  payOption: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: colors.borderSoft, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
+  payOptionOn: { borderColor: "#B84A00", backgroundColor: "#FFF1E0" },
+  payRadio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.borderSoft, alignItems: "center", justifyContent: "center" },
+  payRadioOn: { borderColor: "#B84A00" },
+  payRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#B84A00" },
+  payTitle: { fontFamily: typography.sansMedium, fontSize: 14, color: colors.charcoal },
+  payHint: { fontFamily: typography.sans, fontSize: 12, color: colors.brownSoft, marginTop: 2 },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

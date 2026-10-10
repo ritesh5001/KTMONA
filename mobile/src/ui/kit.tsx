@@ -4,7 +4,6 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type StyleProp,
   type TextProps,
@@ -23,6 +22,8 @@ import { images as appImages } from "../data/images";
 import { C, F, CATEGORY_TINT, FILL, inr } from "./theme";
 import { CARD_IMAGES, CATEGORY_IMAGES } from "./storefront-assets";
 import type { FeedProduct } from "./data";
+import { Text } from "../i18n/Text";
+import { useT } from "../i18n";
 
 /* ── Text ───────────────────────────────────────────────────────────────── */
 
@@ -155,9 +156,9 @@ export function SearchBarButton({ placeholder = "Search by keyword or product na
     <Pressable onPress={() => router.push("/search")} style={styles.search} accessibilityRole="search">
       <Feather name="search" size={18} color={C.muted} />
       <T size={13} color={C.faint} style={{ flex: 1, marginLeft: 8 }} numberOfLines={1}>{placeholder}</T>
-      <Feather name="mic" size={18} color={C.muted} />
-      <View style={{ width: 1, height: 18, backgroundColor: C.border, marginHorizontal: 10 }} />
-      <Feather name="camera" size={18} color={C.muted} />
+      <Pressable onPress={() => router.push("/search?voice=1")} hitSlop={10} accessibilityLabel="Search by voice">
+        <Feather name="mic" size={18} color={C.brandDark} />
+      </Pressable>
     </Pressable>
   );
 }
@@ -214,6 +215,7 @@ export const ProductCard = React.memo(function ProductCard({
         >
           <Ionicons name={wished ? "heart" : "heart-outline"} size={18} color={wished ? C.red : C.textSoft} />
         </Pressable>
+        {product.priceLock ? <PriceLockBadge style={{ position: "absolute", left: 6, top: 6 }} /> : null}
       </View>
       <View style={{ padding: 8, gap: 3 }}>
         <T size={13} color={C.muted} numberOfLines={1}>{product.title}</T>
@@ -240,6 +242,16 @@ export const ProductCard = React.memo(function ProductCard({
     </Pressable>
   );
 });
+
+/** "KTMONA Price Lock": the seller's lowest market price, verified by KTMONA. */
+export function PriceLockBadge({ style }: { style?: StyleProp<ViewStyle> }) {
+  return (
+    <View style={[{ flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: C.navy, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 3, alignSelf: "flex-start" }, style]}>
+      <Feather name="lock" size={10} color={C.brand} />
+      <T w="bold" size={9} color={C.brand} style={{ letterSpacing: 0.6 }}>PRICE LOCK</T>
+    </View>
+  );
+}
 
 export function ProductCardSkeleton({ width }: { width: number }) {
   return (
@@ -268,6 +280,7 @@ export function SortFilterBar({
   onFilter: () => void;
   activeFilters?: number;
 }) {
+  const t = useT();
   const Item = ({ icon, label, onPress, dot }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; onPress: () => void; dot?: boolean }) => (
     <Pressable onPress={onPress} style={styles.sfItem}>
       <Feather name={icon} size={15} color={C.text} />
@@ -277,7 +290,7 @@ export function SortFilterBar({
   );
   return (
     <View style={styles.sfBar}>
-      <Item icon="bar-chart-2" label={sortLabel ? `Sort: ${sortLabel}` : "Sort"} onPress={onSort} dot={Boolean(sortLabel)} />
+      <Item icon="bar-chart-2" label={sortLabel ? `${t("Sort")}: ${t(sortLabel)}` : "Sort"} onPress={onSort} dot={Boolean(sortLabel)} />
       <View style={styles.sfDivider} />
       {onCategory ? (
         <>

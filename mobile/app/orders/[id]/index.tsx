@@ -25,6 +25,7 @@ import { DeliveredShimmer } from "../../../src/components/DeliveredShimmer";
 import { impactLight } from "../../../src/utils/haptics";
 import { AppText as Text, ScreenContainer as SafeAreaView } from "../../../src/components";
 import { AppHeader } from "../../../src/components/AppHeader";
+import { translate } from "../../../src/i18n";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -52,8 +53,11 @@ const orderDetailCache = new Map<string, OrderDetailCacheEntry>();
 
 const OrderItemRow = React.memo(function OrderItemRow({
   item,
+  onRate,
 }: {
   item: OrderItem;
+  /** Delivered orders: open "Rate product". */
+  onRate?: (item: OrderItem) => void;
 }) {
   return (
     <View style={styles.itemRow}>
@@ -62,6 +66,11 @@ const OrderItemRow = React.memo(function OrderItemRow({
         <Text style={styles.itemSku}>
           {item.variantSku ?? "—"} × {item.quantity}
         </Text>
+        {onRate ? (
+          <Pressable onPress={() => onRate(item)} hitSlop={6} style={styles.rateBtn}>
+            <Text style={styles.rateText}>★ Rate & review</Text>
+          </Pressable>
+        ) : null}
       </View>
       <Text style={styles.itemPrice}>
         {currency.format(item.priceSnapshot * item.quantity)}
@@ -208,9 +217,17 @@ export default function OrderDetailScreen() {
   // ---- Item list callbacks ----
   const itemKeyExtractor = React.useCallback((item: OrderItem) => item.id, []);
 
+  const canRate = order?.status === "DELIVERED";
+  const onRate = React.useCallback(
+    (item: OrderItem) =>
+      router.push(
+        `/orders/${orderId}/review?productId=${encodeURIComponent(item.productId)}&title=${encodeURIComponent(item.productTitle ?? "")}` as never
+      ),
+    [router, orderId]
+  );
   const renderOrderItem = React.useCallback(
-    ({ item }: ListRenderItemInfo<OrderItem>) => <OrderItemRow item={item} />,
-    []
+    ({ item }: ListRenderItemInfo<OrderItem>) => <OrderItemRow item={item} onRate={canRate ? onRate : undefined} />,
+    [canRate, onRate]
   );
 
   // ---- Derived ----
@@ -285,6 +302,14 @@ export default function OrderDetailScreen() {
         }
       >
         {/* Status banner */}
+        {order.paymentMethod === "COD" && order.status !== "DELIVERED" && order.status !== "CANCELLED" ? (
+          <View style={styles.warningBanner}>
+            <Text style={styles.warningText}>
+              {`${translate("Cash on Delivery: keep")} ₹${Math.round(order.grandTotal ?? order.totalAmount).toLocaleString("en-IN")} ${translate("ready when your order arrives.")}`}
+            </Text>
+          </View>
+        ) : null}
+
         {showPaymentWarning && (
           <View style={styles.warningBanner}>
             <Text style={styles.warningText}>
@@ -458,6 +483,8 @@ export default function OrderDetailScreen() {
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  rateBtn: { marginTop: 6, alignSelf: "flex-start" },
+  rateText: { fontFamily: typography.sansMedium, fontSize: 12, color: "#B84A00" },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

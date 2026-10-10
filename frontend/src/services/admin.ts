@@ -192,6 +192,15 @@ export interface AdminRefund {
   razorpayRefundId?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Cash on Delivery refunds: where the shopper asked to be paid. */
+  payoutDetails?: {
+    method: "UPI" | "BANK";
+    upiId: string | null;
+    accountHolder: string | null;
+    accountNumber: string | null;
+    ifsc: string | null;
+    bankName: string | null;
+  } | null;
   order?: {
     id: string;
     totalAmount: number;
@@ -1018,4 +1027,19 @@ export async function updateGstSetting(
     body: { enabled },
     token,
   });
+}
+
+/** Cash on Delivery switch; `amount` is the largest order total COD covers. */
+export async function getCodSetting(token?: string | null) {
+  const r = await apiRequest<{ enabled: boolean; maxOrderAmount: number }>("/v1/admin/settings/cod", { method: "GET", token });
+  return { enabled: r.enabled, amount: r.maxOrderAmount };
+}
+
+export async function updateCodSetting(enabled: boolean, token?: string | null) {
+  const r = await apiRequest<{ enabled: boolean; maxOrderAmount: number }>("/v1/admin/settings/cod", {
+    method: "PUT",
+    body: { enabled },
+    token,
+  });
+  return { enabled: r.enabled, amount: r.maxOrderAmount };
 }

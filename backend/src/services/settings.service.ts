@@ -23,7 +23,11 @@ export const FLAT_GST_FEE_INR = 180;
 export const SETTING_KEYS = {
     SHIPPING_CHARGE_ENABLED: 'shipping_charge_enabled',
     GST_CHARGE_ENABLED: 'gst_charge_enabled',
+    COD_ENABLED: 'cod_enabled',
 } as const;
+
+/** Orders above this total cannot be paid cash on delivery (courier cash limit). */
+export const COD_MAX_ORDER_INR = 50000;
 
 const settingsLogger = logger.child({ module: 'settings' });
 
@@ -124,6 +128,26 @@ export const settingsService = {
         settingsLogger.info(
             { event: 'gst_charge_toggled', enabled },
             `Flat GST charge ${enabled ? 'enabled' : 'disabled'} by admin`,
+        );
+        return enabled;
+    },
+
+    /**
+     * Whether Cash on Delivery is offered at checkout. Defaults to `true`
+     * when the setting has never been saved.
+     */
+    async isCodEnabled(): Promise<boolean> {
+        const raw = await readRaw(SETTING_KEYS.COD_ENABLED);
+        if (raw === null) return true;
+        return raw === 'true';
+    },
+
+    /** Turn Cash on Delivery on or off for new orders. */
+    async setCodEnabled(enabled: boolean): Promise<boolean> {
+        await writeRaw(SETTING_KEYS.COD_ENABLED, enabled ? 'true' : 'false');
+        settingsLogger.info(
+            { event: 'cod_toggled', enabled },
+            `Cash on Delivery ${enabled ? 'enabled' : 'disabled'} by admin`,
         );
         return enabled;
     },

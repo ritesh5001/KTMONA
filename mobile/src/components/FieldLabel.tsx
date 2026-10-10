@@ -1,5 +1,10 @@
 import React from "react";
-import { StyleSheet, Text, type StyleProp, type TextStyle } from "react-native";
+import {
+  StyleSheet,
+  type StyleProp,
+  type TextStyle,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { colors, spacing, typography } from "../theme/tokens";
 
 /**

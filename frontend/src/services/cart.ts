@@ -162,11 +162,14 @@ export async function checkoutWithPayment(
     shippingPincode?: string;
     shippingNotes?: string;
     couponCode?: string;
+    /** COD = Cash on Delivery: order is confirmed, no payment redirect. */
+    paymentMethod?: "ONLINE" | "COD";
   },
   token?: string | null
 ) {
   return apiRequest<{
     message: string;
+    paymentMethod?: "ONLINE" | "COD";
     order: {
       id: string;
       totalAmount: number;
@@ -191,4 +194,9 @@ export async function checkoutWithPayment(
     token,
     timeoutMs: CHECKOUT_REQUEST_TIMEOUT_MS,
   });
+}
+
+/** Whether Cash on Delivery is offered, and the largest order total it covers. */
+export async function getCodConfig() {
+  return apiRequest<{ enabled: boolean; maxOrderAmount: number }>("/v1/config/cod", { method: "GET" });
 }

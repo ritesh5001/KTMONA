@@ -1914,3 +1914,20 @@ model InvestorInquiry {
   @@index([createdAt])
   @@map("investor_inquiries")
 }
+
+/// Where a shopper wants refunds paid when the order was Cash on Delivery
+/// (nothing to reverse on a card or UPI app). One per account.
+model RefundPayoutDetail {
+  userId        String   @id @map("user_id")
+  /// "UPI" or "BANK"
+  method        String
+  upiId         String?  @map("upi_id")
+  accountHolder String?  @map("account_holder")
+  accountNumber String?  @map("account_number")
+  ifsc          String?
+  bankName      String?  @map("bank_name")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("refund_payout_details")
+}

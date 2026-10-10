@@ -1,5 +1,12 @@
 import * as React from "react";
-import { View, Text, StyleSheet, ScrollView, Pressable, Linking } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Linking,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { AppHeader } from "./AppHeader";
 import { colors, radius, spacing, typography, shadow } from "../theme/tokens";
 import { ScreenContainer as SafeAreaView } from "./ScreenContainer";

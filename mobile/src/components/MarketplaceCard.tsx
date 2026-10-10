@@ -1,13 +1,13 @@
 import * as React from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Pressable,
   ActivityIndicator,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { Text } from "../i18n/Text";
 import { Icon } from "./Icon";
 import { FlowActionButton } from "./FlowActionButton";
 import { Image } from "./CompatImage";

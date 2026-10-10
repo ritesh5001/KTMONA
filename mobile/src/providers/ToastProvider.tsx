@@ -1,11 +1,11 @@
 import * as React from "react";
 import {
   View,
-  Text,
   Pressable,
   StyleSheet,
   Animated,
 } from "react-native";
+import { Text } from "../i18n/Text";
 import { Icon } from "../components/Icon";
 import { colors, radius, spacing, typography } from "../theme/tokens";
 

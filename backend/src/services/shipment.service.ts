@@ -4,6 +4,7 @@
  */
 
 import { shipmentRepository } from '../repositories/shipment.repository.js';
+import { commissionService } from './commission.service.js';
 import { prisma } from '../config/db.js';
 import { emitShipmentCreated, emitShipmentShipped, emitShipmentDelivered } from '../events/order.events.js';
 import {
@@ -290,7 +291,29 @@ export class ShipmentService {
                     where: { id: orderId },
                     data: { status: newStatus }
                 });
+
+                if (newStatus === 'DELIVERED') await this.markCodCollected(orderId);
             }
+        }
+    }
+
+    /**
+     * Cash on Delivery: the courier collected the cash at delivery, so the
+     * payment that stayed INITIATED since checkout is now SUCCESS.
+     */
+    private async markCodCollected(orderId: string): Promise<void> {
+        const payment = await prisma.payment.findUnique({ where: { orderId }, select: { id: true, provider: true, status: true } });
+        if (!payment || payment.provider !== 'COD' || payment.status !== 'INITIATED') return;
+        const updated = await prisma.payment.updateMany({
+            where: { id: payment.id, status: 'INITIATED' },
+            data: { status: 'SUCCESS' },
+        });
+        if (updated.count > 0) {
+            await prisma.paymentEvent.create({
+                data: { paymentId: payment.id, type: 'SUCCESS', payload: { method: 'COD', event: 'CASH_COLLECTED_ON_DELIVERY' } },
+            });
+            // Money is now in hand: book what each seller is owed.
+            await commissionService.calculateAndStoreSellerSettlement(orderId).catch(() => undefined);
         }
     }
 

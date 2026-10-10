@@ -282,6 +282,7 @@ export class RefundService {
                 order: {
                     select: {
                         id: true,
+                        userId: true,
                         totalAmount: true,
                         status: true,
                     },
@@ -296,7 +297,34 @@ export class RefundService {
             },
         });
 
-        return { refunds };
+        // Cash on Delivery refunds are paid out by hand to the bank account or
+        // UPI ID the shopper saved in the app (Account → Bank & UPI details).
+        const codBuyerIds = [
+            ...new Set(refunds.filter((r) => r.payment?.provider === 'COD').map((r) => r.order.userId)),
+        ];
+        const payouts = codBuyerIds.length
+            ? await prisma.refundPayoutDetail.findMany({ where: { userId: { in: codBuyerIds } } })
+            : [];
+        const payoutByUser = new Map(payouts.map((p) => [p.userId, p]));
+
+        return {
+            refunds: refunds.map((r) => {
+                const payout = r.payment?.provider === 'COD' ? payoutByUser.get(r.order.userId) : undefined;
+                return {
+                    ...r,
+                    payoutDetails: payout
+                        ? {
+                              method: payout.method,
+                              upiId: payout.upiId,
+                              accountHolder: payout.accountHolder,
+                              accountNumber: payout.accountNumber,
+                              ifsc: payout.ifsc,
+                              bankName: payout.bankName,
+                          }
+                        : null,
+                };
+            }),
+        };
     }
 }
 

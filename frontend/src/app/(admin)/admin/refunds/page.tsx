@@ -235,9 +235,27 @@ export default function AdminRefundsPage() {
                     </p>
                     {refund.payment && (
                       <p className="text-xs text-muted-foreground">
-                        {refund.payment.provider}
+                        {refund.payment.provider === "COD" ? "Cash on Delivery" : refund.payment.provider}
                       </p>
                     )}
+                    {refund.payment?.provider === "COD" ? (
+                      refund.payoutDetails ? (
+                        <div className="mt-2 rounded-lg bg-mist p-2 text-xs">
+                          <p className="font-semibold">Pay refund to</p>
+                          {refund.payoutDetails.method === "UPI" ? (
+                            <p className="font-mono">UPI: {refund.payoutDetails.upiId}</p>
+                          ) : (
+                            <>
+                              <p>{refund.payoutDetails.accountHolder}</p>
+                              <p className="font-mono">A/c {refund.payoutDetails.accountNumber}</p>
+                              <p className="font-mono">IFSC {refund.payoutDetails.ifsc}{refund.payoutDetails.bankName ? ` · ${refund.payoutDetails.bankName}` : ""}</p>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-orange-600">Shopper has not added bank/UPI details yet.</p>
+                      )
+                    ) : null}
                   </div>
                   <div className="bg-card p-6 space-y-2">
                     <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">

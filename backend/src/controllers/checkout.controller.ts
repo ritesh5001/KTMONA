@@ -16,11 +16,13 @@ export class CheckoutController {
     async checkout(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user!.userId;
-            const { couponCode, variantIds, ...shipping } = req.body ?? {};
-            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds);
+            const { couponCode, variantIds, paymentMethod, ...shipping } = req.body ?? {};
+            const method = paymentMethod === 'COD' ? 'COD' : 'ONLINE';
+            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds, method);
 
             const withPayment = req.query.withPayment === '1';
-            if (!withPayment) {
+            // COD orders are already confirmed: there is nothing to pay now.
+            if (!withPayment || method === 'COD') {
                 res.status(201).json(result);
                 return;
             }

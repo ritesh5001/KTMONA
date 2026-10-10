@@ -1,5 +1,33 @@
 import { prisma } from '../config/db.js';
 import { ApiError } from '../errors/ApiError.js';
+import { z } from 'zod';
+
+export const updateProfileSchema = z.object({
+    fullName: z.string().trim().min(2, 'Enter your name').max(80).optional(),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER', 'PREFER_NOT_TO_SAY']).nullable().optional(),
+    /** YYYY-MM-DD */
+    dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date of birth must be YYYY-MM-DD').nullable().optional(),
+});
+
+/** Where refunds for Cash on Delivery orders are paid. */
+export const refundDetailsSchema = z.discriminatedUnion('method', [
+    z.object({
+        method: z.literal('UPI'),
+        upiId: z.string().trim().regex(/^[\w.\-]{2,256}@[a-zA-Z][a-zA-Z0-9.]{1,64}$/, 'Enter a valid UPI ID, e.g. name@okaxis'),
+    }),
+    z.object({
+        method: z.literal('BANK'),
+        accountHolder: z.string().trim().min(2, 'Enter the account holder name').max(100),
+        accountNumber: z.string().trim().regex(/^\d{9,18}$/, 'Account number must be 9 to 18 digits'),
+        ifsc: z.string().trim().toUpperCase().regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Enter a valid IFSC code, e.g. SBIN0001234'),
+        bankName: z.string().trim().max(100).optional(),
+    }),
+]);
+
+/** Only the last four digits ever leave the server. */
+function maskAccount(n: string | null): string | null {
+    return n ? `•••• ${n.slice(-4)}` : null;
+}
 
 export interface ProfileResponse {
     profile: {
@@ -8,6 +36,8 @@ export interface ProfileResponse {
         email: string | null;
         phone: string | null;
         avatar: string | null;
+        gender: 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' | null;
+        dob: string | null;
     };
 }
 
@@ -50,7 +80,7 @@ export class ProfileService {
                 id: true,
                 email: true,
                 phone: true,
-                user_profiles: { select: { full_name: true, avatar: true } },
+                user_profiles: { select: { full_name: true, avatar: true, gender: true, dob: true } },
             },
         });
 
@@ -65,6 +95,8 @@ export class ProfileService {
                 email: user.email,
                 phone: user.phone,
                 avatar: user.user_profiles?.avatar ?? null,
+                gender: user.user_profiles?.gender ?? null,
+                dob: user.user_profiles?.dob ? user.user_profiles.dob.toISOString().slice(0, 10) : null,
             },
         };
     }
@@ -97,6 +129,62 @@ export class ProfileService {
         });
 
         return this.getProfile(userId);
+    }
+
+    /** Edit name, gender and date of birth (Meesho-style "Edit Profile"). */
+    async updateProfile(userId: string, input: z.infer<typeof updateProfileSchema>): Promise<ProfileResponse> {
+        const data = {
+            ...(input.fullName !== undefined ? { full_name: input.fullName } : {}),
+            ...(input.gender !== undefined ? { gender: input.gender } : {}),
+            ...(input.dob !== undefined ? { dob: input.dob ? new Date(`${input.dob}T00:00:00Z`) : null } : {}),
+        };
+        if (input.dob) {
+            const dob = new Date(`${input.dob}T00:00:00Z`);
+            if (Number.isNaN(dob.getTime()) || dob > new Date()) throw ApiError.badRequest('Enter a valid date of birth');
+        }
+        await prisma.user_profiles.upsert({
+            where: { user_id: userId },
+            create: { user_id: userId, full_name: input.fullName ?? '', updated_at: new Date(), ...data },
+            update: { ...data, updated_at: new Date() },
+        });
+        return this.getProfile(userId);
+    }
+
+    async getRefundDetails(userId: string) {
+        const row = await prisma.refundPayoutDetail.findUnique({ where: { userId } });
+        if (!row) return { refundDetails: null };
+        return {
+            refundDetails: {
+                method: row.method as 'UPI' | 'BANK',
+                upiId: row.upiId,
+                accountHolder: row.accountHolder,
+                accountNumberMasked: maskAccount(row.accountNumber),
+                ifsc: row.ifsc,
+                bankName: row.bankName,
+                updatedAt: row.updatedAt,
+            },
+        };
+    }
+
+    async saveRefundDetails(userId: string, input: z.infer<typeof refundDetailsSchema>) {
+        const data =
+            input.method === 'UPI'
+                ? { method: 'UPI', upiId: input.upiId, accountHolder: null, accountNumber: null, ifsc: null, bankName: null }
+                : {
+                      method: 'BANK',
+                      upiId: null,
+                      accountHolder: input.accountHolder,
+                      accountNumber: input.accountNumber,
+                      ifsc: input.ifsc,
+                      bankName: input.bankName ?? null,
+                  };
+        await prisma.refundPayoutDetail.upsert({ where: { userId }, create: { userId, ...data }, update: data });
+        return this.getRefundDetails(userId);
+    }
+
+    async deleteRefundDetails(userId: string) {
+        await prisma.refundPayoutDetail.deleteMany({ where: { userId } });
+        return { refundDetails: null };
     }
 }
 

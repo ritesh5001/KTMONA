@@ -85,6 +85,8 @@ export interface OrderWithItems extends OrderEntity {
         status: string;
     } | null;
     paymentStatus?: string | null;
+    /** COD orders are paid in cash on delivery. */
+    paymentMethod?: 'ONLINE' | 'COD';
     cancellationStatus?: string | null;
     returnStatus?: string | null;
     shipmentStatus?: string | null;
@@ -97,6 +99,8 @@ export interface OrderWithDetails extends OrderEntity {
     items: OrderItemWithProduct[];
     movements?: InventoryMovementEntity[];
     paymentStatus?: string | null;
+    /** COD orders are paid in cash on delivery. */
+    paymentMethod?: 'ONLINE' | 'COD';
     cancellationStatus?: string | null;
     returnStatus?: string | null;
     shipmentStatus?: string | null;
@@ -208,6 +212,8 @@ export interface BuyerOrderDetailResponse {
 export interface CheckoutResponse {
     message: string;
     order: OrderEntity;
+    /** COD orders are confirmed at once and need no payment step. */
+    paymentMethod?: 'ONLINE' | 'COD';
 }
 
 /**

@@ -4,6 +4,7 @@ import { useFonts } from "expo-font";
 import { StatusBar } from "react-native";
 import * as SplashScreen from "expo-splash-screen";
 import { AuthProvider } from "../src/providers/AuthProvider";
+import { LanguageProvider } from "../src/i18n";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
 import { ToastProvider } from "../src/providers/ToastProvider";
 import { NotificationProvider } from "../src/providers/NotificationProvider";
@@ -151,6 +152,7 @@ export default function RootLayout() {
       <AppStatusBar />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ErrorBoundary>
+        <LanguageProvider>
           <PersistQueryClientProvider
             client={queryClient}
             persistOptions={{
@@ -173,6 +175,7 @@ export default function RootLayout() {
               </AuthProvider>
             </ToastProvider>
           </PersistQueryClientProvider>
+        </LanguageProvider>
         </ErrorBoundary>
       </GestureHandlerRootView>
     </SafeAreaProvider>

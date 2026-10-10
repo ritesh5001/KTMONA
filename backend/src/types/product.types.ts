@@ -284,6 +284,8 @@ export interface ProductQueryFilters {
     maxPrice?: number | undefined;
     /** Only products with an active KTMONA Price Lock. */
     priceLock?: boolean | undefined;
+    /** Only this seller's products (shop page). */
+    sellerId?: string | undefined;
 }
 
 export type ProductListSort = 'newest' | 'price_asc' | 'price_desc' | 'discount';

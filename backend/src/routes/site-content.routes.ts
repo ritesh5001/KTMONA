@@ -11,6 +11,7 @@ import { authenticate, authorize, optionalAuthenticate } from '../middlewares/au
 import { ApiError } from '../errors/ApiError.js';
 import { redis } from '../config/redis.js';
 import { siteContentService } from '../services/site-content.service.js';
+import { storeService } from '../services/store.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown> | unknown;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -48,6 +49,9 @@ function formRateLimit(bucket: string) {
 
 export const sitePublicRouter = Router();
 sitePublicRouter.get('/links', h(() => siteContentService.getLinks()));
+/** Public shops: list, and one shop's page. */
+sitePublicRouter.get('/stores', h((req) => storeService.list(req.query)));
+sitePublicRouter.get('/stores/:slug', h((req) => storeService.getBySlug(param(req, 'slug'))));
 sitePublicRouter.get('/careers', h(() => siteContentService.publicJobs()));
 sitePublicRouter.post(
     '/careers/apply',

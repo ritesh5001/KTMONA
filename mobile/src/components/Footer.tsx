@@ -1,7 +1,15 @@
 import React from "react";
 import { useRouter } from "expo-router";
 import { Icon } from "./Icon";
-import { Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Linking,
+  Modal,
+  Pressable,
+  StyleSheet,
+  TextInput,
+  View,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { colors, spacing, typography, textStyles, radius } from "../theme";
 import { companyInfo } from "../data/company";
 

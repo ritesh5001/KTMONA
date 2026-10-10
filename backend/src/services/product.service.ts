@@ -430,8 +430,9 @@ export class ProductService {
             normalizedFilters.minPrice,
             normalizedFilters.maxPrice,
             normalizedFilters.priceLock || undefined,
+            normalizedFilters.sellerId,
         ].some((v) => v !== undefined)
-            ? `${normalizedFilters.audience ?? '_'}:${normalizedFilters.sort ?? '_'}:${normalizedFilters.minPrice ?? '_'}:${normalizedFilters.maxPrice ?? '_'}:${normalizedFilters.priceLock ? 'lock' : '_'}`
+            ? `${normalizedFilters.audience ?? '_'}:${normalizedFilters.sort ?? '_'}:${normalizedFilters.minPrice ?? '_'}:${normalizedFilters.maxPrice ?? '_'}:${normalizedFilters.priceLock ? 'lock' : '_'}:${normalizedFilters.sellerId ?? '_'}`
             : undefined;
         const cacheKey =
             !normalizedFilters.categoryId && !normalizedFilters.search && !normalizedFilters.occasion && !extraKey && page === 1 && limit === 20

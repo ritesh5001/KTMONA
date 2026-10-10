@@ -1,5 +1,10 @@
 import * as React from "react";
-import { Animated, StyleSheet, View, Text } from "react-native";
+import {
+  Animated,
+  StyleSheet,
+  View,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { colors, spacing, typography, radius } from "../theme/tokens";
 
 interface BrandLoaderProps {

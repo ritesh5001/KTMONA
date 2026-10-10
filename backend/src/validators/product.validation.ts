@@ -111,6 +111,9 @@ export const productQuerySchema = z.object({
 
     audience: productAudienceSchema.optional(),
 
+    /** One seller's products (shop page). */
+    sellerId: z.string().min(1).max(64).optional(),
+
     /** "1" lists only products carrying the KTMONA Price Lock badge. */
     priceLock: z
         .enum(['1', 'true'])

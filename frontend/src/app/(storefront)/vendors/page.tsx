@@ -1,189 +1,68 @@
 "use client";
 
+import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Input } from "@/components/ui/input";
+import useSWR from "swr";
+import { MapPin, Search, Store } from "lucide-react";
+import { storesApi } from "@/services/platform";
 
-const vendors = [
-  {
-    slug: "aarohi-atelier",
-    name: "Aarohi Atelier",
-    category: "Sarees & Ethnic",
-    location: "Ahmedabad",
-    rating: "4.9",
-    specialty: "Handwoven Silk",
-  },
-  {
-    slug: "saffron-loom",
-    name: "Saffron Loom",
-    category: "Cotton & Daily Wear",
-    location: "Mumbai",
-    rating: "4.8",
-    specialty: "Organic Cotton",
-  },
-  {
-    slug: "lenscraft-tailors",
-    name: "LensCraft Tailors",
-    category: "Men's Formal",
-    location: "Delhi",
-    rating: "4.7",
-    specialty: "Bespoke Tailoring",
-  },
-  {
-    slug: "bloomarc-studio",
-    name: "BloomArc Studio",
-    category: "Designer Wear",
-    location: "Jaipur",
-    rating: "4.8",
-    specialty: "Contemporary Fusion",
-  },
-];
+function useDebounced<T>(value: T, ms = 350): T {
+  const [v, setV] = React.useState(value);
+  React.useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
 
+/** Every active KTMONA shop with live products. */
 export default function VendorsPage() {
+  const [search, setSearch] = React.useState("");
+  const q = useDebounced(search.trim());
+  const { data, isLoading } = useSWR(["stores", q], () => storesApi.list({ search: q }));
+  const stores = data?.stores ?? [];
+
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-background">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        className="mx-auto flex max-w-6xl flex-col gap-16 px-6 py-16 lg:py-20"
-      >
-        {/* Header */}
-        <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-brand-strong">
-                Verified Sellers
-              </p>
-              <h1 className="font-serif text-4xl font-light tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-                Shop by Seller
-              </h1>
-              <p className="max-w-xl text-sm leading-relaxed text-muted-foreground">
-                Independent businesses from across India, each approved by the KTMONA team.
-                Each seller is verified for quality, authenticity, and reliable delivery.
-              </p>
-            </div>
+    <div className="mx-auto max-w-[1440px] px-4 py-8 xl:px-8">
+      <h1 className="text-2xl font-semibold sm:text-3xl">Shops on KTMONA</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Every shop is a verified seller approved by the KTMONA team.</p>
+      <label className="relative mt-5 block max-w-md">
+        <span className="sr-only">Search shops</span>
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search shops by name"
+          className="h-10 w-full rounded-md border border-border-soft bg-background pl-10 pr-3 text-sm focus-visible:border-brand focus-visible:outline-none"
+        />
+      </label>
 
-            {/* Trust Signals */}
-            <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
-              <span className="flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-brand" />
-                Verified Craftsmanship
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-brand" />
-                Quality Assured
-              </span>
-              <span className="flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-brand" />
-                Reliable Delivery
-              </span>
-            </div>
-          </div>
-
-          {/* Search - Concierge Tool */}
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="border border-border-soft bg-card p-6 space-y-4"
-          >
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Find a Seller
-            </p>
-            <Input placeholder="Search by name or city" className="h-12" />
-            <button className="w-full h-12 bg-ink text-paper text-xs font-medium uppercase tracking-[0.15em] transition-all duration-400 hover:bg-navy dark:bg-brand dark:text-ink dark:hover:bg-brand-muted">
-              Search Collection
-            </button>
-          </motion.div>
+      {isLoading && !data ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-mist" />)}
         </div>
-
-        {/* Vendor Grid */}
-        <section className="space-y-8">
-          <div className="flex items-center justify-between border-b border-border-soft pb-4">
-            <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-              Featured Sellers ({vendors.length})
-            </p>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:gap-8">
-            {vendors.map((vendor, index) => (
-              <motion.div
-                key={vendor.slug}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.08, duration: 0.5 }}
-              >
-                <Link href={`/vendors/${vendor.slug}`}>
-                  <motion.div
-                    whileHover={{ y: -2 }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="group border border-border-soft bg-card p-6 lg:p-8 transition-all duration-400 hover:border-brand/40 hover:shadow-[0_4px_20px_rgba(255,138,0,0.10)]"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Vendor Info */}
-                      <div className="space-y-4 flex-1">
-                        <div className="space-y-2">
-                          <h3 className="font-serif text-xl font-normal text-foreground group-hover:text-brand-strong transition-colors duration-300">
-                            {vendor.name}
-                          </h3>
-                          <p className="text-xs text-muted-foreground">
-                            {vendor.category}
-                          </p>
-                        </div>
-
-                        <div className="h-px bg-border-soft" />
-
-                        <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-                          {/* Provenance / Location */}
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-1 w-1 rounded-full bg-brand/50" />
-                            {vendor.location}
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            <span className="h-1 w-1 rounded-full bg-brand/50" />
-                            {vendor.specialty}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Rating - Quiet */}
-                      <div className="flex flex-col items-end gap-1">
-                        <span className="text-sm font-light text-foreground">
-                          {vendor.rating}
-                        </span>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          Rating
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* View Profile CTA */}
-                    <div className="mt-6 pt-4 border-t border-border-soft">
-                      <span className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground group-hover:text-brand-strong transition-colors duration-300">
-                        View Profile →
-                      </span>
-                    </div>
-                  </motion.div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </section>
-
-        {/* Trust Footer */}
-        <section className="border-t border-border-soft pt-12">
-          <div className="text-center space-y-4">
-            <p className="font-serif text-lg font-light text-foreground">
-              Trusted by Discerning Buyers Across India
-            </p>
-            <p className="text-sm text-muted-foreground max-w-lg mx-auto">
-              Every seller on KTMONA is reviewed and approved before listing,
-              and every product is checked before it goes live.
-            </p>
-          </div>
-        </section>
-      </motion.div>
+      ) : stores.length === 0 ? (
+        <div className="mt-10 text-center text-sm text-muted-foreground">
+          <Store className="mx-auto h-8 w-8" />
+          <p className="mt-2">No shops found.</p>
+        </div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {stores.map((s) => (
+            <Link key={s.slug} href={`/vendors/${s.slug}`} className="flex items-center gap-3 rounded-2xl border border-border-soft bg-card p-4 transition-shadow hover:shadow-md">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-mist">
+                {s.logo ? <Image src={s.logo} alt={s.name} width={56} height={56} className="h-full w-full object-cover" /> : <span className="text-xl font-bold text-brand-strong">{s.name.charAt(0)}</span>}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-semibold">{s.name}</span>
+                <span className="block text-xs text-muted-foreground">{s.productCount} products</span>
+                {s.city ? <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" aria-hidden />{s.city}</span> : null}
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

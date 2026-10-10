@@ -9,6 +9,7 @@ import { adminController } from '../controllers/admin.controller.js';
 import { commissionRuleController } from '../controllers/commissionRule.controller.js';
 import { couponAdminController } from '../controllers/couponAdmin.controller.js';
 import { occasionController } from '../controllers/occasion.controller.js';
+import { settingsService, COD_MAX_ORDER_INR } from '../services/settings.service.js';
 
 export const adminRouter = Router();
 
@@ -558,6 +559,29 @@ adminRouter.put(
     authorize('ADMIN', 'SUPER_ADMIN'),
     adminController.updateShippingSetting
 );
+
+/**
+ * GET / PUT /v1/admin/settings/cod
+ * Turn Cash on Delivery on or off for new orders.
+ */
+adminRouter.get('/settings/cod', authorize('ADMIN', 'SUPER_ADMIN'), async (_req, res, next) => {
+    try {
+        res.json({ enabled: await settingsService.isCodEnabled(), maxOrderAmount: COD_MAX_ORDER_INR });
+    } catch (error) {
+        next(error);
+    }
+});
+adminRouter.put('/settings/cod', authorize('ADMIN', 'SUPER_ADMIN'), async (req, res, next) => {
+    try {
+        if (typeof req.body?.enabled !== 'boolean') {
+            res.status(400).json({ success: false, error: { message: '`enabled` must be true or false' } });
+            return;
+        }
+        res.json({ enabled: await settingsService.setCodEnabled(req.body.enabled), maxOrderAmount: COD_MAX_ORDER_INR });
+    } catch (error) {
+        next(error);
+    }
+});
 
 /**
  * GET /v1/admin/settings/gst

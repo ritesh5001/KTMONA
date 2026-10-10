@@ -146,6 +146,8 @@ export default function UserOrdersClient({
   React.useEffect(() => {
     const pending = orders.filter((o: any) => {
       const status = paymentStatusByOrder[o.id];
+      // Cash on Delivery has no PhonePe payment to reconcile.
+      if (o.paymentMethod === "COD") return false;
       return status && status !== "SUCCESS" && status !== "FAILED" && !healedRef.current.has(o.id);
     });
     if (pending.length === 0) return;

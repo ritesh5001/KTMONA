@@ -302,3 +302,33 @@ export const priceLockApi = {
   review: (productIds: string[], action: "APPROVE" | "REJECT" | "REVOKE", note?: string) =>
     send<{ done: number }>("POST", "/v1/admin/center/price-lock/review", { productIds, action, note }),
 };
+
+/* ── Public shops ───────────────────────────────────────────────────────── */
+
+export interface StoreSummary {
+  slug: string;
+  name: string;
+  logo: string | null;
+  city: string | null;
+  productCount: number;
+}
+
+export interface StoreDetail {
+  sellerId: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  logo: string | null;
+  city: string | null;
+  state: string | null;
+  onHoliday: boolean;
+  memberSince: string;
+  productCount: number;
+  rating: { average: number | null; count: number };
+}
+
+export const storesApi = {
+  list: (params: { search?: string; page?: number }) =>
+    get<{ stores: StoreSummary[]; page: number; hasMore: boolean }>(`/v1/site/stores${qs(params)}`),
+  get: (slug: string) => get<{ store: StoreDetail }>(`/v1/site/stores/${encodeURIComponent(slug)}`),
+};

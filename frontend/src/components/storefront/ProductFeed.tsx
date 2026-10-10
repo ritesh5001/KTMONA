@@ -46,6 +46,7 @@ export function ProductFeed({
   subcategories,
   categoryHeading = "Category",
   priceLock = false,
+  sellerId,
 }: {
   /** Heading above the feed; `null` hides it (the page already has one). */
   title?: string | null;
@@ -54,6 +55,8 @@ export function ProductFeed({
   categoryHeading?: string;
   /** Only products with an active KTMONA Price Lock. */
   priceLock?: boolean;
+  /** Only this seller's products (shop page). */
+  sellerId?: string;
 }) {
   const [sort, setSort] = React.useState<Sort>("newest");
   const [priceKey, setPriceKey] = React.useState<string | null>(null);
@@ -70,6 +73,7 @@ export function ProductFeed({
     const q = new URLSearchParams({ page: String(index + 1), limit: String(PAGE_SIZE), sort });
     if (categoryId) q.set("categoryId", categoryId);
     if (priceLock) q.set("priceLock", "1");
+    if (sellerId) q.set("sellerId", sellerId);
     if (price?.min != null) q.set("minPrice", String(price.min));
     if (price?.max != null) q.set("maxPrice", String(price.max));
     return `/v1/products?${q.toString()}`;

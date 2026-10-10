@@ -1,5 +1,10 @@
 import * as React from "react";
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+} from "react-native";
+import { Text } from "../i18n/Text";
 import { usePathname, useRouter } from "expo-router";
 import Animated, {
   useAnimatedStyle,

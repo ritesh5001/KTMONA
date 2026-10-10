@@ -2,10 +2,8 @@ import * as React from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Linking,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   View,
   useWindowDimensions,
@@ -24,13 +22,16 @@ import { trackPendingCartWrite } from "../../lib/pending-cart";
 import { getProductById, getProducts, type ProductVariant } from "../../services/products";
 import { fetchProductReviews } from "../../services/reviews";
 import { C, FILL, S, inr } from "../theme";
-import { EmptyState, HeaderActions, PrimaryBtn, ProductCard, RatingBadge, T, priceOf } from "../kit";
+import { EmptyState, HeaderActions, PriceLockBadge, PrimaryBtn, ProductCard, RatingBadge, T, priceOf } from "../kit";
 import { useFreeDelivery, type FeedProduct } from "../data";
-
-const WEB_BASE = "https://www.ktmona.com";
+import { BookCallSheet, ShareSheet } from "../sheets";
+import { rememberProduct } from "../../lib/local-lists";
 
 type Detail = Awaited<ReturnType<typeof getProductById>>["product"] & {
   seller?: { storeName: string; storeSlug: string } | null;
+  sellerId?: string;
+  /** KTMONA Price Lock: lowest market price, verified by KTMONA. */
+  priceLock?: boolean;
   activeCoupon?: { code?: string; discountedPrice?: number | null; finalPrice?: number | null } | null;
 };
 
@@ -94,6 +95,16 @@ export default function ProductScreen({ id }: { id: string }) {
   const similar = ((similarQ.data?.data ?? []) as FeedProduct[]).filter((p) => p.id !== id).slice(0, 6);
   const wished = isWishlisted(id);
 
+  const [shareOpen, setShareOpen] = React.useState(false);
+  const [callOpen, setCallOpen] = React.useState(false);
+
+  // Recently viewed (Home + Account), Meesho-style.
+  React.useEffect(() => {
+    if (!product) return;
+    const p = priceOf(product);
+    void rememberProduct("recent", { id: product.id, title: product.title, image: product.images?.[0] ?? null, price: p.price, regularPrice: p.mrp });
+  }, [product]);
+
   const scrollRef = React.useRef<ScrollView>(null);
   const sizeY = React.useRef(0);
   const [busy, setBusy] = React.useState<"cart" | "buy" | null>(null);
@@ -153,8 +164,11 @@ export default function ProductScreen({ id }: { id: string }) {
 
   const onShare = () => {
     if (!product) return;
-    void Share.share({ message: `${product.title} on KTMONA\n${WEB_BASE}/product/${product.id}` });
+    setShareOpen(true);
   };
+  const shareable = product
+    ? { id: product.id, title: product.title, image: images[0] ?? product.images?.[0] ?? null, price: price ?? null, regularPrice: mrp ?? null }
+    : null;
 
   if (productQ.isLoading) {
     return (
@@ -198,6 +212,12 @@ export default function ProductScreen({ id }: { id: string }) {
                   <T w="semibold" size={14} color={C.green} style={{ marginLeft: 6 }}>{off}% off</T>
                 </>
               ) : null}
+            </View>
+          ) : null}
+          {product.priceLock ? (
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8, gap: 6 }}>
+              <PriceLockBadge />
+              <T size={11} color={C.muted}>Lowest price in the market, verified by KTMONA</T>
             </View>
           ) : null}
           {couponPrice != null && price != null && couponPrice < price ? (
@@ -259,10 +279,30 @@ export default function ProductScreen({ id }: { id: string }) {
                 <T w="semibold" size={14}>{product.seller.storeName}</T>
                 <T size={11} color={C.muted}>Verified KTMONA seller</T>
               </View>
-              <Pressable onPress={() => void Linking.openURL(`${WEB_BASE}/vendors/${product.seller!.storeSlug}`)} style={styles.viewShop}>
+              <Pressable onPress={() => router.push(`/shop/${product.seller!.storeSlug}` as never)} style={styles.viewShop}>
                 <T w="semibold" size={12} color={C.navy}>View Shop</T>
               </Pressable>
             </View>
+            {product.sellerId ? (
+              <Pressable
+                onPress={() => {
+                  if (!session?.accessToken) {
+                    showToast("Please sign in to continue", "info");
+                    router.push("/login");
+                    return;
+                  }
+                  setCallOpen(true);
+                }}
+                style={styles.callRow}
+              >
+                <Feather name="video" size={18} color={C.brandDark} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <T w="semibold" size={13}>Video call with seller</T>
+                  <T size={11} color={C.muted}>See the product live before you buy</T>
+                </View>
+                <Feather name="chevron-right" size={18} color={C.faint} />
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
@@ -337,11 +377,19 @@ export default function ProductScreen({ id }: { id: string }) {
         ) : null}
       </ScrollView>
 
-      {/* Sticky actions */}
+      {/* Sticky actions: Meesho keeps a WhatsApp share next to the buttons */}
       <View style={[styles.actionBar, { paddingBottom: insets.bottom + 8 }]}>
+        <Pressable onPress={onShare} style={styles.waShare} accessibilityLabel="Share">
+          <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+          <T size={10} w="semibold" color={C.textSoft}>Share</T>
+        </Pressable>
         <PrimaryBtn label="Add to Cart" icon="shopping-cart" variant="outline" loading={busy === "cart"} onPress={() => void onAddToCart()} style={{ flex: 1 }} />
         <PrimaryBtn label="Buy Now" icon="chevrons-right" onPress={onBuyNow} style={{ flex: 1 }} />
       </View>
+      <ShareSheet product={shareable} open={shareOpen} onClose={() => setShareOpen(false)} />
+      {product.sellerId ? (
+        <BookCallSheet open={callOpen} onClose={() => setCallOpen(false)} sellerId={product.sellerId} productId={product.id} storeName={product.seller?.storeName} />
+      ) : null}
     </View>
   );
 }
@@ -427,6 +475,8 @@ function Details({ product, selected }: { product: Detail; selected: ProductVari
 }
 
 const styles = StyleSheet.create({
+  callRow: { flexDirection: "row", alignItems: "center", marginTop: 12, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderColor: C.divider },
+  waShare: { width: 54, alignItems: "center", justifyContent: "center", gap: 2 },
   topBar: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 12, paddingBottom: 6, backgroundColor: C.card, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: C.border },
   block: { backgroundColor: C.card, padding: 14, marginTop: 8 },
   pill: { backgroundColor: C.bg, borderRadius: 12, paddingHorizontal: 9, paddingVertical: 3 },

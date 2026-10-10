@@ -1,5 +1,6 @@
 import * as React from "react";
-import { Text, type TextProps, type TextStyle } from "react-native";
+import { type TextProps, type TextStyle } from "react-native";
+import { Text } from "../i18n/Text";
 import { colors, typography } from "../theme/tokens";
 
 type Variant = "heading" | "body" | "bodyMedium";

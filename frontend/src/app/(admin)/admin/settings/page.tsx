@@ -7,9 +7,11 @@ import {
   updateShippingSetting,
   getGstSetting,
   updateGstSetting,
+  getCodSetting,
+  updateCodSetting,
 } from "@/services/admin";
 import { toast } from "sonner";
-import { Truck, Receipt, type LucideIcon } from "lucide-react";
+import { Truck, Receipt, Banknote, type LucideIcon } from "lucide-react";
 
 interface ChargeSetting {
   enabled: boolean;
@@ -28,6 +30,9 @@ interface ChargeToggleCardProps {
   save: (enabled: boolean) => Promise<ChargeSetting>;
   successLabel: string;
   errorLabel: string;
+  /** Button text; defaults to "Start charge" / "Stop charge". */
+  enableLabel?: string;
+  disableLabel?: string;
 }
 
 function ChargeToggleCard({
@@ -40,6 +45,8 @@ function ChargeToggleCard({
   save,
   successLabel,
   errorLabel,
+  enableLabel = "Start charge",
+  disableLabel = "Stop charge",
 }: ChargeToggleCardProps) {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -126,7 +133,7 @@ function ChargeToggleCard({
           onClick={() => handleToggle(!enabled)}
           className="shrink-0"
         >
-          {saving ? "Saving…" : enabled ? "Stop charge" : "Start charge"}
+          {saving ? "Saving…" : enabled ? disableLabel : enableLabel}
         </Button>
       </div>
     </section>
@@ -178,6 +185,28 @@ export default function AdminSettingsPage() {
               <span className="font-medium text-foreground">₹{amount}</span> per
               item is added to every order at checkout. Turn it off to remove
               the flat GST fee — new orders will not be charged.
+            </>
+          )}
+        />
+
+        <ChargeToggleCard
+          icon={Banknote}
+          title="Cash on Delivery"
+          offLabel="Online payment only"
+          fallbackAmount={50000}
+          load={getCodSetting}
+          save={updateCodSetting}
+          successLabel="Cash on Delivery"
+          errorLabel="Unable to update Cash on Delivery"
+          enableLabel="Turn on COD"
+          disableLabel="Turn off COD"
+          renderDescription={(amount) => (
+            <>
+              When enabled, shoppers can choose Cash on Delivery at checkout on
+              the website and the app for orders up to{" "}
+              <span className="font-medium text-foreground">₹{amount.toLocaleString("en-IN")}</span>.
+              The order is confirmed straight away and the courier collects the
+              cash. Turn it off to accept online payments only.
             </>
           )}
         />

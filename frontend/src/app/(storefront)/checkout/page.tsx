@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkoutWithPayment, getCart, type CouponPreview } from "@/services/cart";
+import { checkoutWithPayment, getCart, getCodConfig, type CouponPreview } from "@/services/cart";
 import { initiatePayment } from "@/services/payments";
 import { ApiTimeoutError } from "@/services/api";
 import { flushPendingCartWrite } from "@/lib/pending-cart";
@@ -138,6 +138,14 @@ function NativeCheckout() {
 
   const shippingFee = hasItems && shippingConfig.enabled ? shippingConfig.amount : 0;
   const cartTotal = subtotal + shippingFee;
+
+  // Cash on Delivery: offered when the admin has it switched on and the order
+  // is within the courier's cash limit.
+  const [paymentMethod, setPaymentMethod] = React.useState<"ONLINE" | "COD">("ONLINE");
+  const [cod, setCod] = React.useState<{ enabled: boolean; maxOrderAmount: number } | null>(null);
+  React.useEffect(() => {
+    getCodConfig().then(setCod).catch(() => setCod(null));
+  }, []);
   // Order totals shown here are the pre-checkout estimate; the backend order
   // is the source of truth. We navigate away on success, so no live update.
   const [taxSummary] = React.useState<{
@@ -336,11 +344,21 @@ function NativeCheckout() {
         shippingPincode: shipping.pincode || undefined,
         shippingNotes: shipping.notes || undefined,
         couponCode: appliedCoupon?.code || undefined,
+        paymentMethod,
       });
 
       const orderId = orderResult.order?.id;
       if (!orderId) {
         throw new Error("Order ID missing. Please try again.");
+      }
+
+      // Cash on Delivery: the order is already confirmed. Nothing to pay now.
+      if (orderResult.paymentMethod === "COD") {
+        clearCheckoutCartSnapshot();
+        setHasItems(false);
+        toast.success("Order placed! Pay in cash when it's delivered.");
+        router.push(`/user/orders/${orderId}`);
+        return;
       }
 
       // If payment init failed at checkout time, surface the real reason and
@@ -765,6 +783,36 @@ function NativeCheckout() {
                 </div>
               </div>
 
+              <fieldset className="space-y-2">
+                <legend className="mb-2 text-xs font-medium uppercase tracking-wider text-foreground">Payment method</legend>
+                <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${paymentMethod === "ONLINE" ? "border-brand bg-brand/5" : "border-border-soft"}`}>
+                  <input type="radio" name="payment" className="mt-1" checked={paymentMethod === "ONLINE"} onChange={() => setPaymentMethod("ONLINE")} />
+                  <span>
+                    <span className="block text-sm font-medium">Pay online</span>
+                    <span className="block text-xs text-muted-foreground">UPI, cards, net banking and wallets via PhonePe</span>
+                  </span>
+                </label>
+                {cod?.enabled ? (
+                  (() => {
+                    const total = (taxSummary ? taxSummary.grandTotal : cartTotal);
+                    const tooBig = total > cod.maxOrderAmount;
+                    return (
+                      <label className={`flex items-start gap-3 rounded-xl border p-3 ${tooBig ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${paymentMethod === "COD" ? "border-brand bg-brand/5" : "border-border-soft"}`}>
+                        <input type="radio" name="payment" className="mt-1" disabled={tooBig} checked={paymentMethod === "COD"} onChange={() => setPaymentMethod("COD")} />
+                        <span>
+                          <span className="block text-sm font-medium">Cash on Delivery</span>
+                          <span className="block text-xs text-muted-foreground">
+                            {tooBig
+                              ? `Available for orders up to ${currency.format(cod.maxOrderAmount)}`
+                              : "Pay in cash or UPI to the delivery partner"}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })()
+                ) : null}
+              </fieldset>
+
               <div className="space-y-4">
                 <motion.div
                   whileHover={{ y: -2 }}
@@ -776,13 +824,21 @@ function NativeCheckout() {
                     onClick={handleCheckout}
                     disabled={!hasItems || loading || isPaying}
                   >
-                    {loading || isPaying ? "Redirecting to PhonePe..." : "Proceed to Payment"}
+                    {paymentMethod === "COD"
+                      ? loading || isPaying
+                        ? "Placing your order..."
+                        : "Place Order"
+                      : loading || isPaying
+                        ? "Redirecting to PhonePe..."
+                        : "Proceed to Payment"}
                   </Button>
                 </motion.div>
 
                 <p className="text-center text-[10px] text-muted-foreground leading-relaxed">
-                  By proceeding, you agree to our terms of service. You&apos;ll
-                  be redirected to PhonePe to complete payment securely.
+                  By proceeding, you agree to our terms of service.{" "}
+                  {paymentMethod === "COD"
+                    ? "Keep the exact amount ready when your order arrives."
+                    : "You'll be redirected to PhonePe to complete payment securely."}
                 </p>
               </div>
 

@@ -202,3 +202,62 @@ export const vendorAgreementPolicy: PolicyDocument = {
     { title: "Contact Information", body: "For vendor inquiries, contact monika99skb@gmail.com or call 8766211837. Address: KTMONA, A-740, Vinay Nagar, Agwanpur, Faridabad, Haryana 121013, India." },
   ],
 };
+
+/** Same text as the website's About Us page. */
+export const aboutPolicy: PolicyDocument = {
+  title: "About Us",
+  intro:
+    "“Trust Every Click.” KTMONA stands for Knowledge, Trust & More Online Network Access. We built KTMONA so that shopping online from independent sellers feels as safe as buying from a store you already know.",
+  updatedAt: "October 5, 2026",
+  sections: [
+    {
+      title: "Our Story",
+      body:
+        "KTMONA is a multi-vendor marketplace where small businesses, resellers and home-based sellers across India list their products, and customers shop with secure payments, tracked delivery and easy returns. Every seller is approved by our team and every product is reviewed before it goes live.",
+    },
+    {
+      title: "Our Mission",
+      body:
+        "Our mission is to give every seller in India a simple, transparent way to sell online, and every customer a marketplace they can trust with each click.\n\n• Knowledge: Clear product information, honest reviews and simple tools for first-time online sellers.\n• Trust: Verified sellers, admin-approved listings and secure payments.\n• Access: Shop or sell from anywhere on the web and on the KTMONA app for Android and iOS.",
+    },
+    {
+      title: "Why Choose Us",
+      body:
+        "• Products from verified sellers across India, all in one place.\n• Secure payments and a downloadable invoice for every order.\n• Live shipment tracking and easy returns on delivered orders.\n• Dedicated customer and seller support whenever you need it.",
+    },
+    {
+      title: "Head Office",
+      body: "A-740, Vinay Nagar, Agwanpur, Faridabad, Haryana 121013, India",
+    },
+  ],
+};
+
+/** Same text as the website's Disclaimer page. */
+export const disclaimerPolicy: PolicyDocument = {
+  title: "Disclaimer",
+  intro:
+    "The information provided by KTMONA (“we,” “us,” or “our”) on ktmona.com and the KTMONA app is for general informational purposes only. All information is provided in good faith; however, we make no representation or warranty of any kind, express or implied, regarding the accuracy, adequacy, validity, reliability, availability, or completeness of any information.",
+  updatedAt: "October 25, 2023",
+  sections: [
+    {
+      title: "Product Accuracy",
+      body:
+        "KTMONA is a multi-vendor marketplace. While we strive to ensure that product images, descriptions, and specifications provided by our sellers are accurate, the actual color, texture, and fit may vary slightly from what is displayed on your screen. We do not warrant that product descriptions or other content are fully accurate, complete, reliable, current, or error-free.",
+    },
+    {
+      title: "Vendor Liability",
+      body:
+        "Products sold on this platform are listed and fulfilled by independent sellers. KTMONA acts strictly as an intermediary marketplace facilitator.\n\n• We are not directly responsible for the manufacturing process, quality control, or safety standards of the items sold by third-party vendors.\n• Any claims, disputes, or liabilities arising from the purchase or use of a product rest entirely with the respective seller.",
+    },
+    {
+      title: "Third-Party Links",
+      body:
+        "The app may contain links to other websites or content belonging to or originating from third parties. Such external links are not investigated, monitored, or checked for accuracy, adequacy, validity, reliability, availability, or completeness by us.",
+    },
+    {
+      title: "Limitation of Damages",
+      body:
+        "Under no circumstance shall we have any liability to you for any loss or damage of any kind incurred as a result of the use of the app or reliance on any information provided. Your use of the app and your reliance on any information is solely at your own risk.",
+    },
+  ],
+};

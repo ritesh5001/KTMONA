@@ -19,7 +19,9 @@ import {
 } from '../config/metrics.js';
 import { recordReserveAttempt, recordReserveFailure } from '../monitoring/alerts.js';
 import { couponService } from './coupon.service.js';
-import { settingsService, FLAT_GST_FEE_INR } from './settings.service.js';
+import { settingsService, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
+import { generateInvoiceNumber } from '../utils/invoice.util.js';
+import { sellerAdsService } from './seller-center/ads.service.js';
 import { Prisma } from '@prisma/client';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS, orderTag, productTag } from '../live/cache-tags.js';
@@ -70,6 +72,12 @@ export class CheckoutService {
          * whole cart. Anything not selected stays in the cart untouched.
          */
         variantIds?: string[],
+        /**
+         * COD: the order is confirmed straight away with a payment that stays
+         * INITIATED until the courier collects the cash on delivery. ONLINE
+         * (default): the order waits as PLACED for the PhonePe payment.
+         */
+        paymentMethod: 'ONLINE' | 'COD' = 'ONLINE',
     ): Promise<CheckoutResponse> {
         // =====================================================================
         // PHASE 1 — Read-only validation (outside transaction)
@@ -90,6 +98,9 @@ export class CheckoutService {
         ]);
         if (cartRows.length === 0) {
             throw ApiError.badRequest('Cart is empty');
+        }
+        if (paymentMethod === 'COD' && !(await settingsService.isCodEnabled())) {
+            throw ApiError.badRequest('Cash on Delivery is not available right now. Please pay online.');
         }
 
         const cartId = cartRows[0]!.cartId;
@@ -360,6 +371,13 @@ export class CheckoutService {
             const orderGrandTotalWithFlat = round2(orderGrandTotal.add(flatGstFee));
             const grandTotalWithShipping = round2(orderGrandTotalWithFlat.add(shippingFee));
             const totalAmount = grandTotalWithShipping;
+            // Throwing here rolls back the stock reservation and coupon with it.
+            if (paymentMethod === 'COD' && totalAmount.gt(COD_MAX_ORDER_INR)) {
+                throw ApiError.badRequest(
+                    `Cash on Delivery is available for orders up to ₹${COD_MAX_ORDER_INR.toLocaleString('en-IN')}. Please pay online.`,
+                );
+            }
+            const isCod = paymentMethod === 'COD';
 
             // 2b. Create order with items
             const created = await tx.order.create({
@@ -379,7 +397,12 @@ export class CheckoutService {
                     shippingCity: shipping?.shippingCity ?? null,
                     shippingPincode: shipping?.shippingPincode ?? null,
                     shippingNotes: shipping?.shippingNotes ?? null,
-                    status: 'PLACED',
+                    // COD needs no payment step: the order is confirmed (and
+                    // invoiced) at once; cash is collected on delivery.
+                    status: isCod ? 'CONFIRMED' : 'PLACED',
+                    ...(isCod
+                        ? { invoiceNumber: await generateInvoiceNumber(tx as any), invoiceIssuedAt: new Date() }
+                        : {}),
                     // Items are inserted separately with createMany below. A nested
                     // `items: { create: [...] }` makes Prisma 4 issue one INSERT per
                     // item, serially inside the transaction — a three-item cart paid
@@ -445,6 +468,23 @@ export class CheckoutService {
                 await tx.$executeRaw`DELETE FROM "cart_items" WHERE "cart_id" = ${cartId}`;
             }
 
+            if (isCod) {
+                // INITIATED until delivery: marking it SUCCESS now would tell the
+                // settlement ledger money had arrived that nobody has collected.
+                const payment = await tx.payment.create({
+                    data: {
+                        orderId: created.id,
+                        userId,
+                        amount: Number(totalAmount.toString()),
+                        provider: 'COD',
+                        status: 'INITIATED',
+                    },
+                });
+                await tx.paymentEvent.create({
+                    data: { paymentId: payment.id, type: 'INITIATED', payload: { method: 'COD' } },
+                });
+            }
+
             // Carry the intra-state flag out instead of re-reading order items later.
             const hasIntraState = discountedLines.some(
                 (line) => line.cgst.gt(0) || line.sgst.gt(0),
@@ -479,6 +519,12 @@ export class CheckoutService {
         ]).catch((error) => {
             checkoutLogger.warn({ userId, orderId: order.id, error }, 'Async cache invalidation failed');
         });
+
+        if (paymentMethod === 'COD') {
+            // Credit any ad click that led to this sale. The seller settlement is
+            // booked when the cash is collected on delivery (shipment service).
+            void sellerAdsService.attributeOrder(order.id).catch(() => undefined);
+        }
 
         // Trigger Notifications (event-driven, idempotent, best-effort)
         void emitOrderPlaced(order.id).catch((error) => {
@@ -539,6 +585,7 @@ export class CheckoutService {
                 discountAmount: Number(order.discountAmount),
                 createdAt: order.createdAt,
             },
+            paymentMethod,
         };
     }
 }
