@@ -903,6 +903,10 @@ model shipments {
   manifest_id            String?
   manifested_at          DateTime?
   pickup_requested_at    DateTime?
+  /// Barcode of the KTMONA-approved transparent packet the order was packed in
+  /// (seller scans it before handover; proof for wrong-item claims).
+  packet_barcode         String?
+  packet_scanned_at      DateTime?
   rto_initiated_at       DateTime?
   rto_delivered_at       DateTime?
   rto_reason             String?
@@ -912,6 +916,8 @@ model shipments {
   orders                 Order             @relation(fields: [order_id], references: [id])
   users                  User              @relation(fields: [seller_id], references: [id])
 
+  /// One packet, one order: a reused packet barcode is refused.
+  @@unique([seller_id, packet_barcode])
   @@index([order_id])
   @@index([seller_id])
   @@index([status])
@@ -1930,4 +1936,33 @@ model RefundPayoutDetail {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   @@map("refund_payout_details")
+}
+
+/// A seller's request to add, rename or remove a category. Nothing changes in
+/// the shared category tree until an admin approves it.
+model CategoryRequest {
+  id          String    @id @default(cuid())
+  sellerId    String    @map("seller_id")
+  /// ADD | EDIT | DELETE
+  type        String
+  /// EDIT / DELETE: the category concerned.
+  categoryId  String?   @map("category_id")
+  /// ADD: where the new category goes (null = top level).
+  parentId    String?   @map("parent_id")
+  name        String?
+  description String?
+  reason      String
+  /// PENDING | APPROVED | REJECTED
+  status      String    @default("PENDING")
+  adminNote   String?   @map("admin_note")
+  reviewedBy  String?   @map("reviewed_by")
+  reviewedAt  DateTime? @map("reviewed_at")
+  /// ADD: the category created on approval.
+  resultCategoryId String? @map("result_category_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([sellerId, createdAt])
+  @@map("category_requests")
 }

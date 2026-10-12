@@ -126,6 +126,8 @@ export const ADMIN_PAGE_PERMISSION: Record<string, StaffPermission> = {
   "/admin/price-lock": "catalog",
   "/admin/categories": "categories",
   "/admin/occasions": "categories",
+  "/admin/category-requests": "categories",
+  "/admin/packaging-supplier": "content",
   "/admin/orders": "orders",
   "/admin/cancellations": "orders",
   "/admin/returns": "orders",
@@ -331,4 +333,78 @@ export const storesApi = {
   list: (params: { search?: string; page?: number }) =>
     get<{ stores: StoreSummary[]; page: number; hasMore: boolean }>(`/v1/site/stores${qs(params)}`),
   get: (slug: string) => get<{ store: StoreDetail }>(`/v1/site/stores/${encodeURIComponent(slug)}`),
+};
+
+/* ── Seller packaging (Orders page banners) ────────────────────────────── */
+
+export interface PackagingSupplier {
+  enabled: boolean;
+  shopName: string;
+  contactName: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  address: string | null;
+  website: string | null;
+  priceNote: string | null;
+  notes: string | null;
+}
+
+export interface PacketQueueItem {
+  orderId: string;
+  shipmentId: string;
+  awb: string | null;
+  carrier: string;
+  packetBarcode: string | null;
+  scannedAt: string | null;
+}
+
+export const packagingApi = {
+  labelStatus: () => get<{ pendingLabels: number }>("/v1/seller/center/packaging/label-status"),
+  supplier: () => get<{ supplier: PackagingSupplier | null }>("/v1/seller/center/packaging/supplier"),
+  packets: () => get<{ orders: PacketQueueItem[] }>("/v1/seller/center/packaging/packets"),
+  scanPacket: (orderId: string, barcode: string) =>
+    send<{ orders: PacketQueueItem[] }>("POST", `/v1/seller/center/packaging/packets/${encodeURIComponent(orderId)}`, { barcode }),
+
+  adminSupplier: () => get<{ supplier: PackagingSupplier | null }>("/v1/admin/center/packaging-supplier"),
+  saveAdminSupplier: (input: Partial<PackagingSupplier> & { shopName: string; enabled: boolean }) =>
+    send<{ supplier: PackagingSupplier }>("PUT", "/v1/admin/center/packaging-supplier", input),
+};
+
+/* ── Category requests (seller suggests, admin approves) ───────────────── */
+
+export type CategoryRequestType = "ADD" | "EDIT" | "DELETE";
+export type CategoryRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface CategoryRequest {
+  id: string;
+  type: CategoryRequestType;
+  status: CategoryRequestStatus;
+  name: string | null;
+  description: string | null;
+  reason: string;
+  category: { id: string; path: string } | null;
+  parent: { id: string; path: string } | null;
+  adminNote: string | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  sellerId: string;
+  storeName?: string | null;
+}
+
+export type CategoryRequestInput =
+  | { type: "ADD"; parentId?: string | null; name: string; description?: string; reason: string }
+  | { type: "EDIT"; categoryId: string; name: string; description?: string; reason: string }
+  | { type: "DELETE"; categoryId: string; reason: string };
+
+export const categoryRequestsApi = {
+  mine: () => get<{ requests: CategoryRequest[] }>("/v1/seller/center/category-requests"),
+  create: (input: CategoryRequestInput) => send<{ requests: CategoryRequest[] }>("POST", "/v1/seller/center/category-requests", input),
+  withdraw: (id: string) => send<{ requests: CategoryRequest[] }>("DELETE", `/v1/seller/center/category-requests/${id}`),
+  adminList: (params: { status: CategoryRequestStatus; page?: number }) =>
+    get<{ status: CategoryRequestStatus; counts: Record<CategoryRequestStatus, number>; requests: CategoryRequest[]; pagination: Pagination }>(
+      `/v1/admin/center/category-requests${qs(params)}`
+    ),
+  review: (id: string, input: { action: "APPROVE" | "REJECT"; note?: string; name?: string }) =>
+    send<unknown>("POST", `/v1/admin/center/category-requests/${id}/review`, input),
 };

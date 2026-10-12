@@ -7,6 +7,8 @@
  */
 
 import express, { Router, type NextFunction, type Request, type Response } from 'express';
+import { packetScanSchema, sellerPackagingService } from '../services/seller-center/packaging.service.js';
+import { categoryRequestSchema, categoryRequestService } from '../services/category-request.service.js';
 import { priceLockIdsSchema, priceLockService } from '../services/price-lock.service.js';
 import { z } from 'zod';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
@@ -318,6 +320,17 @@ sellerCenterRouter.post(
 sellerCenterRouter.post('/offers/:offerId/cancel', h((req) => sellerPricingService.cancelOffer(sid(req), param(req, 'offerId'))));
 
 // Ads
+// Orders page: label retry status, barcoded packaging supplier, packet scans
+sellerCenterRouter.get('/packaging/label-status', h((req) => sellerPackagingService.labelStatus(sid(req))));
+sellerCenterRouter.get('/packaging/supplier', h(() => sellerPackagingService.publicSupplier()));
+sellerCenterRouter.get('/packaging/packets', h((req) => sellerPackagingService.packetQueue(sid(req))));
+sellerCenterRouter.post('/packaging/packets/:orderId', h((req) => sellerPackagingService.recordPacket(sid(req), param(req, 'orderId'), packetScanSchema.parse(req.body))));
+
+// Category requests: sellers suggest add / rename / remove; admin approves
+sellerCenterRouter.get('/category-requests', h((req) => categoryRequestService.sellerList(sid(req))));
+sellerCenterRouter.post('/category-requests', h((req) => categoryRequestService.create(sid(req), categoryRequestSchema.parse(req.body))));
+sellerCenterRouter.delete('/category-requests/:id', h((req) => categoryRequestService.withdraw(sid(req), param(req, 'id'))));
+
 // KTMONA Price Lock: nominate lowest-price products for the storefront badge
 sellerCenterRouter.get('/price-lock', h((req) => priceLockService.sellerList(sid(req), req.query)));
 sellerCenterRouter.post('/price-lock/request', h((req) => priceLockService.sellerRequest(sid(req), priceLockIdsSchema.parse(req.body))));

@@ -124,6 +124,12 @@ export async function bookShipment(input: ShiprocketOrderInput): Promise<Shiproc
     };
 }
 
+/** Ask Shiprocket for the shipping label again (used when it failed at booking). */
+export async function generateLabel(shipmentId: string): Promise<string | null> {
+    const label = await call<{ label_url?: string }>('/courier/generate/label', { shipment_id: [shipmentId] });
+    return label.label_url ?? null;
+}
+
 export async function requestPickup(shipmentIds: string[]): Promise<void> {
     await call('/courier/generate/pickup', { shipment_id: shipmentIds });
 }

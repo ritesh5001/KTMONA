@@ -1,4 +1,5 @@
 import { createApp } from './app.js';
+import { sellerPackagingService } from './services/seller-center/packaging.service.js';
 import { env } from './config/env.js';
 import { prisma, disconnectDatabase } from './config/db.js';
 import { closeQueueResources } from './notifications/notification.queue.js';
@@ -372,6 +373,13 @@ async function bootstrap(): Promise<void> {
                 await adminPenaltiesService.runAutoCancel();
             } catch (err) {
                 logger.warn({ err }, 'Seller center sweep error');
+            }
+
+            // Courier labels Shiprocket failed to generate at booking.
+            try {
+                await sellerPackagingService.retryMissingLabels();
+            } catch (err) {
+                logger.warn({ err }, 'Label retry sweep error');
             }
         };
 

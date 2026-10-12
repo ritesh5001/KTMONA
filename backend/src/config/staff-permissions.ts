@@ -48,6 +48,8 @@ const PATH_RULES: [RegExp, StaffPermission][] = [
     [/^\/v1\/admin\/products(\/|$)/, 'catalog'],
 
     [/^\/v1\/admin\/(categories|occasions)(\/|$)/, 'categories'],
+    [/^\/v1\/admin\/center\/category-requests(\/|$)/, 'categories'],
+    [/^\/v1\/admin\/center\/packaging-supplier(\/|$)/, 'content'],
 
     [/^\/v1\/admin\/(orders|refunds|shipments|seller-claims)(\/|$)/, 'orders'],
     [/^\/v1\/admin\/center\/sla(\/|$)/, 'orders'],

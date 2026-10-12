@@ -26,6 +26,7 @@ import {
   type SellerOrder,
 } from "@/services/seller-center";
 import { supplier } from "@/services/seller-supplier";
+import { OrdersPackagingBanners } from "@/components/seller/OrdersPackagingBanners";
 import {
   Badge,
   Btn,
@@ -188,6 +189,8 @@ export default function SellerOrdersClient() {
           </>
         }
       />
+
+      <OrdersPackagingBanners />
 
       <div className="flex flex-col gap-3 rounded-2xl border border-border-soft bg-card p-4 sm:flex-row sm:items-center">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600">

@@ -17,6 +17,8 @@ import { adminPenaltiesService } from '../services/admin-center/penalties.servic
 import { campaignsService } from '../services/admin-center/campaigns.service.js';
 import { adsEnabledGuard } from './seller-center.routes.js';
 import { priceLockReviewSchema, priceLockService } from '../services/price-lock.service.js';
+import { sellerPackagingService } from '../services/seller-center/packaging.service.js';
+import { categoryRequestService, categoryReviewSchema } from '../services/category-request.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -39,6 +41,14 @@ adminCenterRouter.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
 
 // Dashboard
 adminCenterRouter.get('/dashboard', h((req) => adminOpsService.dashboard(Number(req.query.days) || 30)));
+
+// Category requests from sellers
+adminCenterRouter.get('/category-requests', h((req) => categoryRequestService.adminList(req.query)));
+adminCenterRouter.post('/category-requests/:id/review', h((req) => categoryRequestService.review(aid(req), param(req, 'id'), categoryReviewSchema.parse(req.body))));
+
+// Barcoded packaging supplier shown to sellers ("Buy Barcoded Packets")
+adminCenterRouter.get('/packaging-supplier', h(async () => ({ supplier: await sellerPackagingService.getSupplier() })));
+adminCenterRouter.put('/packaging-supplier', h((req) => sellerPackagingService.saveSupplier(req.body)));
 
 // KTMONA Price Lock review queue
 adminCenterRouter.get('/price-lock', h((req) => priceLockService.adminQueue(req.query)));
