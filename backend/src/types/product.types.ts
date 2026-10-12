@@ -311,7 +311,8 @@ export interface PaginatedResponse<T> {
  * Category list response
  */
 export interface CategoryListResponse {
-    categories: CategoryEntity[];
+    /** `productCount` is set on the storefront (`?visible=1`) list only. */
+    categories: (CategoryEntity & { productCount?: number })[];
 }
 
 /**

@@ -53,7 +53,7 @@ export function findBySlug(roots: CategoryNode[], slug: string): { node: Categor
 export function useCategoryTree() {
   const q = useQuery({
     queryKey: ["storefront", "categories"],
-    queryFn: () => apiRequest<{ categories: FlatCategory[] }>("/v1/categories", { method: "GET" }),
+    queryFn: () => apiRequest<{ categories: FlatCategory[] }>("/v1/categories?visible=1", { method: "GET" }),
     staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     networkMode: "offlineFirst",

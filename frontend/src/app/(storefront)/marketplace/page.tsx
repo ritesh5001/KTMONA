@@ -63,7 +63,7 @@ async function fetchCategories() {
   if (!API_BASE_URL) {
     return [] as CategoryItem[];
   }
-  const response = await fetch(`${API_BASE_URL}/v1/categories`, {
+  const response = await fetch(`${API_BASE_URL}/v1/categories?visible=1`, {
     next: { revalidate: MARKETPLACE_REVALIDATE_SECONDS, tags: [CACHE_TAGS.categories] },
   });
   if (!response.ok) {

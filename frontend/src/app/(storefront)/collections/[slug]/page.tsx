@@ -13,7 +13,7 @@ const COLLECTION_REVALIDATE_SECONDS = 300;
 async function loadTree(): Promise<CategoryNode[]> {
   if (!API_BASE_URL) return [];
   try {
-    const response = await fetch(`${API_BASE_URL}/v1/categories`, {
+    const response = await fetch(`${API_BASE_URL}/v1/categories?visible=1`, {
       next: { revalidate: COLLECTION_REVALIDATE_SECONDS, tags: [CACHE_TAGS.categories] },
     });
     if (!response.ok) return [];

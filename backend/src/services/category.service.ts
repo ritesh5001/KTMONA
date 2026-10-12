@@ -3,10 +3,11 @@ import {
     getFromCache,
     setCache,
     CACHE_KEYS,
-    invalidateCache,
+    invalidateCategoryCache,
 } from '../utils/cache.util.js';
 import type { CategoryListResponse } from '../types/product.types.js';
 import { ApiError } from '../errors/ApiError.js';
+import { prisma } from '../config/db.js';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS, collectionTag } from '../live/cache-tags.js';
 
@@ -63,6 +64,66 @@ export class CategoryService {
     }
 
     /**
+     * Storefront categories (GET /v1/categories?visible=1).
+     *
+     * Hides every category with no live product in it or below it, and puts the
+     * categories whose newest product is most recent first (siblings re-ranked
+     * through `sortOrder`, which the website and app already sort by). Seller and
+     * admin pickers keep using the full list, so empty categories stay listable.
+     * Cached briefly so a newly approved product shows up within a couple of minutes.
+     */
+    async listVisibleCategories(): Promise<CategoryListResponse> {
+        const cached = await getFromCache<CategoryListResponse>(CACHE_KEYS.CATEGORIES_VISIBLE);
+        if (cached) return cached;
+
+        const { categories } = await this.listCategories();
+        // Same rule as the storefront product list (productRepository.findPublished).
+        const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint; latest: Date }[]>`
+            SELECT p."category_id" AS "categoryId", COUNT(*) AS "count", MAX(p."created_at") AS "latest"
+            FROM "products" p
+            WHERE p."status" = 'APPROVED'
+              AND p."deleted_by_admin" = false
+              AND EXISTS (
+                  SELECT 1 FROM "product_variants" pv
+                  WHERE pv."product_id" = p."id" AND pv."status" = 'APPROVED'
+              )
+            GROUP BY p."category_id"`;
+
+        const byId = new Map(categories.map((c) => [c.id, c]));
+        const count = new Map<string, number>();
+        const latest = new Map<string, number>();
+        for (const row of rows) {
+            // Credit the category and every ancestor (a parent shows if any child has stock).
+            let id: string | null = row.categoryId;
+            for (let guard = 0; id && guard < 10; guard++) {
+                count.set(id, (count.get(id) ?? 0) + Number(row.count));
+                latest.set(id, Math.max(latest.get(id) ?? 0, new Date(row.latest).getTime()));
+                id = byId.get(id)?.parentId ?? null;
+            }
+        }
+
+        // Visible = has products and every ancestor is active (in the list) too.
+        const visible = categories.filter((c) => {
+            if (!count.get(c.id)) return false;
+            let parent = c.parentId;
+            for (let guard = 0; parent && guard < 10; guard++) {
+                const p = byId.get(parent);
+                if (!p) return false;
+                parent = p.parentId;
+            }
+            return true;
+        });
+
+        // Newest stock first; the admin's order breaks ties.
+        visible.sort((a, b) => (latest.get(b.id)! - latest.get(a.id)!) || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+        const response: CategoryListResponse = {
+            categories: visible.map((c, index) => ({ ...c, sortOrder: index, productCount: count.get(c.id)! })),
+        };
+        await setCache(CACHE_KEYS.CATEGORIES_VISIBLE, response, 120);
+        return response;
+    }
+
+    /**
      * List all categories for admin (active + inactive)
      */
     async listAllCategories(): Promise<CategoryListResponse> {
@@ -99,7 +160,7 @@ export class CategoryService {
         const slug = await this.getUniqueSlug(baseSlug);
         const created = await this.repository.create({ ...input, slug });
 
-        await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+        await invalidateCategoryCache();
         await dispatchFreshness({
             type: 'catalog.updated',
             tags: [CACHE_TAGS.categories, CACHE_TAGS.products, CACHE_TAGS.search, collectionTag(slug)],
@@ -152,7 +213,7 @@ export class CategoryService {
             ...(slug ? { slug } : {}),
         });
 
-        await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+        await invalidateCategoryCache();
         await dispatchFreshness({
             type: 'catalog.updated',
             tags: [
@@ -183,7 +244,7 @@ export class CategoryService {
 
         await this.repository.purgeSoftDeletedProducts(id);
         await this.repository.delete(id);
-        await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+        await invalidateCategoryCache();
         await dispatchFreshness({
             type: 'catalog.updated',
             tags: [
@@ -206,7 +267,7 @@ export class CategoryService {
         }
 
         const updated = await this.repository.update(id, { isActive: !category.isActive });
-        await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+        await invalidateCategoryCache();
         await dispatchFreshness({
             type: 'catalog.updated',
             tags: [
@@ -230,7 +291,7 @@ export class CategoryService {
         }
 
         const updated = await this.repository.update(id, { isActive: false });
-        await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+        await invalidateCategoryCache();
         await dispatchFreshness({
             type: 'catalog.updated',
             tags: [

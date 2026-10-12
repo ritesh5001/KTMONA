@@ -27,6 +27,17 @@ export async function getCategories(): Promise<CategoryListResponse> {
   });
 }
 
+/**
+ * Storefront categories: only ones with live products, newest stock first.
+ * Seller and admin pickers must keep using getCategories() (the full list).
+ */
+export async function getStorefrontCategories(): Promise<CategoryListResponse> {
+  return apiRequest<CategoryListResponse>("/v1/categories?visible=1", {
+    method: "GET",
+    next: { revalidate: 120, tags: [CACHE_TAGS.categories] },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Single product (client-side)
 // ---------------------------------------------------------------------------

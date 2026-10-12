@@ -86,7 +86,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     let categoryRoutes: MetadataRoute.Sitemap = [];
     try {
         if (API_BASE_URL) {
-            const res = await fetch(`${API_BASE_URL}/v1/categories`, {
+            const res = await fetch(`${API_BASE_URL}/v1/categories?visible=1`, {
                 next: { revalidate: 3600 },
             });
             if (res.ok) {

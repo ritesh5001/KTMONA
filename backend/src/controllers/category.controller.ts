@@ -10,15 +10,18 @@ export class CategoryController {
 
     /**
      * GET /v1/categories
-     * List all active categories
+     * List all active categories; `?visible=1` returns only categories with
+     * live products, newest stock first (storefront menus and grids).
      */
     listCategories = async (
-        _req: Request,
+        req: Request,
         res: Response,
         next: NextFunction
     ): Promise<void> => {
         try {
-            const result = await this.service.listCategories();
+            const result = req.query.visible === '1'
+                ? await this.service.listVisibleCategories()
+                : await this.service.listCategories();
             res.status(200).json(result);
         } catch (error) {
             next(error);

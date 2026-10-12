@@ -140,7 +140,7 @@ async function fetchHomeData<T>(path: string, tags: string[]): Promise<T | null>
 
 export default async function Home() {
   const [categories, banners] = await Promise.all([
-    fetchHomeData<CategoryListResponse>("/v1/categories", [CACHE_TAGS.categories]),
+    fetchHomeData<CategoryListResponse>("/v1/categories?visible=1", [CACHE_TAGS.categories]),
     fetchHomeData<{ data?: { hero: HomeBanner[]; promo: HomeBanner | null } }>("/v1/storefront/banners", [CACHE_TAGS.storefront]),
   ]);
   const tree = buildCategoryTree(categories?.categories);

@@ -11,6 +11,8 @@ import {
 export const CACHE_KEYS = {
     // Category & Product domain
     CATEGORIES_LIST: 'categories:list',
+    /** Storefront list: only categories with live products, newest stock first. */
+    CATEGORIES_VISIBLE: 'categories:visible',
     PRODUCTS_LIST: 'products:list',
     PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string, extra?: string) =>
         `products:list:${page}:${limit}:${categoryId ?? '_'}:${search ?? '_'}:${occasion ?? '_'}${extra ? `:${extra}` : ''}`,
@@ -134,6 +136,8 @@ export async function invalidateProductCaches(productId?: string): Promise<void>
         invalidateCacheByPattern('products:list:*'),
         invalidateCacheByPattern('products:seller:*'),
         invalidateCacheByPattern('search:*'),
+        // A category appears on the storefront once it has a live product.
+        invalidateCache(CACHE_KEYS.CATEGORIES_VISIBLE),
     ];
 
     if (productId) {
@@ -171,5 +175,5 @@ export async function invalidateSellerPrivateCaches(sellerId: string): Promise<v
  * Invalidate category cache
  */
 export async function invalidateCategoryCache(): Promise<void> {
-    await invalidateCache(CACHE_KEYS.CATEGORIES_LIST);
+    await Promise.all([invalidateCache(CACHE_KEYS.CATEGORIES_LIST), invalidateCache(CACHE_KEYS.CATEGORIES_VISIBLE)]);
 }

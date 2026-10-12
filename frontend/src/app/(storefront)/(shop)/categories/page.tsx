@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getCategories } from "@/services/catalog";
+import { getStorefrontCategories } from "@/services/catalog";
 import { buildCategoryTree, categoryHref, type CategoryNode } from "@/lib/category-tree";
 import { CategoryArt } from "@/components/storefront/category-visuals";
 import { SITE_URL } from "@/lib/site-config";
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 export default async function CategoriesPage() {
   let tree: CategoryNode[] = [];
   try {
-    tree = buildCategoryTree((await getCategories()).categories);
+    tree = buildCategoryTree((await getStorefrontCategories()).categories);
   } catch (err) {
     console.error("Failed to load categories", err);
   }
