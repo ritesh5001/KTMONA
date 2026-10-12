@@ -36,15 +36,14 @@ export const SELLER_PORTAL_URL = normalizeOrigin(
 export const BRAND_NAME = "KTMONA";
 export const BRAND_TAGLINE = "Trust Every Click";
 export const BRAND_FULL_FORM = "Knowledge, Trust & More Online Network Access";
-export const COMPANY_ADDRESS = "A-740, Vinay Nagar, Agwanpur, Faridabad, Haryana 121013, India";
+export const COMPANY_ADDRESS = "Faridabad, Haryana 121013, India";
 export const COMPANY_ADDRESS_LINES = [
   "KTMONA",
-  "A-740, Vinay Nagar, Agwanpur",
   "Faridabad, Haryana 121013",
   "India",
 ] as const;
 
-const DEFAULT_CONTACT_EMAIL = "monika99skb@gmail.com";
+const DEFAULT_CONTACT_EMAIL = "support@ktmona.com";
 
 export const SUPPORT_EMAIL = (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? DEFAULT_CONTACT_EMAIL)
   .trim();
@@ -56,9 +55,9 @@ export const SELLER_SUPPORT_EMAIL = (process.env.NEXT_PUBLIC_SELLER_SUPPORT_EMAI
   .trim();
 export const PARTNERSHIP_EMAIL = (process.env.NEXT_PUBLIC_PARTNERSHIP_EMAIL ?? DEFAULT_CONTACT_EMAIL)
   .trim();
-export const SUPPORT_PHONE_DISPLAY = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY ?? "+91-8766211837")
+export const SUPPORT_PHONE_DISPLAY = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY ?? "+91-7503304533")
   .trim();
-export const SUPPORT_PHONE_DIAL = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DIAL ?? "+918766211837")
+export const SUPPORT_PHONE_DIAL = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DIAL ?? "+917503304533")
   .trim();
 
 const explicitCookieDomain = (process.env.NEXT_PUBLIC_COOKIE_DOMAIN ?? "")

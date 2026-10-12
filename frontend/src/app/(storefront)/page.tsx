@@ -70,7 +70,6 @@ const organizationJsonLd = {
   telephone: SUPPORT_PHONE_DIAL,
   address: {
     "@type": "PostalAddress",
-    streetAddress: "A-740, Vinay Nagar, Agwanpur",
     addressLocality: "Faridabad",
     addressRegion: "Haryana",
     postalCode: "121013",

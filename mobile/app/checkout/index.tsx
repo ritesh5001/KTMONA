@@ -780,7 +780,7 @@ export default function CheckoutScreen() {
             <FieldLabel required>Phone</FieldLabel>
             <TextInput
               style={styles.input}
-              placeholder="+91 87662 11837"
+              placeholder="+91 75033 04533"
               placeholderTextColor={colors.brownSoft}
               keyboardType="phone-pad"
               value={shipping.phone}

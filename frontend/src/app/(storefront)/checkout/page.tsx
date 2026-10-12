@@ -594,7 +594,7 @@ function NativeCheckout() {
                     <Label htmlFor="phone" required>Phone</Label>
                     <Input
                       id="phone"
-                      placeholder="+91 87662 11837"
+                      placeholder="+91 75033 04533"
                       value={shipping.phone}
                       onChange={(event) =>
                         setShipping((prev) => ({
