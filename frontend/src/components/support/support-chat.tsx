@@ -276,7 +276,7 @@ export default function SupportChat({
             setNewSubject("");
             setNewMessage("");
             setNewCategory("OTHER");
-            toast.success("Support request raised.");
+            toast.success(ticket.ticketCode ? `Ticket ${ticket.ticketCode} raised. Quote this ID when you contact us.` : "Support request raised.", { duration: 8000 });
         } catch (error) {
             toast.error(
                 error instanceof Error ? error.message : "Unable to raise the request"
@@ -369,8 +369,13 @@ export default function SupportChat({
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-2">
-                                        <span className="text-sm font-medium text-foreground line-clamp-1">
-                                            {ticket.subject}
+                                        <span className="min-w-0">
+                                            {ticket.ticketCode ? (
+                                                <span className="block font-mono text-[10px] font-semibold text-brand-strong">{ticket.ticketCode}</span>
+                                            ) : null}
+                                            <span className="text-sm font-medium text-foreground line-clamp-1">
+                                                {ticket.subject}
+                                            </span>
                                         </span>
                                         {ticket.unreadCount > 0 && (
                                             <span className="min-w-5 rounded-full bg-brand px-1.5 py-0.5 text-center text-[10px] font-semibold text-ink">
@@ -414,6 +419,9 @@ export default function SupportChat({
                         <>
                             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border-soft p-4">
                                 <div className="space-y-1">
+                                    {activeTicket.ticketCode ? (
+                                        <p className="font-mono text-xs font-semibold text-brand-strong">Ticket ID: {activeTicket.ticketCode}</p>
+                                    ) : null}
                                     <p className="font-serif text-lg font-light text-foreground">
                                         {activeTicket.subject}
                                     </p>

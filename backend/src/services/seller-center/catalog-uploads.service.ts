@@ -5,6 +5,7 @@
  */
 
 import ExcelJS from 'exceljs';
+import { categoryAttributeService } from '../category-attribute.service.js';
 import { CatalogUploadMode, Prisma } from '@prisma/client';
 import { prisma } from '../../config/db.js';
 import { ApiError } from '../../errors/ApiError.js';
@@ -230,6 +231,15 @@ class SellerCatalogUploadsService {
         }
         const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true, externalId: true, isActive: true } });
         if (!category || !category.isActive) throw ApiError.badRequest('Pick an active category');
+
+        // Admin-configured required fields (Category Builder) must be filled.
+        const { fields } = await categoryAttributeService.resolve(category.id);
+        if (fields) {
+            for (const [index, p] of input.products.entries()) {
+                const missing = fields.find((f) => f.required && !String(p.attributes?.[f.key] ?? '').trim());
+                if (missing) throw ApiError.badRequest(`Product ${index + 1}: ${missing.label} is required`);
+            }
+        }
 
         let upload = input.draftId
             ? await prisma.catalogUpload.findFirst({ where: { id: input.draftId, sellerId, isDraft: true } })

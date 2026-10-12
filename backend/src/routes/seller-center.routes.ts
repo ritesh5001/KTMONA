@@ -7,6 +7,7 @@
  */
 
 import express, { Router, type NextFunction, type Request, type Response } from 'express';
+import { categoryAttributeService } from '../services/category-attribute.service.js';
 import { packetScanSchema, sellerPackagingService } from '../services/seller-center/packaging.service.js';
 import { categoryRequestSchema, categoryRequestService } from '../services/category-request.service.js';
 import { priceLockIdsSchema, priceLockService } from '../services/price-lock.service.js';
@@ -325,6 +326,9 @@ sellerCenterRouter.get('/packaging/label-status', h((req) => sellerPackagingServ
 sellerCenterRouter.get('/packaging/supplier', h(() => sellerPackagingService.publicSupplier()));
 sellerCenterRouter.get('/packaging/packets', h((req) => sellerPackagingService.packetQueue(sid(req))));
 sellerCenterRouter.post('/packaging/packets/:orderId', h((req) => sellerPackagingService.recordPacket(sid(req), param(req, 'orderId'), packetScanSchema.parse(req.body))));
+
+// Admin-defined product-detail fields for a category's catalog form
+sellerCenterRouter.get('/category-fields/:categoryId', h((req) => categoryAttributeService.resolve(param(req, 'categoryId'))));
 
 // Category requests: sellers suggest add / rename / remove; admin approves
 sellerCenterRouter.get('/category-requests', h((req) => categoryRequestService.sellerList(sid(req))));

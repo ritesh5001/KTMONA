@@ -7,6 +7,8 @@ export interface AttributeDef {
   required?: boolean;
   options?: string[];
   placeholder?: string;
+  /** Number-only text box (admin "Number" fields). */
+  numeric?: boolean;
 }
 
 const COLORS = ["Black", "White", "Red", "Maroon", "Pink", "Peach", "Orange", "Yellow", "Mustard", "Green", "Olive", "Teal", "Blue", "Navy Blue", "Sky Blue", "Purple", "Lavender", "Grey", "Brown", "Beige", "Cream", "Gold", "Silver", "Multicolor"];

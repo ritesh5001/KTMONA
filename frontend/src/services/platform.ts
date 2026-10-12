@@ -127,6 +127,8 @@ export const ADMIN_PAGE_PERMISSION: Record<string, StaffPermission> = {
   "/admin/categories": "categories",
   "/admin/occasions": "categories",
   "/admin/category-requests": "categories",
+  "/admin/category-builder": "categories",
+  "/admin/founders": "content",
   "/admin/packaging-supplier": "content",
   "/admin/orders": "orders",
   "/admin/cancellations": "orders",
@@ -407,4 +409,45 @@ export const categoryRequestsApi = {
     ),
   review: (id: string, input: { action: "APPROVE" | "REJECT"; note?: string; name?: string }) =>
     send<unknown>("POST", `/v1/admin/center/category-requests/${id}/review`, input),
+};
+
+/* ── Catalog form fields per category (admin-managed) ───────────────────── */
+
+export type CategoryFieldType = "SELECT" | "TEXT" | "NUMBER";
+
+export interface CategoryField {
+  key?: string;
+  label: string;
+  type: CategoryFieldType;
+  options: string[];
+  required: boolean;
+  placeholder: string | null;
+}
+
+export const categoryFieldsApi = {
+  /** Seller form: fields for this category (null = use built-in defaults). */
+  resolve: (categoryId: string) =>
+    get<{ fields: CategoryField[] | null; source: { id: string; name: string } | null }>(`/v1/seller/center/category-fields/${categoryId}`),
+  adminGet: (categoryId: string) =>
+    get<{ own: CategoryField[]; inherited: { fields: CategoryField[]; from: { id: string; name: string } } | null }>(
+      `/v1/admin/center/category-fields/${categoryId}`
+    ),
+  adminSave: (categoryId: string, fields: CategoryField[]) =>
+    send<{ own: CategoryField[]; inherited: unknown }>("PUT", `/v1/admin/center/category-fields/${categoryId}`, { fields }),
+};
+
+/* ── About page founders ────────────────────────────────────────────────── */
+
+export interface Founder {
+  name: string;
+  title: string;
+  bio: string;
+  quote: string | null;
+  photoUrl: string | null;
+}
+
+export const foundersApi = {
+  list: () => get<{ founders: Founder[] }>("/v1/site/founders"),
+  adminList: () => get<{ founders: Founder[] }>("/v1/admin/site/founders"),
+  save: (founders: Founder[]) => send<{ founders: Founder[] }>("PUT", "/v1/admin/site/founders", { founders }),
 };

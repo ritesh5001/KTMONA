@@ -134,6 +134,7 @@ export default function SupportInboxScreen() {
       setMessage("");
       setCategory("OTHER");
       setSelectedOrderId(null);
+      if (ticket.ticketCode) showToast(`Ticket ${ticket.ticketCode} raised`, "success");
       router.push({
         pathname: "/support/[id]",
         params: { id: ticket.id, subject: ticket.subject, status: ticket.status },
@@ -221,7 +222,7 @@ export default function SupportInboxScreen() {
           >
             <View style={styles.rowTop}>
               <Text style={styles.rowSubject} numberOfLines={1}>
-                {item.subject}
+                {item.ticketCode ? `${item.ticketCode} · ` : ""}{item.subject}
               </Text>
               {item.unreadCount > 0 ? (
                 <View style={styles.badge}>

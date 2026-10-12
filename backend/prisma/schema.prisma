@@ -1471,6 +1471,8 @@ enum SupportTicketCategory {
 /// from a single indexed read instead of aggregating messages per ticket.
 model SupportTicket {
   id                 String                @id @default(cuid())
+  /// Human ticket number shown as "KTM-T000123" (assigned by Postgres).
+  ticketNumber       Int                   @unique @default(autoincrement()) @map("ticket_number")
   requesterId        String                @map("requester_id")
   requesterRole      Role                  @map("requester_role")
   assigneeId         String?               @map("assignee_id")
@@ -1965,4 +1967,27 @@ model CategoryRequest {
   @@index([status, createdAt])
   @@index([sellerId, createdAt])
   @@map("category_requests")
+}
+
+/// Admin-defined "Product Details" fields for a category's catalog form
+/// (Color, Fabric, Neck…). Sub-categories without their own fields use the
+/// nearest parent's; with none anywhere, the built-in defaults apply.
+model CategoryAttribute {
+  id          String   @id @default(cuid())
+  categoryId  String   @map("category_id")
+  /// Stored key on the product (shown to admins, kept stable).
+  key         String
+  label       String
+  /// SELECT | TEXT | NUMBER
+  type        String   @default("SELECT")
+  options     String[] @default([])
+  required    Boolean  @default(false)
+  placeholder String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([categoryId, key])
+  @@index([categoryId, sortOrder])
+  @@map("category_attributes")
 }

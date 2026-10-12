@@ -13,6 +13,7 @@ import { Btn, Field, errorMessage, inputCls } from "@/components/seller/kit";
 import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/components/seller/CategoryColumns";
 import { IMAGE_SLOTS, LEGAL_FIELDS, NOT_ALLOWED_IMAGES, attributesFor, sizePresetsFor, type AttributeDef } from "@/components/seller/catalog-attributes";
 import { cn } from "@/lib/utils";
+import { categoryFieldsApi } from "@/services/platform";
 
 const MAX_PRODUCTS = 9;
 
@@ -128,7 +129,22 @@ export default function AddSingleCatalogPage() {
 
   const path = categoryId ? (byId.get(categoryId)?.path ?? []) : [];
   const pathNames = path.map((n) => n.name);
-  const attrs = React.useMemo(() => attributesFor(pathNames), [pathNames.join("/")]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Fields the admin set for this category (Category Builder); built-in ones otherwise.
+  const { data: remoteFields } = useSWR(categoryId ? ["category-fields", categoryId] : null, () => categoryFieldsApi.resolve(categoryId!), { revalidateOnFocus: false });
+  const attrs = React.useMemo<AttributeDef[]>(
+    () =>
+      remoteFields?.fields
+        ? remoteFields.fields.map((f) => ({
+            key: f.key ?? f.label,
+            label: f.label,
+            required: f.required,
+            ...(f.type === "SELECT" ? { options: f.options } : {}),
+            ...(f.placeholder ? { placeholder: f.placeholder } : {}),
+            ...(f.type === "NUMBER" ? { numeric: true } : {}),
+          }))
+        : attributesFor(pathNames),
+    [remoteFields, pathNames.join("/")] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const presets = React.useMemo(() => sizePresetsFor(pathNames), [pathNames.join("/")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const earn = (price: string) => {
@@ -537,7 +553,13 @@ function AttrInput({ def, value, onChange }: { def: AttributeDef; value: string;
           ))}
         </select>
       ) : (
-        <input className={inputCls} value={value} placeholder={def.placeholder} onChange={(e) => onChange(e.target.value)} />
+        <input
+          className={inputCls}
+          value={value}
+          placeholder={def.placeholder}
+          inputMode={def.numeric ? "decimal" : undefined}
+          onChange={(e) => onChange(def.numeric ? e.target.value.replace(/[^\d.]/g, "") : e.target.value)}
+        />
       )}
     </Field>
   );

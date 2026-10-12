@@ -249,7 +249,7 @@ function TicketForm({ topic, issue, onDone }: { topic: HelpTopic; issue: HelpIss
         .map((f) => `${f.label}: ${files[f.key]!.join(" ")}`);
       const message = [...lines, ...(fileLines.length ? ["", ...fileLines] : [])].join("\n").slice(0, 4000);
       const orderRef = values.orderId?.trim().replace(/^#/, "") || null;
-      await createSupportTicket({
+      const created = await createSupportTicket({
         subject: issue.title.slice(0, 200),
         category: topic.category,
         orderId: orderRef,
@@ -270,7 +270,7 @@ function TicketForm({ topic, issue, onDone }: { topic: HelpTopic; issue: HelpIss
           claimNote = ` (Claim not filed: ${errorMessage(err)})`;
         }
       }
-      toast.success(`Ticket raised.${claimNote}`);
+      toast.success(`Ticket ${created.ticket.ticketCode ?? ""} raised.${claimNote}`.replace("  ", " "), { duration: 8000 });
       onDone();
     } catch (err) {
       toast.error(errorMessage(err, "Could not raise the ticket"));

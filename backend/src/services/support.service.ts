@@ -59,6 +59,7 @@ const toParticipant = (user: ParticipantRow | null | undefined) => {
 
 const ticketSelect = {
     id: true,
+    ticketNumber: true,
     requesterId: true,
     requesterRole: true,
     assigneeId: true,
@@ -91,8 +92,13 @@ const messageSelect = {
 
 type MessageRow = Prisma.SupportMessageGetPayload<{ select: typeof messageSelect }>;
 
+/** "KTM-T000123": the ticket ID shoppers and sellers quote to support. */
+export const ticketCode = (n: number) => `KTM-T${String(n).padStart(6, '0')}`;
+
 const toTicketResponse = (ticket: TicketRow, viewerIsAdmin: boolean) => ({
     id: ticket.id,
+    ticketNumber: ticket.ticketNumber,
+    ticketCode: ticketCode(ticket.ticketNumber),
     subject: ticket.subject,
     category: ticket.category,
     status: ticket.status,

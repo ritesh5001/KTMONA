@@ -9,13 +9,36 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
     { id: "our-story", title: "Our Story" },
-    { id: "founder", title: "Meet Our Founder" },
+    { id: "founder", title: "Founders" },
     { id: "our-mission", title: "Our Mission" },
     { id: "why-choose-us", title: "Why Choose Us" },
     { id: "head-office", title: "Head Office" },
 ];
 
-export default function AboutPage() {
+interface Founder {
+    name: string;
+    title: string;
+    bio: string;
+    quote: string | null;
+    photoUrl: string | null;
+}
+
+/** Admin → About Us: Founders. Re-read every few minutes. */
+async function getFounders(): Promise<Founder[]> {
+    const api = process.env.NEXT_PUBLIC_API_BASE_URL;
+    if (!api) return [];
+    try {
+        const res = await fetch(`${api}/v1/site/founders`, { next: { revalidate: 300 } });
+        if (!res.ok) return [];
+        const body = (await res.json()) as { data?: { founders?: Founder[] } };
+        return body.data?.founders ?? [];
+    } catch {
+        return [];
+    }
+}
+
+export default async function AboutPage() {
+    const founders = await getFounders();
     return (
         <LegalPageLayout
             title="About Us"
@@ -32,18 +55,30 @@ export default function AboutPage() {
                 </p>
             </section>
 
-            <section id="founder">
-                <p className="!mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-strong">Meet Our Founder</p>
-                <h2 className="!mt-0">Mr. Kuldeep Yadav</h2>
-                <p><strong>Founder &amp; CEO, KTMONA</strong></p>
-                <p>
-                    With a vision to make online shopping simple, reliable and accessible for everyone, Mr. Kuldeep Yadav founded KTMONA with a strong belief in the power of technology and community. His goal is to create a platform where customers get the best products at great prices and sellers get the right support to grow their business.
-                </p>
-                <blockquote>
-                    &ldquo;My dream is to build a platform that brings trust, convenience and opportunity &mdash; for every customer and every seller.&rdquo;
-                    <footer>&mdash; Mr. Kuldeep Yadav, Founder &amp; CEO, KTMONA</footer>
-                </blockquote>
-            </section>
+            {founders.length ? (
+                <section id="founder">
+                    <p className="!mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-strong">
+                        {founders.length === 1 ? "Meet Our Founder" : "Meet Our Founders"}
+                    </p>
+                    {founders.map((f) => (
+                        <div key={f.name} className="mb-8">
+                            {f.photoUrl ? (
+                                 
+                                <img src={f.photoUrl} alt={f.name} className="!my-3 h-28 w-28 rounded-full object-cover" />
+                            ) : null}
+                            <h2 className="!mt-0">{f.name}</h2>
+                            {f.title ? <p><strong>{f.title}</strong></p> : null}
+                            {f.bio ? <p className="whitespace-pre-line">{f.bio}</p> : null}
+                            {f.quote ? (
+                                <blockquote>
+                                    &ldquo;{f.quote}&rdquo;
+                                    <footer>&mdash; {f.name}{f.title ? `, ${f.title}` : ""}</footer>
+                                </blockquote>
+                            ) : null}
+                        </div>
+                    ))}
+                </section>
+            ) : null}
 
             <section id="our-mission">
                 <h2>Our Mission</h2>

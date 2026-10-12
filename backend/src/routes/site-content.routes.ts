@@ -10,7 +10,7 @@ import { z } from 'zod';
 import { authenticate, authorize, optionalAuthenticate } from '../middlewares/auth.middleware.js';
 import { ApiError } from '../errors/ApiError.js';
 import { redis } from '../config/redis.js';
-import { siteContentService } from '../services/site-content.service.js';
+import { foundersService, siteContentService } from '../services/site-content.service.js';
 import { storeService } from '../services/store.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown> | unknown;
@@ -49,6 +49,7 @@ function formRateLimit(bucket: string) {
 
 export const sitePublicRouter = Router();
 sitePublicRouter.get('/links', h(() => siteContentService.getLinks()));
+sitePublicRouter.get('/founders', h(() => foundersService.list()));
 /** Public shops: list, and one shop's page. */
 sitePublicRouter.get('/stores', h((req) => storeService.list(req.query)));
 sitePublicRouter.get('/stores/:slug', h((req) => storeService.getBySlug(param(req, 'slug'))));
@@ -63,6 +64,8 @@ sitePublicRouter.post('/investors', formRateLimit('investors'), h((req) => siteC
 
 export const siteAdminRouter = Router();
 siteAdminRouter.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
+siteAdminRouter.get('/founders', h(() => foundersService.list()));
+siteAdminRouter.put('/founders', h((req) => foundersService.save(req.body)));
 siteAdminRouter.get('/links', h(() => siteContentService.getLinks()));
 siteAdminRouter.put('/links', h((req) => siteContentService.saveLinks(req.body)));
 siteAdminRouter.get('/jobs', h(() => siteContentService.adminJobs()));

@@ -246,3 +246,54 @@ export const siteContentService = {
         });
     },
 };
+
+// ── About page founders ────────────────────────────────────────────────────
+
+const FOUNDERS_KEY = 'site.founders';
+
+export const founderSchema = z.object({
+    name: z.string().trim().min(2, 'Enter the name').max(120),
+    title: z.string().trim().max(120).default(''),
+    bio: z.string().trim().max(3000).default(''),
+    quote: z.string().trim().max(600).nullable().optional().transform((v) => (v ? v : null)),
+    photoUrl: z
+        .string()
+        .trim()
+        .max(1000)
+        .refine((v) => v === '' || /^https:\/\//i.test(v), 'Photo must be an https:// link')
+        .nullable()
+        .optional()
+        .transform((v) => (v ? v : null)),
+});
+
+export const foundersSchema = z.object({ founders: z.array(founderSchema).max(12) });
+export type Founder = z.infer<typeof founderSchema>;
+
+/** Shown until an admin saves the list (then the saved list, even if empty). */
+const DEFAULT_FOUNDERS: Founder[] = [
+    {
+        name: 'Mr. Kuldeep Yadav',
+        title: 'Founder & CEO, KTMONA',
+        bio: 'With a vision to make online shopping simple, reliable and accessible for everyone, Mr. Kuldeep Yadav founded KTMONA with a strong belief in the power of technology and community. His goal is to create a platform where customers get the best products at great prices and sellers get the right support to grow their business.',
+        quote: 'My dream is to build a platform that brings trust, convenience and opportunity — for every customer and every seller.',
+        photoUrl: null,
+    },
+];
+
+export const foundersService = {
+    async list(): Promise<{ founders: Founder[] }> {
+        const row = await prisma.appSetting.findUnique({ where: { key: FOUNDERS_KEY } });
+        if (!row) return { founders: DEFAULT_FOUNDERS };
+        try {
+            return foundersSchema.parse(JSON.parse(row.value));
+        } catch {
+            return { founders: DEFAULT_FOUNDERS };
+        }
+    },
+    async save(input: unknown) {
+        const data = foundersSchema.parse(input);
+        const value = JSON.stringify(data);
+        await prisma.appSetting.upsert({ where: { key: FOUNDERS_KEY }, create: { key: FOUNDERS_KEY, value }, update: { value } });
+        return data;
+    },
+};

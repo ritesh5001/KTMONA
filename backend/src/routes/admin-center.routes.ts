@@ -19,6 +19,7 @@ import { adsEnabledGuard } from './seller-center.routes.js';
 import { priceLockReviewSchema, priceLockService } from '../services/price-lock.service.js';
 import { sellerPackagingService } from '../services/seller-center/packaging.service.js';
 import { categoryRequestService, categoryReviewSchema } from '../services/category-request.service.js';
+import { categoryAttributeService, categoryFieldsSchema } from '../services/category-attribute.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -41,6 +42,10 @@ adminCenterRouter.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
 
 // Dashboard
 adminCenterRouter.get('/dashboard', h((req) => adminOpsService.dashboard(Number(req.query.days) || 30)));
+
+// Catalog form fields per category
+adminCenterRouter.get('/category-fields/:categoryId', h((req) => categoryAttributeService.adminGet(param(req, 'categoryId'))));
+adminCenterRouter.put('/category-fields/:categoryId', h((req) => categoryAttributeService.save(param(req, 'categoryId'), categoryFieldsSchema.parse(req.body))));
 
 // Category requests from sellers
 adminCenterRouter.get('/category-requests', h((req) => categoryRequestService.adminList(req.query)));

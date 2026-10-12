@@ -23,6 +23,8 @@ export interface SupportParticipant {
 
 export interface SupportTicket {
   id: string;
+  /** Ticket ID to quote to support, e.g. "KTM-T000123". */
+  ticketCode?: string;
   subject: string;
   category: SupportTicketCategory;
   status: SupportTicketStatus;

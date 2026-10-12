@@ -179,7 +179,7 @@ export default function SupportThreadScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <AppHeader title={headerSubject} />
+      <AppHeader title={headerSubject} subtitle={ticket?.ticketCode ? `Ticket ID: ${ticket.ticketCode}` : undefined} />
 
       {headerStatus ? (
         <Text style={styles.status}>{SUPPORT_STATUS_LABELS[headerStatus]}</Text>
