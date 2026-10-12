@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { SITE_URL } from "@/lib/site-config";
 import { NavigationProgress } from "@/components/navigation/NavigationProgress";
+import { Toaster } from "@/components/ui/sonner";
 
 const API_ORIGIN = (() => {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
@@ -136,6 +137,8 @@ export default function RootLayout({
           }}
         />
         {children}
+        {/* One toast host for every page: storefront, auth, seller and admin. */}
+        <Toaster />
         <Suspense fallback={null}>
           <NavigationProgress />
         </Suspense>

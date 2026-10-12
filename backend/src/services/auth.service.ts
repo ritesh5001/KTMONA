@@ -134,7 +134,7 @@ export class AuthService {
         const exists = await this.repository.existsByEmailOrPhone(email, phone);
         if (exists) {
             this.logger.warn({ email: data.email, phone }, 'register_user_conflict');
-            throw ApiError.conflict('Email or phone already in use');
+            throw ApiError.conflict('This email or mobile number is already registered. Please sign in, or use Forgot Password.');
         }
 
         // 2. Hash password
@@ -175,7 +175,7 @@ export class AuthService {
         const exists = await this.repository.existsByEmailOrPhone(email, phone);
         if (exists) {
             this.logger.warn({ email, phone }, 'register_seller_conflict');
-            throw ApiError.conflict('Email or phone already in use');
+            throw ApiError.conflict('This email or mobile number is already registered. Please sign in, or use Forgot Password.');
         }
 
         // 2. Hash password

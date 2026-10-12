@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { getSessionUser } from "@/lib/session";
 import { signOut } from "@/services/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Toaster } from "@/components/ui/sonner";
 
 export interface PanelNavChild {
   href: string;
@@ -422,7 +421,6 @@ export function PanelShell({
         </header>
 
         <main className="min-h-[calc(100vh-64px-48px)]">{children}</main>
-        <Toaster />
 
         <footer className="border-t border-border-soft">
           <div className="flex h-12 items-center justify-between px-4 text-xs text-muted-foreground sm:px-6">
