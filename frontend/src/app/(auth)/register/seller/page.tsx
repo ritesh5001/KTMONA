@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerSeller } from "@/services/auth";
+import { registerSeller, verifyOtpUrl } from "@/services/auth";
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
@@ -64,7 +64,7 @@ export default function SellerRegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!email || !phone || !whatsappNumber || !password) {
+    if (!email || !whatsappNumber || !password) {
       toast.error("Please fill all required fields.");
       return;
     }
@@ -75,7 +75,7 @@ export default function SellerRegisterPage() {
     }
 
     const normalizedPhone = phone.replace(/\D/g, "");
-    if (!/^\d{10,15}$/.test(normalizedPhone)) {
+    if (normalizedPhone && !/^\d{10,15}$/.test(normalizedPhone)) {
       toast.error("Contact number must be 10 to 15 digits.");
       return;
     }
@@ -84,13 +84,18 @@ export default function SellerRegisterPage() {
     try {
       console.info("[auth-ui][register-seller] submit", {
         email: email.trim().toLowerCase(),
-        phone: "[present]",
+        phone: normalizedPhone ? "[present]" : "[missing]",
         whatsappNumber: "[present]",
       });
-      await registerSeller({ email, phone: normalizedPhone, whatsappNumber, password });
-      console.info("[auth-ui][register-seller] otp-sent", { phone: "[present]" });
-      toast.success("OTP sent to your mobile number.");
-      window.location.href = `/verify-otp?signup=1&phone=${encodeURIComponent(normalizedPhone)}`;
+      const result = await registerSeller({
+        email: email.trim().toLowerCase(),
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
+        whatsappNumber,
+        password,
+      });
+      console.info("[auth-ui][register-seller] otp-sent");
+      toast.success(result.message);
+      window.location.href = verifyOtpUrl(result.verifyWith ?? { email: email.trim().toLowerCase() }, { signup: true });
     } catch (error) {
       console.error("[auth-ui][register-seller] failed", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");
@@ -185,6 +190,7 @@ export default function SellerRegisterPage() {
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <motion.div className="space-y-2" {...fadeInUp(0)}>
                   <Label htmlFor="email" required className={theme.label}>Business Email</Label>
+                  <p className="text-xs text-navy/60">We&apos;ll send your verification code (OTP) to this email.</p>
                   <Input
                     id="email"
                     type="email"
@@ -195,7 +201,7 @@ export default function SellerRegisterPage() {
                   />
                 </motion.div>
                 <motion.div className="space-y-2" {...fadeInUp(1)}>
-                  <Label htmlFor="phone" required className={theme.label}>Contact Number</Label>
+                  <Label htmlFor="phone" className={theme.label}>Contact Number <span className="text-navy/50">(optional)</span></Label>
                   <Input
                     id="phone"
                     type="tel"

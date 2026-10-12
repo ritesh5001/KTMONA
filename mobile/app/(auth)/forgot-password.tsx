@@ -12,41 +12,42 @@ import {
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
-  const [phone, setPhone] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const handleContinue = React.useCallback(async () => {
-    const normalizedPhone = phone.replace(/\D/g, "");
-    if (!/^\d{10,15}$/.test(normalizedPhone)) {
-      setError("Please enter a valid mobile number.");
+    const trimmed = identifier.trim();
+    const value = trimmed.includes("@") ? trimmed.toLowerCase() : trimmed.replace(/\D/g, "");
+    if (!value || (!trimmed.includes("@") && !/^\d{10,15}$/.test(value))) {
+      setError("Please enter your email address or mobile number.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      await forgotPassword({ phone: normalizedPhone });
-      router.push({ pathname: "/(auth)/reset-password", params: { phone: normalizedPhone } });
+      await forgotPassword({ identifier: value });
+      router.push({ pathname: "/(auth)/reset-password", params: { id: value } });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send reset OTP");
     } finally {
       setLoading(false);
     }
-  }, [phone, router]);
+  }, [identifier, router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <AppHeader showBack />
       <View style={styles.container}>
         <Text style={styles.heading}>Forgot password</Text>
-        <Text style={styles.subHeading}>We&apos;ll send an OTP to your mobile number to reset your password.</Text>
+        <Text style={styles.subHeading}>Enter your email or mobile number. We&apos;ll send an OTP to your registered email to reset your password.</Text>
 
         <TextInput
-          value={phone}
-          onChangeText={(value) => setPhone(value.replace(/\D/g, ""))}
-          keyboardType="phone-pad"
+          value={identifier}
+          onChangeText={setIdentifier}
+          keyboardType="email-address"
           autoCapitalize="none"
-          placeholder="Enter mobile number"
+          placeholder="Email or mobile number"
           placeholderTextColor={colors.textSecondary}
           style={styles.input}
         />

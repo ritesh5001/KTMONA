@@ -25,21 +25,26 @@ import {
 
 export default function RequestOtpScreen() {
   const router = useRouter();
-  const [phone, setPhone] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const handleRequestOtp = async () => {
-    const normalizedPhone = phone.replace(/\D/g, "");
-    if (!/^\d{10,15}$/.test(normalizedPhone)) {
-      setError("Please enter a valid mobile number.");
+    const trimmed = identifier.trim();
+    const isEmail = trimmed.includes("@");
+    const value = isEmail ? trimmed.toLowerCase() : trimmed.replace(/\D/g, "");
+    if (!value || (!isEmail && !/^\d{10,15}$/.test(value))) {
+      setError("Please enter your email address or mobile number.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      await requestOtp({ phone: normalizedPhone });
-      router.push({ pathname: "/(auth)/verify-otp", params: { method: "whatsapp", phone: normalizedPhone } });
+      const sent = await requestOtp({ identifier: value });
+      router.push({
+        pathname: "/(auth)/verify-otp",
+        params: sent.verifyWith ?? (isEmail ? { email: value } : { phone: value }),
+      });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to send OTP";
@@ -55,20 +60,20 @@ export default function RequestOtpScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Sign in with OTP</Text>
         <Text style={styles.subtitle}>
-          We&apos;ll send a one-time code to your mobile number.
+          We&apos;ll send a one-time code to your registered email address.
         </Text>
 
         <View style={styles.card}>
-          <FieldLabel required>Mobile number</FieldLabel>
+          <FieldLabel required>Email or mobile number</FieldLabel>
           <TextInput
-            placeholder="9876543210"
+            placeholder="you@email.com or 9876543210"
             placeholderTextColor={colors.brownSoft}
             style={styles.input}
-            value={phone}
-            onChangeText={(value) => setPhone(value.replace(/\D/g, ""))}
-            keyboardType="phone-pad"
+            value={identifier}
+            onChangeText={setIdentifier}
+            keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="tel"
+            autoComplete="username"
             autoCorrect={false}
             returnKeyType="send"
             onSubmitEditing={handleRequestOtp}

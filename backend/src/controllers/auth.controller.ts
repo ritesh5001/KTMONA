@@ -133,7 +133,7 @@ export class AuthController {
     ): Promise<void> => {
         try {
             const validatedData = requestOtpSchema.parse(req.body);
-            this.logger.info({ phone: validatedData.phone ? '[present]' : '[missing]' }, 'request_otp_request_received');
+            this.logger.info({ identifier: '[present]' }, 'request_otp_request_received');
             const result = await this.service.requestOtp(validatedData);
             res.status(200).json(result);
         } catch (error) {
@@ -388,7 +388,7 @@ export class AuthController {
     ): Promise<void> => {
         try {
             const validatedData = forgotPasswordSchema.parse(req.body);
-            const result = await this.service.forgotPassword(validatedData.phone);
+            const result = await this.service.forgotPassword(validatedData.identifier);
             res.status(200).json(result);
         } catch (error) {
             if (error instanceof ZodError) {
@@ -417,7 +417,7 @@ export class AuthController {
         try {
             const validatedData = resetPasswordSchema.parse(req.body);
             const result = await this.service.resetPassword(
-                validatedData.phone,
+                validatedData.identifier,
                 validatedData.otp,
                 validatedData.newPassword
             );

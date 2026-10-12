@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { colors, spacing, typography, radius } from "../../src/theme";
-import { requestOtp } from "../../src/services/auth";
+import { requestOtp, resendSignupOtp, type OtpVerifyWith } from "../../src/services/auth";
 import { useAuth } from "../../src/hooks/useAuth";
 import { AppHeader } from "../../src/components/AppHeader";
 import { useSmsOtpAutofill, getSmsAppHash } from "../../src/hooks/useSmsOtpAutofill";
@@ -14,7 +14,16 @@ import {
 
 export default function VerifyOtpScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone?: string }>();
+  // Codes go to the email (default) or phone; the screen gets whichever the
+  // server said to verify with, plus signup=1 for a pending registration.
+  const { phone, email, signup } = useLocalSearchParams<{ phone?: string; email?: string; signup?: string }>();
+  const verifyWith = React.useMemo((): OtpVerifyWith | null => {
+    if (typeof email === "string" && email) return { email: email.trim().toLowerCase() };
+    if (typeof phone === "string" && phone) return { phone: phone.replace(/\D/g, "") };
+    return null;
+  }, [email, phone]);
+  const isEmail = Boolean(verifyWith && "email" in verifyWith);
+  const isSignup = signup === "1";
   const { signInWithOtp } = useAuth();
   const [otp, setOtp] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -24,12 +33,11 @@ export default function VerifyOtpScreen() {
   const submittedOtpRef = React.useRef<string | null>(null);
 
   const handleVerify = React.useCallback(async () => {
-    const identifier = typeof phone === "string" ? phone.replace(/\D/g, "") : "";
     const code = otp.trim();
 
-    if (!identifier) {
-      console.warn("[mobile-auth][verify-otp] missing phone");
-      setError("Missing mobile number. Please request OTP again.");
+    if (!verifyWith) {
+      console.warn("[mobile-auth][verify-otp] missing identifier");
+      setError("Missing email or mobile number. Please request OTP again.");
       return;
     }
     if (code.length !== 6) {
@@ -41,8 +49,8 @@ export default function VerifyOtpScreen() {
     setError(null);
     setMessage(null);
     try {
-      console.info("[mobile-auth][verify-otp] submit", { phone: "[present]", otpLength: code.length });
-      const responseMessage = await signInWithOtp({ phone: identifier, otp: code });
+      console.info("[mobile-auth][verify-otp] submit", { via: isEmail ? "email" : "phone", otpLength: code.length });
+      const responseMessage = await signInWithOtp({ ...verifyWith, otp: code });
       if (responseMessage) {
         setMessage(responseMessage);
         return;
@@ -54,13 +62,12 @@ export default function VerifyOtpScreen() {
     } finally {
       setLoading(false);
     }
-  }, [phone, otp, signInWithOtp, router]);
+  }, [verifyWith, isEmail, otp, signInWithOtp, router]);
 
   const handleResend = React.useCallback(async () => {
-    const identifier = typeof phone === "string" ? phone.replace(/\D/g, "") : "";
-    if (!identifier) {
-      console.warn("[mobile-auth][verify-otp] resend blocked - missing phone");
-      setError(`Missing mobile number. Please request OTP again.`);
+    if (!verifyWith) {
+      console.warn("[mobile-auth][verify-otp] resend blocked - missing identifier");
+      setError("Missing email or mobile number. Please request OTP again.");
       return;
     }
 
@@ -68,8 +75,10 @@ export default function VerifyOtpScreen() {
     setError(null);
     setMessage(null);
     try {
-      console.info("[mobile-auth][verify-otp] resend", { phone: "[present]" });
-      const result = await requestOtp({ phone: identifier });
+      console.info("[mobile-auth][verify-otp] resend", { signup: isSignup });
+      const result = isSignup
+        ? await resendSignupOtp(verifyWith)
+        : await requestOtp({ identifier: "email" in verifyWith ? verifyWith.email : verifyWith.phone });
       setMessage(result.message || "OTP sent again.");
     } catch (err) {
       console.error("[mobile-auth][verify-otp] resend failed", err);
@@ -77,7 +86,7 @@ export default function VerifyOtpScreen() {
     } finally {
       setResending(false);
     }
-  }, [phone]);
+  }, [verifyWith, isSignup]);
 
   // Read the code straight out of the incoming SMS (Android, no permission).
   // Combined with the auto-submit below this makes verification hands-free: the
@@ -113,7 +122,7 @@ export default function VerifyOtpScreen() {
       <View style={styles.container}>
         <Text style={styles.heading}>Verify OTP</Text>
         <Text style={styles.subHeading}>
-          Enter the 6-digit code sent to your mobile number
+          {isEmail ? "Enter the 6-digit code sent to your email" : "Enter the 6-digit code sent to your mobile number"}
         </Text>
 
         {__DEV__ && smsAppHash ? (

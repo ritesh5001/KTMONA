@@ -40,12 +40,16 @@ export default function RegisterScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   const handleRegister = async () => {
-    if (!fullName || !email || !phone || !password) {
+    if (!fullName || !email.trim() || !password) {
       setError("Please fill all required fields.");
       return;
     }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a valid email address.");
+      return;
+    }
     const normalizedPhone = normalizePhone(phone);
-    if (!/^\d{10,15}$/.test(normalizedPhone)) {
+    if (normalizedPhone && !/^\d{10,15}$/.test(normalizedPhone)) {
       setError("Mobile number must be 10 to 15 digits.");
       return;
     }
@@ -69,13 +73,16 @@ export default function RegisterScreen() {
     setError(null);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      await registerUser({
+      const result = await registerUser({
         fullName: fullName.trim(),
         email: normalizedEmail,
-        phone: normalizedPhone,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         password,
       });
-      router.replace({ pathname: "/(auth)/verify-otp", params: { method: "whatsapp", phone: normalizedPhone } });
+      router.replace({
+        pathname: "/(auth)/verify-otp",
+        params: { signup: "1", ...(result.verifyWith ?? { email: normalizedEmail }) },
+      });
     } catch (err) {
       const message =
         err instanceof ApiError && err.statusCode === 409
@@ -124,7 +131,7 @@ export default function RegisterScreen() {
             autoCapitalize="none"
           />
 
-          <FieldLabel required>Mobile number</FieldLabel>
+          <FieldLabel>Mobile number (optional)</FieldLabel>
           <TextInput
             placeholder="9876543210"
             placeholderTextColor={REGISTER_PLACEHOLDER_COLOR}
@@ -134,7 +141,7 @@ export default function RegisterScreen() {
             keyboardType="phone-pad"
           />
           <Text style={styles.helperText}>
-            We&apos;ll send a verification code to this number by SMS.
+            We&apos;ll email a verification code (OTP) to the address above.
           </Text>
 
           <FieldLabel required>Password</FieldLabel>

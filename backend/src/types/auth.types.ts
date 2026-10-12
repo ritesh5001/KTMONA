@@ -68,7 +68,7 @@ export interface RegisterUserRequest {
  */
 export interface RegisterSellerRequest {
     email: string;
-    phone: string;
+    phone?: string | undefined;
     whatsappNumber: string;
     password: string;
 }
@@ -152,6 +152,8 @@ export interface TokenRefreshResponse {
  */
 export interface RegisterSuccessResponse {
     message: string;
+    /** Send this back with the code to /verify-otp: `{ email }` or `{ phone }`. */
+    verifyWith?: { email: string } | { phone: string };
 }
 
 /**

@@ -12,7 +12,8 @@ export interface LoginPayload {
 export interface RegisterUserPayload {
   fullName: string;
   email: string;
-  phone: string;
+  /** Optional: the OTP is sent to the email address. */
+  phone?: string;
   password: string;
 }
 
@@ -33,22 +34,33 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+/** Where an OTP went: send this back with the code to verify it. */
+export type OtpVerifyWith = { email: string } | { phone: string };
+
 export interface RegisterResponse {
   message: string;
+  verifyWith?: OtpVerifyWith;
 }
 
 export interface MessageResponse {
   message: string;
 }
 
-/** POST /v1/auth/request-otp body */
-export interface RequestOtpPayload {
-  phone: string;
+export interface OtpSentResponse {
+  message: string;
+  verifyWith?: OtpVerifyWith;
 }
 
-/** POST /v1/auth/verify-otp body */
+/** POST /v1/auth/request-otp body */
+export interface RequestOtpPayload {
+  /** Email address or mobile number of the account. */
+  identifier: string;
+}
+
+/** POST /v1/auth/verify-otp body (`phone` or `email`, as given in verifyWith) */
 export interface VerifyOtpPayload {
-  phone: string;
+  phone?: string;
+  email?: string;
   otp: string;
 }
 
@@ -99,12 +111,19 @@ export async function registerUser(
 /** POST /v1/auth/request-otp */
 export async function requestOtp(
   payload: RequestOtpPayload
-): Promise<MessageResponse> {
-  console.info("[mobile-auth][request-otp] request", {
-    phone: payload.phone ? "[present]" : "[missing]",
-  });
-  return apiRequest<MessageResponse>({
+): Promise<OtpSentResponse> {
+  console.info("[mobile-auth][request-otp] request");
+  return apiRequest<OtpSentResponse>({
     url: "/v1/auth/request-otp",
+    method: "POST",
+    data: payload,
+  });
+}
+
+/** POST /v1/auth/resend-signup-otp — re-send the code for a pending sign-up. */
+export async function resendSignupOtp(payload: OtpVerifyWith): Promise<OtpSentResponse> {
+  return apiRequest<OtpSentResponse>({
+    url: "/v1/auth/resend-signup-otp",
     method: "POST",
     data: payload,
   });
@@ -115,7 +134,7 @@ export async function verifyOtp(
   payload: VerifyOtpPayload
 ): Promise<VerifyOtpResponse> {
   console.info("[mobile-auth][verify-otp] request", {
-    phone: payload.phone ? "[present]" : "[missing]",
+    via: payload.email ? "email" : "phone",
     otpLength: payload.otp.length,
   });
   return apiRequest<VerifyOtpResponse>({
@@ -147,11 +166,12 @@ export async function logoutUser(
 // ---------------------------------------------------------------------------
 
 export interface ForgotPasswordPayload {
-  phone: string;
+  /** Email address or mobile number of the account. */
+  identifier: string;
 }
 
 export interface ResetPasswordPayload {
-  phone: string;
+  identifier: string;
   otp: string;
   newPassword: string;
 }

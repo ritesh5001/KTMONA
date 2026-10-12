@@ -33,7 +33,9 @@ const RESEND_COOLDOWN_SECONDS = 60;
 
 export default function ResetPasswordScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  // `id` is the email or mobile number entered on Forgot password (`phone` from older links).
+  const params = useLocalSearchParams<{ id?: string; phone?: string }>();
+  const identifier = params.id ?? params.phone;
 
   const [digits, setDigits] = React.useState<string[]>(
     Array(OTP_LENGTH).fill("")
@@ -117,8 +119,8 @@ export default function ResetPasswordScreen() {
 
   // ---------- Submit ----------
   const handleSubmit = async () => {
-    if (!phone) {
-      setError("Missing mobile number. Please go back and try again.");
+    if (!identifier) {
+      setError("Missing email or mobile number. Please go back and try again.");
       return;
     }
 
@@ -142,7 +144,7 @@ export default function ResetPasswordScreen() {
     setError(null);
     setSuccess(null);
     try {
-      const result = await resetPassword({ phone, otp, newPassword });
+      const result = await resetPassword({ identifier, otp, newPassword });
       setSuccess(result.message);
       // Navigate to login after short delay
       setTimeout(() => router.replace("/(auth)/login"), 1500);
@@ -157,10 +159,10 @@ export default function ResetPasswordScreen() {
 
   // ---------- Resend ----------
   const handleResend = async () => {
-    if (countdown > 0 || !phone) return;
+    if (countdown > 0 || !identifier) return;
     setError(null);
     try {
-      await forgotPassword({ phone });
+      await forgotPassword({ identifier });
       setCountdown(RESEND_COOLDOWN_SECONDS);
       setDigits(Array(OTP_LENGTH).fill(""));
       inputRefs.current[0]?.focus();
@@ -183,8 +185,8 @@ export default function ResetPasswordScreen() {
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Reset password</Text>
         <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to{" "}
-          <Text style={styles.emailHighlight}>{phone ?? "your mobile number"}</Text>
+          Enter the 6-digit code sent to the email registered for{" "}
+          <Text style={styles.emailHighlight}>{identifier ?? "your account"}</Text>
           {" "}and set a new password.
         </Text>
 

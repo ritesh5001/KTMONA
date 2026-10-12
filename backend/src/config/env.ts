@@ -87,6 +87,13 @@ const envSchema = z.object({
     RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
     EMAIL_FROM: z.string().email('EMAIL_FROM must be a valid email'),
 
+    /**
+     * Where OTP codes go. 'email' (default): always the account's email; SMS is
+     * used only for old accounts that have no email. 'sms': mobile number first,
+     * email as fallback. Switch to 'sms' once mobile OTP should be turned on.
+     */
+    OTP_CHANNEL: z.enum(['email', 'sms']).default('email'),
+
     // AquaSMS (SMS OTP delivery)
     AQUASMS_USERNAME: z.string().optional(),
     AQUASMS_API_KEY: z.string().optional(),

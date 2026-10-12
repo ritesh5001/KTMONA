@@ -40,7 +40,7 @@ function VerifyOtpContent() {
   const [sending, setSending] = React.useState(false);
   const submittedOtpRef = React.useRef<string | null>(null);
 
-  // SMS OTP flow; one-time-code autofill supported on mobile browsers.
+  // One-time-code autofill supported on mobile browsers.
 
   const handleVerify = React.useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -72,7 +72,7 @@ function VerifyOtpContent() {
 
         router.push(staffDestination[role] ?? buyerReturnPath());
       } else {
-        toast.success(result.message ?? `Number verified. Await admin approval.`);
+        toast.success(result.message ?? `Verified. Await admin approval.`);
         router.push("/login");
       }
     } catch (error) {
@@ -92,12 +92,12 @@ function VerifyOtpContent() {
     setSending(true);
     try {
       console.info("[auth-ui][verify-otp] resend", { phone: "[present]" });
-      if (isSignup || isEmail) {
+      if (isSignup) {
         const result = await resendSignupOtp(isEmail ? { email: identifier } : { phone: identifier });
         toast.success(result.message);
       } else {
-        await requestAuthOtp({ phone: identifier });
-        toast.success(`OTP sent to your mobile number.`);
+        const result = await requestAuthOtp({ identifier });
+        toast.success(result.message);
       }
     } catch (error) {
       console.error("[auth-ui][verify-otp] resend failed", error);

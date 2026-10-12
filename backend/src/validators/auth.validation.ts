@@ -17,7 +17,8 @@ export const registerUserSchema = z.object({
     phone: z
         .string()
         .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
-        .optional(),
+        .optional()
+        .or(z.literal('').transform(() => undefined)),
 
     password: z
         .string()
@@ -40,9 +41,12 @@ export const registerSellerSchema = z.object({
         .string()
         .email('Invalid email address'),
 
+    /** Optional: OTP goes to the email address. */
     phone: z
         .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
+        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
+        .optional()
+        .or(z.literal('').transform(() => undefined)),
 
     whatsappNumber: z
         .string()
@@ -143,11 +147,17 @@ export type LogoutInput = z.infer<typeof logoutSchema>;
  * Request OTP Validation Schema
  * POST /v1/auth/request-otp
  */
-export const requestOtpSchema = z.object({
-    phone: z
-        .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
-});
+/** Email address or mobile number; old clients send `phone` or `email`. */
+const accountIdentifier = z
+    .object({
+        identifier: z.string().trim().min(1).max(200).optional(),
+        phone: z.string().regex(/^\d{10,15}$/, 'Phone must be 10-15 digits').optional(),
+        email: z.string().email('Invalid email address').optional(),
+    })
+    .transform((d) => ({ identifier: (d.identifier ?? d.email ?? d.phone ?? '').trim() }))
+    .refine((d) => d.identifier.length > 0, { message: 'Enter your email address or mobile number', path: ['identifier'] });
+
+export const requestOtpSchema = accountIdentifier;
 
 export type RequestOtpInput = z.infer<typeof requestOtpSchema>;
 
@@ -198,11 +208,7 @@ export const resendSignupOtpSchema = z.object({
  * Forgot Password Validation Schema
  * POST /v1/auth/forgot-password
  */
-export const forgotPasswordSchema = z.object({
-    phone: z
-        .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
-});
+export const forgotPasswordSchema = accountIdentifier;
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
@@ -211,9 +217,9 @@ export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
  * POST /v1/auth/reset-password
  */
 export const resetPasswordSchema = z.object({
-    phone: z
-        .string()
-        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits'),
+    identifier: z.string().trim().max(200).optional(),
+    phone: z.string().regex(/^\d{10,15}$/, 'Phone must be 10-15 digits').optional(),
+    email: z.string().email('Invalid email address').optional(),
     otp: z
         .string()
         .length(6, 'OTP must be exactly 6 digits')
@@ -223,6 +229,8 @@ export const resetPasswordSchema = z.object({
         .min(8, 'Password must be at least 8 characters')
         .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
         .regex(/[0-9]/, 'Password must contain at least 1 number'),
-});
+})
+    .transform(({ identifier, phone, email, ...rest }) => ({ ...rest, identifier: (identifier || email || phone || '').trim() }))
+    .refine((d) => d.identifier.length > 0, { message: 'Enter your email address or mobile number', path: ['identifier'] });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

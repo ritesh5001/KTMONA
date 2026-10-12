@@ -22,9 +22,10 @@ import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const prefillPhone = searchParams.get("phone") ?? "";
+  // `id` is the email or mobile number entered on Forgot Password (`phone` from older links).
+  const prefill = searchParams.get("id") ?? searchParams.get("phone") ?? "";
 
-  const [phone] = React.useState(prefillPhone);
+  const [identifier] = React.useState(prefill);
   const [otp, setOtp] = React.useState("");
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -35,7 +36,7 @@ function ResetPasswordContent() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!phone || !otp || !newPassword || !confirmPassword) {
+    if (!identifier || !otp || !newPassword || !confirmPassword) {
       toast.error("Please fill all fields.");
       return;
     }
@@ -57,7 +58,7 @@ function ResetPasswordContent() {
 
     setLoading(true);
     try {
-      const result = await resetPassword({ phone, otp, newPassword });
+      const result = await resetPassword({ identifier, otp, newPassword });
       toast.success(result.message);
       router.push("/login");
     } catch (error) {
@@ -99,7 +100,7 @@ function ResetPasswordContent() {
             variants={heroItemVariants}
             className="text-base leading-relaxed text-muted-foreground mb-8"
           >
-            Enter the 6-digit OTP sent to your mobile number along with your new
+            Enter the 6-digit OTP sent to your registered email along with your new
             password to regain access to your account.
           </motion.p>
 
@@ -141,13 +142,13 @@ function ResetPasswordContent() {
 
             <CardContent className="space-y-6">
               <form className="space-y-5" onSubmit={handleSubmit}>
-                {/* Mobile number (readonly) */}
+                {/* Account (readonly) */}
                 <div className="space-y-2">
-                  <Label htmlFor="phone" required>Mobile Number</Label>
+                  <Label htmlFor="identifier" required>Email or Mobile Number</Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
+                    id="identifier"
+                    type="text"
+                    value={identifier}
                     disabled
                     className="opacity-70"
                   />

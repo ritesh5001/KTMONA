@@ -15,7 +15,8 @@ export interface RegisterUserPayload {
 
 export interface RegisterSellerPayload {
   email: string;
-  phone: string;
+  /** Optional: the OTP is sent to the email address. */
+  phone?: string;
   whatsappNumber: string;
   password: string;
 }
@@ -44,8 +45,21 @@ export interface LoginResponse {
   refreshToken: string;
 }
 
+/** Where the OTP went: send this back with the code to verify it. */
+export type OtpVerifyWith = { email: string } | { phone: string };
+
 export interface RegisterResponse {
   message: string;
+  verifyWith?: OtpVerifyWith;
+}
+
+/** /verify-otp URL for a code that was just sent. */
+export function verifyOtpUrl(verifyWith: OtpVerifyWith, opts: { signup?: boolean } = {}): string {
+  const params = new URLSearchParams();
+  if (opts.signup) params.set("signup", "1");
+  if ("email" in verifyWith) params.set("email", verifyWith.email);
+  else params.set("phone", verifyWith.phone);
+  return `/verify-otp?${params.toString()}`;
 }
 
 type ApiErrorResponse = {
@@ -73,6 +87,7 @@ function buildApiError(data: ApiErrorResponse | null, fallback: string): Error {
 
 export interface OtpRequestResponse {
   message: string;
+  verifyWith?: OtpVerifyWith;
 }
 
 export interface VerifyOtpResponse {
@@ -259,7 +274,8 @@ export async function registerAdmin(
 }
 
 export interface RequestAuthOtpPayload {
-  phone: string;
+  /** Email address or mobile number of the account. */
+  identifier: string;
 }
 
 export interface VerifyAuthOtpPayload {
@@ -274,9 +290,7 @@ export async function requestAuthOtp(payload: RequestAuthOtpPayload): Promise<Ot
     throw new Error("API base URL is not configured");
   }
 
-  console.debug("[auth][request-otp] request", {
-    phone: payload.phone ? "[present]" : undefined,
-  });
+  console.debug("[auth][request-otp] request");
 
   const response = await fetch(`${API_BASE_URL}/v1/auth/request-otp`, {
     method: "POST",
@@ -295,7 +309,7 @@ export async function requestAuthOtp(payload: RequestAuthOtpPayload): Promise<Ot
     throw new Error(message);
   }
 
-  console.info("[auth][request-otp] success", { phone: payload.phone ? "[present]" : undefined });
+  console.info("[auth][request-otp] success");
 
   return data as OtpRequestResponse;
 }
@@ -360,7 +374,8 @@ export interface ForgotPasswordResponse {
 }
 
 export interface ResetPasswordPayload {
-  phone: string;
+  /** Email address or mobile number of the account. */
+  identifier: string;
   otp: string;
   newPassword: string;
 }
@@ -371,14 +386,14 @@ export interface ResetPasswordResponse {
 
 /** POST /v1/auth/forgot-password */
 export async function forgotPassword(
-  phone: string
+  identifier: string
 ): Promise<ForgotPasswordResponse> {
   if (!API_BASE_URL) throw new Error("API base URL is not configured");
 
   const response = await fetch(`${API_BASE_URL}/v1/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({ identifier }),
   });
 
   const data = await response.json().catch(() => null);

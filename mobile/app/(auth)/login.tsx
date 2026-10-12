@@ -49,9 +49,8 @@ export default function LoginScreen() {
   const identifierReady = inputType !== "unknown";
   const isOtpMode = useOtp && identifierReady;
 
-  // Pick the method that fits what they typed: a mobile number defaults to SMS
-  // OTP (they may well not have a password — accounts can be created via OTP),
-  // an email defaults to password. Both toggles remain available below.
+  // A mobile number defaults to OTP login, an email to password. The code goes
+  // where the server sends it (the registered email unless SMS OTP is on).
   React.useEffect(() => {
     setUseOtp(inputType === "phone");
     setPassword("");
@@ -59,7 +58,7 @@ export default function LoginScreen() {
   }, [inputType]);
 
   const subHeading = isOtpMode
-    ? "We'll send a one-time code to your mobile number."
+    ? "We'll send a one-time code to your registered email address."
     : identifierReady
       ? "Enter your password below."
       : "Enter your mobile number or email address to sign in.";
@@ -78,14 +77,12 @@ export default function LoginScreen() {
     setError(null);
     try {
       if (isOtpMode) {
-        if (inputType !== "phone") {
-          setError("OTP login requires a mobile number.");
-          return;
-        }
-
-        const normalizedPhone = trimmed.replace(/\D/g, "");
-        await requestOtp({ phone: normalizedPhone });
-        router.push({ pathname: "/(auth)/verify-otp", params: { method: "whatsapp", phone: normalizedPhone } });
+        const value = inputType === "phone" ? trimmed.replace(/\D/g, "") : trimmed;
+        const sent = await requestOtp({ identifier: value });
+        router.push({
+          pathname: "/(auth)/verify-otp",
+          params: sent.verifyWith ?? (inputType === "phone" ? { phone: value } : { email: value }),
+        });
         return;
       }
 
@@ -142,9 +139,9 @@ export default function LoginScreen() {
                 placeholderTextColor={colors.textSecondary}
                 style={styles.input}
               />
-              {inputType === "phone" && (
+              {identifierReady && (
                 <Pressable onPress={() => setUseOtp(true)} style={styles.otpToggleRow}>
-                  <Text style={styles.otpToggleText}>Login with SMS OTP instead</Text>
+                  <Text style={styles.otpToggleText}>Login with OTP instead</Text>
                 </Pressable>
               )}
             </>

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loginUser, persistAuthCookies, requestAuthOtp } from "@/services/auth";
+import { loginUser, persistAuthCookies, requestAuthOtp, verifyOtpUrl } from "@/services/auth";
 import { buyerReturnPath } from "@/lib/login-redirect";
 import { toast } from "sonner";
 import {
@@ -118,17 +118,15 @@ export default function LoginPage() {
   const inputType = detectInputType(identifier);
   const identifierReady = inputType !== "unknown";
 
-  // Pick the method that fits what they typed: a mobile number defaults to SMS
-  // OTP (they may well not have a password — accounts can be created via OTP),
-  // an email defaults to password. Both toggles remain available below.
+  // A mobile number defaults to OTP login, an email to password. The code goes
+  // where the server sends it (the registered email unless SMS OTP is on).
   React.useEffect(() => {
     setUseOtp(inputType === "phone");
     setPassword("");
   }, [inputType]);
 
-  const isPhoneIdentifier = inputType === "phone";
-  const isOtpMode = isMainPortal && useOtp && isPhoneIdentifier;
-  const showPasswordField = !isMainPortal || (identifierReady && (!useOtp || !isPhoneIdentifier));
+  const isOtpMode = isMainPortal && useOtp && identifierReady;
+  const showPasswordField = !isMainPortal || (identifierReady && !useOtp);
 
   const identifierLabel =
     isMainPortal
@@ -147,11 +145,9 @@ export default function LoginPage() {
   const cardDescription =
     isMainPortal
       ? isOtpMode
-        ? "We'll send a one-time code to your mobile number."
+        ? "We'll send a one-time code to your registered email address."
         : identifierReady
-          ? inputType === "phone"
-            ? "We'll text you a one-time code. You can use a password instead."
-            : "Enter your password below."
+          ? "Enter your password below, or log in with a one-time code."
           : "Enter your mobile number or email address to continue."
       : content.cardDescription;
 
@@ -169,14 +165,15 @@ export default function LoginPage() {
     setError(null);
     try {
       if (isOtpMode) {
-        const normalizedPhone = trimmed.replace(/\D/g, "");
+        const value = inputType === "phone" ? trimmed.replace(/\D/g, "") : trimmed.toLowerCase();
         console.info("[auth-ui][login] otp-request", { inputType });
-        await requestAuthOtp({ phone: normalizedPhone });
-        toast.success("OTP sent to your mobile number.");
+        const sent = await requestAuthOtp({ identifier: value });
+        toast.success(sent.message);
         // Carry the return target through the OTP step.
         const ret = buyerReturnPath();
         const retParam = ret !== "/" ? `&redirect=${encodeURIComponent(ret)}` : "";
-        router.replace(`/verify-otp?phone=${encodeURIComponent(normalizedPhone)}${retParam}`);
+        const verifyWith = sent.verifyWith ?? (inputType === "phone" ? { phone: value } : { email: value });
+        router.replace(`${verifyOtpUrl(verifyWith)}${retParam}`);
         return;
       }
 
@@ -338,14 +335,14 @@ export default function LoginPage() {
                       </button>
                     </div>
 
-                    {/* OTP toggle – only for user portal, SMS OTP requires a phone number */}
-                    {isMainPortal && isPhoneIdentifier && (
+                    {/* OTP toggle – only for the customer portal */}
+                    {isMainPortal && (
                       <button
                         type="button"
                         onClick={() => setUseOtp(true)}
                         className="text-xs text-muted-foreground hover:text-foreground transition-colors duration-300 underline underline-offset-2"
                       >
-                        Login with SMS OTP instead
+                        Login with OTP instead
                       </button>
                     )}
                   </div>

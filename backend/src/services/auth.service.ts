@@ -15,7 +15,16 @@ import { ApiError } from '../errors/ApiError.js';
 import { env } from '../config/env.js';
 import type { StringValue } from 'ms';
 import ms from 'ms';
-import { otpService, type SignupOtpPayload } from './otp.service.js';
+import { otpService, type OtpDelivery, type SignupOtpPayload } from './otp.service.js';
+
+/** "OTP sent to your email address" / mobile, plus what to verify with. */
+function otpSent(d: OtpDelivery, suffix = ''): { message: string; verifyWith: { email: string } | { phone: string } } {
+    const where = d.channel === 'email' ? 'your email address' : 'your mobile number';
+    return {
+        message: `OTP sent to ${where}.${suffix ? ` ${suffix}` : ''}`,
+        verifyWith: d.keyType === 'email' ? { email: d.key } : { phone: d.key },
+    };
+}
 import { hashOtp } from '../utils/otp.util.js';
 import { otpRepository } from '../repositories/otp.repository.js';
 import { normalizeIndianMobile } from '../utils/phone.util.js';
@@ -139,13 +148,11 @@ export class AuthService {
             role: 'USER',
             fullName: data.fullName,
         };
-        const channel = await otpService.sendSignupOtp(payload);
-        this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel, role: 'USER' }, 'register_user_otp_sent');
+        const delivery = await otpService.sendSignupOtp(payload);
+        this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel: delivery.channel, role: 'USER' }, 'register_user_otp_sent');
 
         // 4. Return success message (no token, no auto-login)
-        return {
-            message: channel === 'email' ? 'OTP sent to your email address' : 'OTP sent to your mobile number',
-        };
+        return otpSent(delivery);
     }
 
     /**
@@ -160,13 +167,14 @@ export class AuthService {
      * 5. Seller cannot login until approved
      */
     async registerSeller(data: RegisterSellerRequest): Promise<RegisterSuccessResponse> {
-        const phone = normalizeIndianMobile(data.phone);
+        const phone = data.phone ? normalizeIndianMobile(data.phone) : null;
+        const email = data.email.trim().toLowerCase();
         const whatsappNumber = normalizeIndianMobile(data.whatsappNumber);
         this.logger.info({ email: data.email, phone: phone ? '[present]' : '[missing]', whatsappNumber: whatsappNumber ? '[present]' : '[missing]', role: 'SELLER' }, 'register_seller_started');
         // 1. Check if email or phone already exists
-        const exists = await this.repository.existsByEmailOrPhone(data.email, phone);
+        const exists = await this.repository.existsByEmailOrPhone(email, phone);
         if (exists) {
-            this.logger.warn({ email: data.email, phone }, 'register_seller_conflict');
+            this.logger.warn({ email, phone }, 'register_seller_conflict');
             throw ApiError.conflict('Email or phone already in use');
         }
 
@@ -175,19 +183,17 @@ export class AuthService {
 
         // 3. Send OTP for signup (account will be created after verification)
         const payload: SignupOtpPayload = {
-            email: data.email,
+            email,
             phone,
             whatsappNumber,
             passwordHash,
             role: 'SELLER',
         };
-        await otpService.sendSignupOtp(payload);
-        this.logger.info({ email: data.email, phone: '[present]', whatsappNumber: '[present]', role: 'SELLER' }, 'register_seller_otp_sent');
+        const delivery = await otpService.sendSignupOtp(payload);
+        this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel: delivery.channel, role: 'SELLER' }, 'register_seller_otp_sent');
 
         // 4. Return success message (no token, pending approval)
-        return {
-            message: 'OTP sent to your mobile number. Verify to complete seller registration.',
-        };
+        return otpSent(delivery, 'Verify to complete seller registration.');
     }
 
     /**
@@ -304,38 +310,35 @@ export class AuthService {
         }, userAgent, ipAddress);
     }
 
-    async requestOtp(input: { phone?: string | undefined }): Promise<{ message: string }> {
-        const phone = input.phone ? normalizeIndianMobile(input.phone) : undefined;
-        this.logger.info({ phone: phone ? '[present]' : null }, 'request_otp_started');
-        if (!phone) {
-            this.logger.warn({ phone: null }, 'request_otp_missing_phone');
-            throw ApiError.badRequest('Phone number is required');
-        }
+    /** Find an account by email address or mobile number. */
+    private async findByEmailOrPhone(identifier: string) {
+        const value = identifier.trim();
+        return value.includes('@')
+            ? this.repository.findUserByEmail(value.toLowerCase())
+            : this.repository.findUserByPhone(normalizeIndianMobile(value));
+    }
 
-        const user = await this.repository.findUserByPhone(phone);
+    async requestOtp(input: { identifier: string }): Promise<RegisterSuccessResponse> {
+        this.logger.info({ identifier: '[present]' }, 'request_otp_started');
+        const user = await this.findByEmailOrPhone(input.identifier);
         if (!user) {
-            this.logger.warn({ phone: '[present]' }, 'request_otp_user_not_found');
+            this.logger.warn({ identifier: '[present]' }, 'request_otp_user_not_found');
             throw ApiError.notFound('User not found');
         }
         if (user.status !== 'ACTIVE') {
-            this.logger.warn({ phone: '[present]', userId: user.id, status: user.status }, 'request_otp_account_not_active');
+            this.logger.warn({ userId: user.id, status: user.status }, 'request_otp_account_not_active');
             throw ApiError.forbidden('Account not active');
         }
-        const channel = await otpService.sendPhoneOtp(user.id, phone, user.email, 'login');
-        this.logger.info({ phone: '[present]', userId: user.id, channel }, 'request_otp_sent');
-        return {
-            message:
-                channel === 'email'
-                    ? 'SMS delivery is unavailable — we emailed your OTP instead. Please check your email.'
-                    : 'OTP sent to your mobile number',
-        };
+        const delivery = await otpService.sendUserOtp(user, 'login');
+        this.logger.info({ userId: user.id, channel: delivery.channel }, 'request_otp_sent');
+        return otpSent(delivery);
     }
 
     /**
      * Re-send the code for a registration still waiting for verification.
      * The pending account details are reused from the original sign-up.
      */
-    async resendSignupOtp(input: { phone?: string | undefined; email?: string | undefined }): Promise<MessageResponse> {
+    async resendSignupOtp(input: { phone?: string | undefined; email?: string | undefined }): Promise<RegisterSuccessResponse> {
         const key = input.phone
             ? normalizeIndianMobile(input.phone)
             : (input.email ?? '').trim().toLowerCase();
@@ -346,10 +349,7 @@ export class AuthService {
         if (await this.repository.existsByEmailOrPhone(payload.email, payload.phone)) {
             throw ApiError.conflict('This account is already verified. Please sign in.');
         }
-        const channel = await otpService.sendSignupOtp(payload);
-        return {
-            message: channel === 'email' ? 'OTP sent to your email address' : 'OTP sent to your mobile number',
-        };
+        return otpSent(await otpService.sendSignupOtp(payload));
     }
 
     async verifyOtp(
@@ -414,7 +414,7 @@ export class AuthService {
             if (created.role === 'SELLER') {
                 this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_seller_created');
                 return {
-                    message: 'Phone verified. Seller account pending admin approval.',
+                    message: `${channel === 'email' ? 'Email' : 'Phone'} verified. Seller account pending admin approval.`,
                 };
             }
 
@@ -624,18 +624,18 @@ export class AuthService {
      *   - Previous unused password-reset OTPs remain (only the latest valid
      *     one is checked during reset).
      */
-    async forgotPassword(phone: string): Promise<MessageResponse> {
-        const normalizedPhone = normalizeIndianMobile(phone);
-        const user = await this.repository.findUserByPhone(normalizedPhone);
+    async forgotPassword(identifier: string): Promise<MessageResponse> {
+        const user = await this.findByEmailOrPhone(identifier);
+        const message = 'If an account exists, an OTP has been sent to its registered email address.';
 
         // Always return a generic message to avoid leaking user existence
-        if (!user) {
-            return { message: 'If an account with that number exists, an OTP has been sent.' };
-        }
+        if (!user) return { message };
 
-        await otpService.sendPasswordResetOtp(user.id, normalizedPhone, user.email);
-
-        return { message: 'If an account with that number exists, an OTP has been sent.' };
+        await otpService.sendPasswordResetOtp(user).catch((err) => {
+            // e.g. a phone-only account with SMS off: keep the response generic.
+            this.logger.warn({ userId: user.id, err: err instanceof Error ? err.message : String(err) }, 'password_reset_otp_failed');
+        });
+        return { message };
     }
 
     /**
@@ -651,27 +651,24 @@ export class AuthService {
      *   - Invalidates ALL existing login sessions (force re-login).
      */
     async resetPassword(
-        phone: string,
+        identifier: string,
         otp: string,
         newPassword: string
     ): Promise<MessageResponse> {
-        const normalizedPhone = normalizeIndianMobile(phone);
-
-        // 1. Find latest valid password-reset OTP
-        const otpRecord = await otpRepository.findLatestValid(normalizedPhone, OtpPurpose.PASSWORD_RESET);
-        if (!otpRecord) {
-            throw ApiError.badRequest('Invalid or expired OTP');
-        }
-
-        // 2. Compare hashed OTP
-        const hashed = hashOtp(otp);
-        if (otpRecord.codeHash !== hashed) {
-            throw ApiError.badRequest('Invalid or expired OTP');
-        }
-
-        // 3. Look up the user
-        const user = await this.repository.findUserByPhone(normalizedPhone);
+        // 1. Look up the user (by email or mobile number)
+        const user = await this.findByEmailOrPhone(identifier);
         if (!user) {
+            throw ApiError.badRequest('Invalid or expired OTP');
+        }
+
+        // 2. Latest valid reset code, stored under the email or the phone
+        //    depending on where it was sent
+        const keys = [user.email, user.phone].filter((k): k is string => Boolean(k));
+        const records = await Promise.all(keys.map((k) => otpRepository.findLatestValid(k, OtpPurpose.PASSWORD_RESET)));
+        const otpRecord = records
+            .filter((r): r is NonNullable<typeof r> => Boolean(r && r.userId === user.id))
+            .find((r) => r.codeHash === hashOtp(otp));
+        if (!otpRecord) {
             throw ApiError.badRequest('Invalid or expired OTP');
         }
 

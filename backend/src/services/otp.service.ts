@@ -16,6 +16,15 @@ type OtpContext = 'login' | 'verify' | 'signup' | 'reset';
 /** Which channel an OTP was actually delivered through. */
 export type OtpChannel = 'sms' | 'email';
 
+type OtpRoute = { keyType: 'email' | 'phone'; key: string };
+
+/**
+ * Where a code went. `keyType`/`key` is what the user sends back with the code
+ * (`{ email }` or `{ phone }`); `channel` is how it was actually delivered
+ * (an SMS key can fall back to email delivery).
+ */
+export type OtpDelivery = OtpRoute & { channel: OtpChannel };
+
 /** Build the OTP message body from the DLT-approved template. */
 function renderOtpSms(code: string): string {
     return env.AQUASMS_OTP_TEMPLATE.replaceAll('{otp}', code);
@@ -124,116 +133,85 @@ export class OtpService {
     }
 
     /**
-     * Send an OTP to an existing user's mobile number (login / re-verify).
-     * @param fallbackEmail address used only if SMS delivery fails.
+     * Decide where a code goes and which key the OTP record is stored under.
+     * The key is what the user later sends back to verify (email or phone).
      */
-    async sendPhoneOtp(
-        userId: string,
-        phone: string,
-        fallbackEmail?: string | null,
+    private route(email: string | null, phone: string | null): OtpRoute {
+        const smsFirst = env.OTP_CHANNEL === 'sms';
+        if (smsFirst && phone) return { keyType: 'phone', key: phone };
+        if (email) return { keyType: 'email', key: email };
+        // Email mode, but the account has no email (older phone-only accounts).
+        if (phone && isSmsConfigured()) return { keyType: 'phone', key: phone };
+        throw ApiError.badRequest(
+            phone
+                ? 'Add an email address to your account to receive the OTP.'
+                : 'Enter your email address to receive the OTP.',
+        );
+    }
+
+    /** Store a fresh code under the chosen key and deliver it. */
+    private async issue(opts: {
+        email: string | null | undefined;
+        phone: string | null | undefined;
+        context: OtpContext;
+        purpose: OtpPurpose;
+        userId?: string;
+        payload?: SignupOtpPayload;
+    }): Promise<OtpDelivery> {
+        const email = opts.email?.trim().toLowerCase() || null;
+        const phone = opts.phone ? normalizeIndianMobile(opts.phone) : null;
+        if (phone && !/^\d{10}$/.test(phone)) {
+            throw ApiError.badRequest('A valid 10-digit mobile number is required');
+        }
+        const route = this.route(email, phone);
+        const code = generateOtpCode();
+
+        await otpRepository.createOtp({
+            ...(opts.userId ? { userId: opts.userId } : {}),
+            email: route.key,
+            codeHash: hashOtp(code),
+            purpose: opts.purpose,
+            expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
+            ...(opts.payload ? { payload: { ...opts.payload, email, phone } } : {}),
+        });
+
+        if (route.keyType === 'email') {
+            const { subject, html } = this.renderOtpEmail(code, opts.context);
+            await sendEmail(route.key, subject, html);
+            this.logger.info({ email: route.key, context: opts.context }, 'otp_email_sent');
+            return { channel: 'email', keyType: 'email', key: route.key };
+        }
+
+        const channel = await this.deliverOtp({ phone: route.key, code, context: opts.context, fallbackEmail: email });
+        return { channel, keyType: 'phone', key: route.key };
+    }
+
+    /** OTP for an existing account (OTP login / re-verify). */
+    async sendUserOtp(
+        user: { id: string; email: string | null; phone: string | null },
         mode: 'login' | 'verify' = 'login',
-    ): Promise<OtpChannel> {
-        const normalizedPhone = normalizeIndianMobile(phone);
-        if (!/^\d{10}$/.test(normalizedPhone)) {
-            throw ApiError.badRequest('A valid 10-digit mobile number is required');
-        }
-
-        const code = generateOtpCode();
-        const codeHash = hashOtp(code);
-        const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-        this.logger.info({ userId, phone: normalizedPhone, mode }, 'phone_otp_create');
-
-        await otpRepository.createOtp({
-            userId,
-            email: normalizedPhone,
-            codeHash,
-            purpose: OtpPurpose.EMAIL_VERIFY,
-            expiresAt,
-        });
-
-        return this.deliverOtp({ phone: normalizedPhone, code, context: mode, fallbackEmail });
+    ): Promise<OtpDelivery> {
+        this.logger.info({ userId: user.id, mode }, 'user_otp_create');
+        return this.issue({ email: user.email, phone: user.phone, context: mode, purpose: OtpPurpose.EMAIL_VERIFY, userId: user.id });
     }
 
     /**
-     * Send a signup OTP. The OTP record is keyed by phone and carries the
-     * pending account payload; the account is created on verification.
-     * Delivered by SMS with email fallback.
+     * Sign-up OTP. The record carries the pending account; the account is
+     * created only once the code is verified.
      */
-    async sendSignupOtp(payload: SignupOtpPayload): Promise<OtpChannel> {
-        const normalizedEmail = payload.email?.trim().toLowerCase() || null;
-
-        if (!payload.phone) {
-            // Email-only signup: the OTP record is keyed by the email address
-            // and the code is emailed directly.
-            if (!normalizedEmail) {
-                throw ApiError.badRequest('Enter an email address or a mobile number');
-            }
-            const code = generateOtpCode();
-            await otpRepository.createOtp({
-                email: normalizedEmail,
-                codeHash: hashOtp(code),
-                purpose: OtpPurpose.EMAIL_VERIFY,
-                expiresAt: new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000),
-                payload: { ...payload, email: normalizedEmail, phone: null },
-            });
-            const { subject, html } = this.renderOtpEmail(code, 'signup');
-            await sendEmail(normalizedEmail, subject, html);
-            this.logger.info({ email: normalizedEmail, role: payload.role }, 'signup_email_otp_sent');
-            return 'email';
+    async sendSignupOtp(payload: SignupOtpPayload): Promise<OtpDelivery> {
+        // In email mode a new account always needs an email for its code.
+        if (!payload.email && (env.OTP_CHANNEL === 'email' || !payload.phone)) {
+            throw ApiError.badRequest('Enter your email address. We send the verification code (OTP) there.');
         }
-
-        const normalizedPhone = normalizeIndianMobile(payload.phone);
-        if (!/^\d{10}$/.test(normalizedPhone)) {
-            throw ApiError.badRequest('A valid 10-digit mobile number is required');
-        }
-
-        const code = generateOtpCode();
-        const codeHash = hashOtp(code);
-        const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-        this.logger.info({ phone: normalizedPhone, role: payload.role, hasWhatsapp: Boolean(payload.whatsappNumber) }, 'signup_otp_create');
-
-        await otpRepository.createOtp({
-            email: normalizedPhone,
-            codeHash,
-            purpose: OtpPurpose.EMAIL_VERIFY,
-            expiresAt,
-            payload: {
-                ...payload,
-                email: normalizedEmail,
-                phone: normalizedPhone,
-            },
-        });
-
-        return this.deliverOtp({ phone: normalizedPhone, code, context: 'signup', fallbackEmail: normalizedEmail });
+        this.logger.info({ role: payload.role, hasPhone: Boolean(payload.phone) }, 'signup_otp_create');
+        return this.issue({ email: payload.email, phone: payload.phone, context: 'signup', purpose: OtpPurpose.EMAIL_VERIFY, payload });
     }
 
-    /**
-     * Send a password-reset OTP keyed by phone (purpose PASSWORD_RESET).
-     * Delivered by SMS with email fallback.
-     */
-    async sendPasswordResetOtp(userId: string, phone: string, fallbackEmail?: string | null): Promise<void> {
-        const normalizedPhone = normalizeIndianMobile(phone);
-        if (!/^\d{10}$/.test(normalizedPhone)) {
-            throw ApiError.badRequest('A valid 10-digit mobile number is required');
-        }
-
-        const code = generateOtpCode();
-        const codeHash = hashOtp(code);
-        const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
-
-        this.logger.info({ userId, phone: normalizedPhone }, 'password_reset_otp_create');
-
-        await otpRepository.createOtp({
-            userId,
-            email: normalizedPhone,
-            codeHash,
-            purpose: OtpPurpose.PASSWORD_RESET,
-            expiresAt,
-        });
-
-        await this.deliverOtp({ phone: normalizedPhone, code, context: 'reset', fallbackEmail });
+    /** Password-reset OTP (purpose PASSWORD_RESET), to the account's email by default. */
+    async sendPasswordResetOtp(user: { id: string; email: string | null; phone: string | null }): Promise<OtpDelivery> {
+        this.logger.info({ userId: user.id }, 'password_reset_otp_create');
+        return this.issue({ email: user.email, phone: user.phone, context: 'reset', purpose: OtpPurpose.PASSWORD_RESET, userId: user.id });
     }
 
     async verifyPhoneOtp(phone: string, code: string) {

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { registerUser } from "@/services/auth";
+import { registerUser, verifyOtpUrl } from "@/services/auth";
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
@@ -22,18 +22,10 @@ function normalizePhone(value: string): string {
   return value.replace(/\D/g, "");
 }
 
-/** One field for both: anything with "@" or letters is an email, digits are a mobile number. */
-function detectIdentifier(value: string): "email" | "phone" | "unknown" {
-  const trimmed = value.trim();
-  if (!trimmed) return "unknown";
-  if (trimmed.includes("@") || /[a-zA-Z]/.test(trimmed)) return "email";
-  if (/^[+\d][\d\s\-()+]*$/.test(trimmed)) return "phone";
-  return "unknown";
-}
-
 export default function UserRegisterPage() {
   const [fullName, setFullName] = React.useState("");
-  const [identifier, setIdentifier] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -43,24 +35,20 @@ export default function UserRegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!fullName || !identifier.trim() || !password) {
+    if (!fullName || !email.trim() || !password) {
       toast.error("Please fill all required fields.");
       return;
     }
 
-    const kind = detectIdentifier(identifier);
-    const normalizedPhone = kind === "phone" ? normalizePhone(identifier) : "";
-    const normalizedEmail = kind === "email" ? identifier.trim().toLowerCase() : "";
-    if (kind === "phone" && !/^\d{10,15}$/.test(normalizedPhone)) {
-      toast.error("Mobile number must be 10 to 15 digits.");
-      return;
-    }
-    if (kind === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    // The verification code (OTP) goes to the email; mobile is optional.
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPhone = normalizePhone(phone);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       toast.error("Enter a valid email address.");
       return;
     }
-    if (kind === "unknown") {
-      toast.error("Enter your email address or mobile number.");
+    if (normalizedPhone && !/^\d{10,15}$/.test(normalizedPhone)) {
+      toast.error("Mobile number must be 10 to 15 digits.");
       return;
     }
 
@@ -86,18 +74,16 @@ export default function UserRegisterPage() {
 
     setLoading(true);
     try {
-      console.info("[auth-ui][register-user] submit", { kind });
+      console.info("[auth-ui][register-user] submit", { hasPhone: Boolean(normalizedPhone) });
       const result = await registerUser({
         fullName: fullName.trim(),
-        ...(kind === "phone" ? { phone: normalizedPhone } : { email: normalizedEmail }),
+        email: normalizedEmail,
+        ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         password,
       });
-      console.info("[auth-ui][register-user] otp-sent", { kind });
+      console.info("[auth-ui][register-user] otp-sent");
       toast.success(result.message);
-      window.location.href =
-        kind === "phone"
-          ? `/verify-otp?signup=1&phone=${encodeURIComponent(normalizedPhone)}`
-          : `/verify-otp?signup=1&email=${encodeURIComponent(normalizedEmail)}`;
+      window.location.href = verifyOtpUrl(result.verifyWith ?? { email: normalizedEmail }, { signup: true });
     } catch (error) {
       console.error("[auth-ui][register-user] failed", error);
       toast.error(error instanceof Error ? error.message : "Signup failed");
@@ -188,22 +174,33 @@ export default function UserRegisterPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="identifier" required>Email or mobile number</Label>
+                  <Label htmlFor="email" required>Email address</Label>
                   <Input
-                    id="identifier"
-                    type="text"
-                    placeholder="you@email.com or 9876543210"
-                    value={identifier}
-                    autoComplete="off"
-                    onChange={(event) => setIdentifier(event.target.value)}
+                    id="email"
+                    type="email"
+                    inputMode="email"
+                    placeholder="you@email.com"
+                    value={email}
+                    autoComplete="email"
+                    onChange={(event) => setEmail(event.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {detectIdentifier(identifier) === "email"
-                      ? "We'll email a verification code to this address."
-                      : detectIdentifier(identifier) === "phone"
-                        ? "We'll send a verification code to this number by SMS."
-                        : "Use whichever you prefer — we'll send a verification code to it."}
+                    We&apos;ll email a verification code (OTP) to this address.
                   </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">
+                    Mobile number <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="9876543210"
+                    value={phone}
+                    autoComplete="tel"
+                    onChange={(event) => setPhone(event.target.value.replace(/\D/g, ""))}
+                  />
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">

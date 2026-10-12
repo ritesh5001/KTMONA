@@ -20,23 +20,24 @@ import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
-  const [phone, setPhone] = React.useState("");
+  const [identifier, setIdentifier] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const normalizedPhone = phone.replace(/\D/g, "");
-    if (!normalizedPhone) {
-      toast.error("Please enter your mobile number.");
+    const trimmed = identifier.trim();
+    const value = trimmed.includes("@") ? trimmed.toLowerCase() : trimmed.replace(/\D/g, "");
+    if (!value) {
+      toast.error("Please enter your email address or mobile number.");
       return;
     }
 
     setLoading(true);
     try {
-      await forgotPassword(normalizedPhone);
-      toast.success("If an account exists, an OTP has been sent to your mobile number.");
-      router.push(`/reset-password?phone=${encodeURIComponent(normalizedPhone)}`);
+      const result = await forgotPassword(value);
+      toast.success(result.message);
+      router.push(`/reset-password?id=${encodeURIComponent(value)}`);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Something went wrong"
@@ -76,8 +77,8 @@ export default function ForgotPasswordPage() {
             variants={heroItemVariants}
             className="text-base leading-relaxed text-muted-foreground mb-8"
           >
-            Enter the mobile number associated with your account and we&apos;ll
-            send you a one-time code to set a new password.
+            Enter the email address or mobile number of your account and we&apos;ll
+            email you a one-time code to set a new password.
           </motion.p>
 
           <motion.div
@@ -112,22 +113,21 @@ export default function ForgotPasswordPage() {
                 Forgot Password
               </CardTitle>
               <CardDescription>
-                We&apos;ll send a 6-digit OTP to your registered mobile number.
+                We&apos;ll send a 6-digit OTP to your registered email address.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-6">
               <form className="space-y-5" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <Label htmlFor="phone" required>Mobile Number</Label>
+                  <Label htmlFor="identifier" required>Email or Mobile Number</Label>
                   <Input
-                    id="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    placeholder="9876543210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                    autoComplete="tel"
+                    id="identifier"
+                    type="text"
+                    placeholder="you@email.com or 9876543210"
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
+                    autoComplete="username"
                   />
                 </div>
 
