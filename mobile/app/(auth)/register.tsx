@@ -11,6 +11,7 @@ import {
 import { Link, useRouter } from "expo-router";
 import { colors, radius, spacing, typography, shadow } from "../../src/theme/tokens";
 import { registerUser } from "../../src/services/auth";
+import { suggestEmailFix } from "../../src/lib/email-typo";
 import { AppHeader } from "../../src/components/AppHeader";
 import { ApiError } from "../../src/services/api";
 import { BrandLoader } from "../../src/components/BrandLoader";
@@ -32,6 +33,8 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const typoConfirmed = React.useRef<string | null>(null);
+  const emailSuggestion = suggestEmailFix(email);
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
@@ -42,6 +45,13 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     if (!fullName || !email.trim() || !password) {
       setError("Please fill all required fields.");
+      return;
+    }
+    // The OTP goes to this email: stop once on a likely typo (e.g. gmaiil.com).
+    const emailFix = suggestEmailFix(email);
+    if (emailFix && typoConfirmed.current !== email.trim().toLowerCase()) {
+      typoConfirmed.current = email.trim().toLowerCase();
+      setError(`Did you mean ${emailFix}? Fix the email, or tap Create again to keep it.`);
       return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -130,6 +140,13 @@ export default function RegisterScreen() {
             onChangeText={setEmail}
             autoCapitalize="none"
           />
+          {emailSuggestion ? (
+            <Pressable onPress={() => setEmail(emailSuggestion)}>
+              <Text style={styles.typoHint}>
+                Did you mean <Text style={styles.typoHintStrong}>{emailSuggestion}</Text>? Tap to use it.
+              </Text>
+            </Pressable>
+          ) : null}
 
           <FieldLabel>Mobile number (optional)</FieldLabel>
           <TextInput
@@ -279,6 +296,15 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 1.6,
     marginBottom: spacing.xs,
+  },
+  typoHint: {
+    marginTop: 6,
+    fontSize: 12,
+    color: "#B45309",
+  },
+  typoHintStrong: {
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
   helperText: {
     marginTop: spacing.xs,

@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerUser, verifyOtpUrl } from "@/services/auth";
 import { toast } from "sonner";
+import { EmailTypoHint, useEmailTypoGuard } from "@/components/auth/EmailTypoHint";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
 function normalizePhone(value: string): string {
@@ -25,6 +26,7 @@ function normalizePhone(value: string): string {
 export default function UserRegisterPage() {
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
+  const checkEmailTypo = useEmailTypoGuard();
   const [phone, setPhone] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
@@ -37,6 +39,12 @@ export default function UserRegisterPage() {
 
     if (!fullName || !email.trim() || !password) {
       toast.error("Please fill all required fields.");
+      return;
+    }
+
+    const typo = checkEmailTypo(email);
+    if (typo) {
+      toast.error(typo);
       return;
     }
 
@@ -187,6 +195,7 @@ export default function UserRegisterPage() {
                   <p className="text-xs text-muted-foreground">
                     We&apos;ll email a verification code (OTP) to this address.
                   </p>
+                  <EmailTypoHint email={email} onFix={setEmail} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">

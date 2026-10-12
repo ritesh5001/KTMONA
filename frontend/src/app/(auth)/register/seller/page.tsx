@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerSeller, verifyOtpUrl } from "@/services/auth";
 import { toast } from "sonner";
+import { EmailTypoHint, useEmailTypoGuard } from "@/components/auth/EmailTypoHint";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
 export default function SellerRegisterPage() {
@@ -53,6 +54,7 @@ export default function SellerRegisterPage() {
   });
 
   const [email, setEmail] = React.useState("");
+  const checkEmailTypo = useEmailTypoGuard();
   const [phone, setPhone] = React.useState("");
   const [whatsappNumber, setWhatsappNumber] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -66,6 +68,12 @@ export default function SellerRegisterPage() {
 
     if (!email || !whatsappNumber || !password) {
       toast.error("Please fill all required fields.");
+      return;
+    }
+
+    const typo = checkEmailTypo(email);
+    if (typo) {
+      toast.error(typo);
       return;
     }
 
@@ -199,6 +207,7 @@ export default function SellerRegisterPage() {
                     onChange={(event) => setEmail(event.target.value)}
                     className={theme.input}
                   />
+                  <EmailTypoHint email={email} onFix={setEmail} />
                 </motion.div>
                 <motion.div className="space-y-2" {...fadeInUp(1)}>
                   <Label htmlFor="phone" className={theme.label}>Contact Number <span className="text-navy/50">(optional)</span></Label>
