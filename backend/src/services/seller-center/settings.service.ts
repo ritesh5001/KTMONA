@@ -54,7 +54,10 @@ class SellerSettingsService {
                 pan: profile.pan_number,
                 state: profile.state,
                 kycStatus: profile.kyc_status,
+                /** false: an admin lets this seller list products before KYC is verified. */
+                kycRequired: profile.kyc_required,
             },
+            signatureUrl: profile?.signature_url ?? null,
             pickup: profile && {
                 contactName: profile.pickup_contact_name,
                 phone: profile.pickup_phone,
@@ -206,6 +209,13 @@ class SellerSettingsService {
                 },
             });
         });
+        return this.get(sellerId);
+    }
+
+    /** Digital signature image printed on the seller's invoices (null removes it). */
+    async setSignature(sellerId: string, url: string | null) {
+        await this.ensureProfile(sellerId);
+        await prisma.seller_profiles.update({ where: { user_id: sellerId }, data: { signature_url: url, updated_at: new Date() } });
         return this.get(sellerId);
     }
 

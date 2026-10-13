@@ -113,6 +113,7 @@ export class OrderRepository {
             cancellationStatus: order.cancellationRequest?.status ?? null,
             returnStatus: order.returnRequests[0]?.status ?? null,
             shipmentStatus: order.shipments[0]?.status ?? null,
+            awaitingSeller: order.status === 'CONFIRMED' && order.shipments.length === 0,
         };
     }
 
@@ -225,6 +226,8 @@ export class OrderRepository {
                 cancellationStatus: order.cancellationRequest?.status ?? null,
                 returnStatus: order.returnRequests[0]?.status ?? null,
                 shipmentStatus: latestShipmentStatus,
+                // Paid / COD-confirmed, but the seller has not accepted it yet.
+                awaitingSeller: order.status === 'CONFIRMED' && order.shipments.length === 0,
             } as unknown as OrderWithItems;
         });
     }

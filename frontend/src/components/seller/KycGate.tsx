@@ -16,7 +16,8 @@ export function KycGate({ children, mode = "block" }: { children?: React.ReactNo
   if (isLoading || !data) return mode === "block" ? <div className="h-40 animate-pulse rounded-2xl bg-mist" /> : <>{children}</>;
 
   const status = data.business?.kycStatus ?? null;
-  if (status === "VERIFIED") return <>{children}</>;
+  // Verified, or an admin lets this seller list before KYC is verified.
+  if (status === "VERIFIED" || data.business?.kycRequired === false) return <>{children}</>;
 
   const copy =
     status === "PENDING"

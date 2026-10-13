@@ -639,7 +639,8 @@ export default function OrdersScreen() {
   const renderOrderItem = React.useCallback(
     ({ item }: ListRenderItemInfo<BuyerOrder>) => {
       const payment = paymentStatus[item.id];
-      const label = getPaymentLabel(item.status, payment);
+      // Not "Confirmed" until the seller accepts the order.
+      const label = item.status === "CONFIRMED" && item.awaitingSeller ? "AWAITING SELLER" : getPaymentLabel(item.status, payment);
       const cancellationStatus = cancellationByOrder[item.id]?.status ?? item.cancellationRequest?.status;
       const showCancellationRequested = cancellationStatus === "REQUESTED";
       const returnStatusVal = returnByOrder[item.id]?.status ?? null;

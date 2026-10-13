@@ -446,6 +446,15 @@ sellerCenterRouter.post(
         return sellerSettingsService.upsertBank(sid(req), body);
     })
 );
+sellerCenterRouter.put(
+    '/settings/signature',
+    h((req) =>
+        sellerSettingsService.setSignature(
+            sid(req),
+            z.object({ url: z.string().trim().url().max(1000).refine((u) => u.startsWith('https://'), 'Upload the signature image').nullable() }).parse(req.body).url
+        )
+    )
+);
 sellerCenterRouter.put('/settings/vacation', h((req) => sellerSettingsService.setVacation(sid(req), z.object({ on: z.boolean() }).parse(req.body).on)));
 
 // =============================================================================

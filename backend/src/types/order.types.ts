@@ -90,6 +90,8 @@ export interface OrderWithItems extends OrderEntity {
     cancellationStatus?: string | null;
     returnStatus?: string | null;
     shipmentStatus?: string | null;
+    /** CONFIRMED (paid / COD) but the seller has not accepted it yet. */
+    awaitingSeller?: boolean;
 }
 
 /**
@@ -104,6 +106,8 @@ export interface OrderWithDetails extends OrderEntity {
     cancellationStatus?: string | null;
     returnStatus?: string | null;
     shipmentStatus?: string | null;
+    /** CONFIRMED (paid / COD) but the seller has not accepted it yet. */
+    awaitingSeller?: boolean;
 }
 
 /**
@@ -129,6 +133,8 @@ export interface SellerOrderItem extends OrderItemEntity {
             createdAt: Date;
         } | null;
         shipmentStatus?: string | null;
+    /** CONFIRMED (paid / COD) but the seller has not accepted it yet. */
+    awaitingSeller?: boolean;
         shippingName?: string | null;
         shippingPhone?: string | null;
         shippingEmail?: string | null;

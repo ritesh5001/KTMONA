@@ -24,6 +24,8 @@ const getStatusStyle = (status: string) => {
   switch (status.toUpperCase()) {
     case "DELIVERED":
       return "border-[#7B9971]/30 text-[#5A7352] bg-[#7B9971]/5";
+    case "AWAITING SELLER":
+      return "border-border-soft text-muted-foreground bg-mist/30";
     case "CONFIRMED":
       return "border-[#FF8A00]/30 text-[#B84A00] bg-[#FF8A00]/5";
     case "SHIPPED":
@@ -391,6 +393,10 @@ export default function UserOrdersClient({
               const canRequestReturn =
                 order.status === "DELIVERED" && !hasReturnRequest;
               const requestingReturn = requestingReturnIds.has(order.id);
+              // The seller has not accepted it yet: don't promise "Confirmed".
+              if (order.status === "CONFIRMED" && order.awaitingSeller) {
+                label = "AWAITING SELLER";
+              }
               if (order.status === "PLACED") {
                 if (paymentStatus === "FAILED") {
                   label = "PAYMENT FAILED";

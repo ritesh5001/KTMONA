@@ -478,6 +478,7 @@ export const HI: Record<string, string> = {
   PLACED: "ऑर्डर हुआ",
   Placed: "ऑर्डर हुआ",
   CONFIRMED: "कन्फ़र्म",
+  "AWAITING SELLER": "विक्रेता की पुष्टि बाकी",
   PROCESSING: "तैयार हो रहा है",
   SHIPPED: "भेज दिया गया",
   Shipped: "भेज दिया गया",

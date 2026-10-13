@@ -76,6 +76,7 @@ export interface AdminSellerRow {
   joinedAt: string;
   storeName: string | null;
   kycStatus: string;
+  kycRequired?: boolean;
   gstRegistered: boolean | null;
   payoutHold: boolean;
   liveProducts: number;
@@ -100,6 +101,8 @@ export interface AdminSellerDetail {
   store: null | { name: string; slug: string; description: string | null; supportEmail: string | null; supportPhone: string | null; vacationMode: boolean };
   kyc: null | {
     status: string;
+    /** false: this seller may list products before KYC is verified. */
+    required: boolean;
     rejectionReason: string | null;
     verifiedAt: string | null;
     businessType: string;
@@ -287,6 +290,8 @@ export const adminCenter = {
     get<{ tab: SellerTab; counts: Record<string, number>; sellers: AdminSellerRow[]; pagination: Pagination }>(`/sellers${qs(params)}`),
   seller: (id: string) => get<AdminSellerDetail>(`/sellers/${id}`),
   reviewKyc: (id: string, status: "VERIFIED" | "REJECTED", reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc`, { status, reason }),
+  /** Whether the seller needs verified KYC before listing products. */
+  setKycRequired: (id: string, required: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc-required`, { required }),
   /** `days` makes a suspension temporary: it lifts by itself after that many days. */
   setSellerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string, days?: number) =>
     send<AdminSellerDetail>("POST", `/sellers/${id}/status`, { status, reason, ...(days ? { days } : {}) }),

@@ -78,6 +78,7 @@ class AdminSellersService {
                 joinedAt: s.createdAt,
                 storeName: s.seller_profiles?.store_name ?? null,
                 kycStatus: s.seller_profiles?.kyc_status ?? 'PENDING',
+                kycRequired: s.seller_profiles?.kyc_required ?? true,
                 gstRegistered: s.seller_profiles?.gst_registered ?? null,
                 payoutHold: s.seller_profiles?.payout_hold ?? false,
                 liveProducts: m?.liveProducts ?? 0,
@@ -176,6 +177,7 @@ class AdminSellersService {
             store: p && { name: p.store_name, slug: p.store_slug, description: p.store_description, supportEmail: p.support_email, supportPhone: p.support_phone, vacationMode: p.vacation_mode },
             kyc: p && {
                 status: p.kyc_status,
+                required: p.kyc_required,
                 rejectionReason: p.kyc_rejection_reason,
                 verifiedAt: p.kyc_verified_at,
                 businessType: p.business_type,
@@ -224,6 +226,17 @@ class AdminSellersService {
         });
         await prisma.auditLog.create({
             data: { actorId: adminId, action: `SELLER_KYC_${input.status}`, entityType: 'USER', entityId: sellerId, metadata: { reason: input.reason ?? null } },
+        }).catch(() => undefined);
+        return this.detail(sellerId);
+    }
+
+    /** Whether this seller must have verified KYC before listing products. */
+    async setKycRequired(adminId: string, sellerId: string, required: boolean) {
+        const profile = await prisma.seller_profiles.findUnique({ where: { user_id: sellerId }, select: { user_id: true } });
+        if (!profile) throw ApiError.badRequest('This seller has not set up their store yet');
+        await prisma.seller_profiles.update({ where: { user_id: sellerId }, data: { kyc_required: required, updated_at: new Date() } });
+        await prisma.auditLog.create({
+            data: { actorId: adminId, action: required ? 'SELLER_KYC_REQUIRED' : 'SELLER_KYC_EXEMPTED', entityType: 'USER', entityId: sellerId, metadata: {} },
         }).catch(() => undefined);
         return this.detail(sellerId);
     }

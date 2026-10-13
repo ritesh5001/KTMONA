@@ -111,6 +111,7 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
                             store_name: true,
                             gstin: true,
                             state: true,
+                            signature_url: true,
                         },
                     },
                 },
@@ -200,7 +201,7 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
     doc.moveDown(1);
 
     // ======== SELLER DETAILS ========
-    const sellers = new Map<string, { name: string; gstin: string; state: string }>();
+    const sellers = new Map<string, { name: string; gstin: string; state: string; signatureUrl: string | null }>();
     for (const item of order.items) {
         const sp = (item.product as any)?.seller?.seller_profiles;
         if (sp && !sellers.has(sp.store_name)) {
@@ -208,6 +209,7 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
                 name: sp.store_name,
                 gstin: sp.gstin ?? 'N/A',
                 state: sp.state || 'N/A',
+                signatureUrl: sp.signature_url ?? null,
             });
         }
     }
@@ -242,12 +244,12 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
     doc.text('Product', col.product, tableTop, { width: 125 });
     doc.text('HSN', col.hsn, tableTop, { width: 40 });
     doc.text('Qty', col.qty, tableTop, { width: 30, align: 'right' });
-    doc.text('Unit ₹', col.unit, tableTop, { width: 45, align: 'right' });
-    doc.text('Taxable ₹', col.taxable, tableTop, { width: 50, align: 'right' });
-    doc.text('CGST ₹', col.cgst, tableTop, { width: 40, align: 'right' });
-    doc.text('SGST ₹', col.sgst, tableTop, { width: 40, align: 'right' });
-    doc.text('IGST ₹', col.igst, tableTop, { width: 40, align: 'right' });
-    doc.text('Total ₹', col.total, tableTop, { width: 50, align: 'right' });
+    doc.text('Unit Rs.', col.unit, tableTop, { width: 45, align: 'right' });
+    doc.text('Taxable Rs.', col.taxable, tableTop, { width: 50, align: 'right' });
+    doc.text('CGST Rs.', col.cgst, tableTop, { width: 40, align: 'right' });
+    doc.text('SGST Rs.', col.sgst, tableTop, { width: 40, align: 'right' });
+    doc.text('IGST Rs.', col.igst, tableTop, { width: 40, align: 'right' });
+    doc.text('Total Rs.', col.total, tableTop, { width: 50, align: 'right' });
 
     doc.moveTo(50, doc.y + 3).lineTo(550, doc.y + 3).stroke();
     doc.moveDown(0.5);
@@ -293,8 +295,27 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
     doc.moveTo(totalsX, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.3);
     doc.font('Helvetica-Bold').fontSize(11);
-    drawTotalLine(doc, 'Grand Total', `₹${fmt(order.grandTotal)}`, totalsX);
+    drawTotalLine(doc, 'Grand Total', `Rs. ${fmt(order.grandTotal)}`, totalsX);
     doc.moveDown(2);
+
+    // ======== AUTHORISED SIGNATORY (one per seller) ========
+    for (const seller of sellers.values()) {
+        const image = seller.signatureUrl ? await fetchSignature(seller.signatureUrl) : null;
+        const x = 370;
+        if (doc.y > 700) doc.addPage();
+        doc.fontSize(9).font('Helvetica-Bold').fillColor('#000000').text(`For ${seller.name}`, x, doc.y, { width: 180, align: 'right' });
+        const top = doc.y + 4;
+        if (image) {
+            try {
+                doc.image(image, x + 40, top, { fit: [140, 45], align: 'right' });
+            } catch {
+                // Unsupported image: leave the space blank rather than fail the invoice.
+            }
+        }
+        doc.y = top + 50;
+        doc.fontSize(8).font('Helvetica').text('Authorised Signatory', x, doc.y, { width: 180, align: 'right' });
+        doc.moveDown(1.5);
+    }
 
     // ======== FOOTER ========
     doc.fontSize(8).font('Helvetica').fillColor('#666666');
@@ -333,6 +354,25 @@ function formatDate(d: Date): string {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     return `${day}/${month}/${year}`;
+}
+
+/**
+ * Download a seller's signature image for the PDF. pdfkit only reads PNG/JPEG,
+ * so ImageKit images are asked for as PNG. Null (no signature drawn) on any
+ * failure: a missing signature must never block an invoice.
+ */
+async function fetchSignature(url: string): Promise<Buffer | null> {
+    try {
+        const u = new URL(url);
+        if (u.protocol !== 'https:') return null;
+        if (u.hostname.endsWith('imagekit.io')) u.searchParams.set('tr', 'f-png,w-400');
+        const res = await fetch(u, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) return null;
+        const buf = Buffer.from(await res.arrayBuffer());
+        return buf.length > 0 && buf.length < 2_000_000 ? buf : null;
+    } catch {
+        return null;
+    }
 }
 
 function drawSectionHeader(doc: PDFKit.PDFDocument, title: string): void {

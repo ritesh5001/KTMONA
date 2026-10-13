@@ -67,6 +67,10 @@ adminCenterRouter.post(
     h((req) => adminSellersService.reviewKyc(aid(req), param(req, 'id'), z.object({ status: z.enum(['VERIFIED', 'REJECTED']), reason: z.string().max(300).optional() }).parse(req.body)))
 );
 adminCenterRouter.post(
+    '/sellers/:id/kyc-required',
+    h((req) => adminSellersService.setKycRequired(aid(req), param(req, 'id'), z.object({ required: z.boolean() }).parse(req.body).required))
+);
+adminCenterRouter.post(
     '/sellers/:id/status',
     h((req) => adminSellersService.setStatus(aid(req), param(req, 'id'), z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']), reason: z.string().max(300).optional(), days: z.number().int().min(1).max(365).optional() }).parse(req.body)))
 );

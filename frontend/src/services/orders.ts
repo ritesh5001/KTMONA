@@ -22,6 +22,8 @@ export interface BuyerOrder {
   createdAt: string;
   items: OrderItem[];
   shipmentStatus?: string | null;
+  /** Paid / COD-confirmed but the seller has not accepted it yet. */
+  awaitingSeller?: boolean;
   cancellationRequest?: {
     id: string;
     status: "REQUESTED" | "APPROVED" | "REJECTED";
@@ -44,6 +46,8 @@ export interface SellerOrderItem {
     status: string;
     createdAt: string;
     shipmentStatus?: string | null;
+  /** Paid / COD-confirmed but the seller has not accepted it yet. */
+  awaitingSeller?: boolean;
     shippingName?: string;
     shippingPhone?: string;
     shippingEmail?: string;

@@ -86,6 +86,7 @@ const OrderItemRow = React.memo(function OrderItemRow({
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   PLACED: { label: "PLACED", color: colors.brownSoft },
   CONFIRMED: { label: "CONFIRMED", color: colors.gold },
+  "AWAITING SELLER": { label: "AWAITING SELLER", color: colors.brownSoft },
   PROCESSING: { label: "PROCESSING", color: colors.gold },
   SHIPPED: { label: "SHIPPED", color: "#B84A00" },
   DELIVERED: { label: "DELIVERED", color: "#8A3A00" },
@@ -231,13 +232,15 @@ export default function OrderDetailScreen() {
   );
 
   // ---- Derived ----
-  const statusInfo = order ? getStatusInfo(order.status, paymentStatus) : null;
+  // Not "Confirmed" until the seller accepts the order.
+  const awaitingSeller = order?.status === "CONFIRMED" && Boolean(order?.awaitingSeller);
+  const statusInfo = order ? (awaitingSeller ? STATUS_LABELS["AWAITING SELLER"]! : getStatusInfo(order.status, paymentStatus)) : null;
   const isDelivered = order?.status === "DELIVERED";
   const showPaymentWarning =
     order?.status === "PLACED" &&
     paymentStatus != null &&
     paymentStatus !== "SUCCESS";
-  const timelineStatus = normalizeStatusForTimeline(order?.status ?? "PLACED");
+  const timelineStatus = awaitingSeller ? "PLACED" : normalizeStatusForTimeline(order?.status ?? "PLACED");
   const activeStepIndex = STATUS_FLOW.indexOf(
     timelineStatus as (typeof STATUS_FLOW)[number]
   );

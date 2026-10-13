@@ -99,6 +99,30 @@ export default function AdminSellerDetailPage() {
                 </Btn>
                 <Btn size="sm" variant="danger" onClick={() => setDialog("kyc-reject")}>Reject</Btn>
               </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border-soft bg-mist/40 p-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">KYC required to list products</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.kyc.required
+                      ? "On: this seller can add products only after the KYC above is verified."
+                      : "Off: this seller can add products even though KYC is not verified yet."}
+                  </p>
+                </div>
+                <Btn
+                  size="sm"
+                  variant={s.kyc.required ? "outline" : "brand"}
+                  loading={busy === "kyc-required"}
+                  onClick={() =>
+                    act(
+                      "kyc-required",
+                      () => adminCenter.setKycRequired(s.id, !s.kyc!.required),
+                      s.kyc!.required ? "This seller can now list products without verified KYC" : "KYC is required again for this seller"
+                    )
+                  }
+                >
+                  {s.kyc.required ? "Allow without KYC" : "Require KYC"}
+                </Btn>
+              </div>
             </div>
           )}
         </Panel>

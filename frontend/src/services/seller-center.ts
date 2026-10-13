@@ -399,7 +399,9 @@ export interface SellerSettings {
   sellerCode: string;
   account: { email: string | null; phone: string | null; whatsapp: string | null; status: string; joinedAt: string };
   store: null | { name: string; slug: string; description: string | null; logo: string | null; supportEmail: string | null; supportPhone: string | null; vacationMode: boolean };
-  business: null | { businessType: BusinessType; gstRegistered: boolean; gstin: string | null; enrolmentId: string | null; pan: string | null; state: string; kycStatus: string };
+  business: null | { businessType: BusinessType; gstRegistered: boolean; gstin: string | null; enrolmentId: string | null; pan: string | null; state: string; kycStatus: string; kycRequired?: boolean };
+  /** Digital signature printed on the seller's invoices. */
+  signatureUrl?: string | null;
   pickup: null | { contactName: string | null; phone: string | null; line1: string | null; line2: string | null; city: string | null; state: string | null; pincode: string | null };
   bankAccounts: { id: string; bankName: string; holderName: string; accountNumberMasked: string; ifsc: string; isPrimary: boolean }[];
   shipping: { mode: "SHIPROCKET" | "SELF_SHIP" };
@@ -524,6 +526,8 @@ export const sellerCenter = {
     send<SellerSettings>("PUT", "/settings/pickup", body),
   addBank: (body: { bankName: string; holderName: string; accountNumber: string; ifsc: string }) => send<SellerSettings>("POST", "/settings/bank", body),
   setVacation: (on: boolean) => send<SellerSettings>("PUT", "/settings/vacation", { on }),
+  /** Signature image for "Authorised Signatory" on invoices; null removes it. */
+  setSignature: (url: string | null) => send<SellerSettings>("PUT", "/settings/signature", { url }),
 };
 
 // ── Admin: seller claims ──────────────────────────────────────────────────

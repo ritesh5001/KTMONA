@@ -9,6 +9,7 @@ import { adminCenter, type QcProduct } from "@/services/admin-center";
 import { inr, fmtDate } from "@/services/seller-center";
 import { Badge, Btn, Empty, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, Pager, SearchBox, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
+import { ImageLightbox } from "@/components/admin/ImageLightbox";
 
 export default function CatalogQcPage() {
   const { mutate: globalMutate } = useSWRConfig();
@@ -90,6 +91,7 @@ export default function CatalogQcPage() {
 
 function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: { product: QcProduct; selected: boolean; onToggle: () => void; busy: boolean; onApprove: () => void; onReject: () => void }) {
   const [active, setActive] = React.useState(0);
+  const [preview, setPreview] = React.useState<number | null>(null);
   const errors = p.flags.filter((f) => f.level === "error").length;
   return (
     <article className={cn("rounded-2xl border bg-card p-4", selected ? "border-brand" : "border-border-soft")}>
@@ -97,18 +99,21 @@ function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: {
         <div className="flex gap-3 lg:w-72 lg:shrink-0">
           <input type="checkbox" aria-label={`Select ${p.title}`} checked={selected} onChange={onToggle} className="mt-1 h-4 w-4 accent-[var(--color-brand)]" />
           <div className="flex-1">
-            <div className="aspect-square overflow-hidden rounded-xl border border-border-soft bg-mist">
+            <div className="aspect-square overflow-hidden rounded-xl border border-border-soft bg-white">
               {p.images[active] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.images[active]} alt={p.title} className="h-full w-full object-cover" />
+                <button type="button" className="h-full w-full cursor-zoom-in" onClick={() => setPreview(active)} aria-label="View full image">
+                  {/* Whole image (not cropped) so QC sees exactly what buyers will. */}
+                  <img src={p.images[active]} alt={p.title} className="h-full w-full object-contain" />
+                </button>
               ) : <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No image</div>}
             </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">Click the image to view it full size</p>
+            <ImageLightbox images={p.images} index={preview} onClose={() => setPreview(null)} />
             {p.images.length > 1 ? (
               <div className="mt-2 flex gap-1.5 overflow-x-auto">
                 {p.images.slice(0, 8).map((src, i) => (
                   <button key={src + i} type="button" onClick={() => setActive(i)} className={cn("h-11 w-11 shrink-0 overflow-hidden rounded-lg border", i === active ? "border-brand" : "border-border-soft")}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={src} alt="" className="h-full w-full object-cover" />
+                    <img src={src} alt="" className="h-full w-full bg-white object-contain" />
                   </button>
                 ))}
               </div>

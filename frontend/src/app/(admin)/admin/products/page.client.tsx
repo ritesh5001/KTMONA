@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { compressImageForUpload } from "@/lib/image-compression";
 import { normalizeHex } from "@/lib/color-swatches";
 import { ColorSwatchPicker } from "@/components/color-swatch-picker";
+import { ImageLightbox } from "@/components/admin/ImageLightbox";
 
 const IMAGEKIT_PUBLIC_KEY = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 const IMAGEKIT_URL_ENDPOINT = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
@@ -170,6 +171,7 @@ export default function AdminProductsClient({
     isPublished: false,
   });
   const [editImages, setEditImages] = React.useState<string[]>([]);
+  const [previewImage, setPreviewImage] = React.useState<number | null>(null);
   const [editColorImages, setEditColorImages] = React.useState<
     Record<string, ColorGroupState>
   >({});
@@ -1476,19 +1478,31 @@ export default function AdminProductsClient({
 
                 <div className="space-y-3">
                   <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                    Images
+                    Images <span className="normal-case tracking-normal">(click to view full size)</span>
                   </p>
+                  <ImageLightbox
+                    images={editImages.map((x) => x.trim()).filter(Boolean)}
+                    index={previewImage}
+                    onClose={() => setPreviewImage(null)}
+                  />
                   <div className="space-y-2">
                     {editImages.map((image, index) => {
                       const trimmed = image.trim();
                       return (
                         <div key={index} className="space-y-1">
                           {trimmed ? (
-                            <img
-                              src={trimmed}
-                              alt={`Product image ${index + 1}`}
-                              className="h-24 w-full rounded border border-border-soft object-cover"
-                            />
+                            <button
+                              type="button"
+                              className="block w-full cursor-zoom-in"
+                              onClick={() => setPreviewImage(editImages.filter((x) => x.trim()).indexOf(image))}
+                              aria-label={`View product image ${index + 1} full size`}
+                            >
+                              <img
+                                src={trimmed}
+                                alt={`Product image ${index + 1}`}
+                                className="h-56 w-full rounded border border-border-soft bg-white object-contain"
+                              />
+                            </button>
                           ) : null}
                           <div className="flex items-center gap-2">
                             <Input

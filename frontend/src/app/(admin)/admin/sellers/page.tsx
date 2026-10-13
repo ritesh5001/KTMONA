@@ -86,7 +86,10 @@ export default function AdminSellersPage() {
                         {s.atRisk ? <Badge tone="orange"><AlertTriangle className="mr-1 h-3 w-3" />At risk</Badge> : null}
                       </div>
                     </td>
-                    <td className="px-3 py-3"><StatusBadge status={s.kycStatus === "VERIFIED" ? "APPROVED" : s.kycStatus === "REJECTED" ? "REJECTED" : "PENDING"} /></td>
+                    <td className="px-3 py-3">
+                      <StatusBadge status={s.kycStatus === "VERIFIED" ? "APPROVED" : s.kycStatus === "REJECTED" ? "REJECTED" : "PENDING"} />
+                      {s.kycRequired === false && s.kycStatus !== "VERIFIED" ? <p className="mt-1 text-[11px] font-medium text-amber-700">Can list without KYC</p> : null}
+                    </td>
                     <td className="px-3 py-3 tabular-nums">{s.liveProducts}</td>
                     <td className="px-3 py-3 tabular-nums">{s.orders30d}</td>
                     <td className="px-3 py-3 tabular-nums">{inr.format(s.gmv30d)}</td>

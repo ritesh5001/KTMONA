@@ -865,6 +865,10 @@ model seller_profiles {
   /// Temporary suspension: the account reactivates automatically after this.
   suspended_until      DateTime?              @db.Timestamp(6)
   kyc_status           KycStatus              @default(PENDING)
+  /// Admin can let a seller list products before KYC is verified (false = exempt).
+  kyc_required         Boolean                @default(true)
+  /// Seller's signature image, printed as "Authorised Signatory" on their invoices.
+  signature_url        String?
   created_at           DateTime               @default(now())
   updated_at           DateTime
   seller_bank_accounts seller_bank_accounts[]

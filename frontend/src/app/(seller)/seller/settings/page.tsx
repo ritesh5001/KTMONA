@@ -4,17 +4,19 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { toast } from "sonner";
-import { Building2, CheckCircle2, Landmark, MapPin, Palmtree, Store, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, MapPin, Palmtree, PenLine, Store, XCircle } from "lucide-react";
+import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 import { sellerCenter, type BusinessType, type SellerSettings } from "@/services/seller-center";
 import { Badge, Btn, ErrorNote, Field, Loading, PageHeader, PageShell, Panel, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 
-type Tab = "store" | "business" | "pickup" | "bank" | "holiday";
+type Tab = "store" | "business" | "pickup" | "bank" | "signature" | "holiday";
 const TABS: { key: Tab; label: string; icon: typeof Store }[] = [
   { key: "store", label: "Store profile", icon: Store },
   { key: "business", label: "Business & GST", icon: Building2 },
   { key: "pickup", label: "Pickup address", icon: MapPin },
   { key: "bank", label: "Bank account", icon: Landmark },
+  { key: "signature", label: "Digital signature", icon: PenLine },
   { key: "holiday", label: "Holiday mode", icon: Palmtree },
 ];
 
@@ -73,6 +75,8 @@ export default function SettingsPage() {
             <PickupForm data={data} onSaved={saved} />
           ) : tab === "bank" ? (
             <BankForm data={data} onSaved={saved} />
+          ) : tab === "signature" ? (
+            <SignatureForm data={data} onSaved={saved} />
           ) : (
             <HolidayForm data={data} onSaved={saved} />
           )}
@@ -356,6 +360,139 @@ function HolidayForm({ data, onSaved }: FormProps) {
           {on ? "Turn off holiday mode" : "Turn on holiday mode"}
         </Btn>
       </div>
+    </Panel>
+  );
+}
+
+/**
+ * The seller's signature for "Authorised Signatory" on their tax invoices:
+ * drawn here (mouse / finger) or uploaded as an image.
+ */
+function SignatureForm({ data, onSaved }: FormProps) {
+  const { saving, run } = useSave();
+  const { upload, uploading } = useImageKitUpload("/signatures");
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const drawing = React.useRef(false);
+  const [hasInk, setHasInk] = React.useState(false);
+  const [mode, setMode] = React.useState<"draw" | "upload">("draw");
+  const current = data.signatureUrl ?? null;
+
+  const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = canvasRef.current!;
+    const r = c.getBoundingClientRect();
+    return { x: ((e.clientX - r.left) / r.width) * c.width, y: ((e.clientY - r.top) / r.height) * c.height };
+  };
+  const down = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drawing.current = true;
+    const { x, y } = point(e);
+    ctx.lineWidth = 3.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = "#0c1b42";
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current) return;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const { x, y } = point(e);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setHasInk(true);
+  };
+  const up = () => {
+    drawing.current = false;
+  };
+  const clear = () => {
+    const c = canvasRef.current;
+    c?.getContext("2d")?.clearRect(0, 0, c.width, c.height);
+    setHasInk(false);
+  };
+
+  const saveUrl = (url: string | null, message: string) => run(async () => onSaved(await sellerCenter.setSignature(url), message));
+
+  const saveDrawing = () =>
+    run(async () => {
+      const blob = await new Promise<Blob | null>((resolve) => canvasRef.current?.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("Draw your signature first");
+      const url = await upload(new File([blob], "signature.png", { type: "image/png" }));
+      onSaved(await sellerCenter.setSignature(url), "Signature saved. It will appear on your invoices.");
+      clear();
+    });
+
+  if (!data.store) return <Panel title="Digital signature"><p className="text-sm text-muted-foreground">Save your store name first.</p></Panel>;
+
+  return (
+    <Panel title="Digital signature" action={current ? <Badge tone="green">Added</Badge> : <Badge tone="orange">Not added</Badge>}>
+      <p className="text-sm text-muted-foreground">
+        Your signature is printed as <strong>Authorised Signatory</strong> on the tax invoices of your orders.
+      </p>
+
+      {current ? (
+        <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-border-soft p-4">
+          <img src={current} alt="Your signature" className="h-16 max-w-[240px] rounded bg-white object-contain p-1" />
+          <Btn variant="ghost" size="sm" loading={saving} onClick={() => { if (window.confirm("Remove your signature from future invoices?")) void saveUrl(null, "Signature removed."); }}>
+            Remove
+          </Btn>
+        </div>
+      ) : null}
+
+      <div className="mt-5 flex gap-2">
+        {(["draw", "upload"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn("rounded-lg border px-3 py-1.5 text-sm", mode === m ? "border-brand bg-brand/10 font-semibold" : "border-border-soft hover:bg-mist")}
+          >
+            {m === "draw" ? "Draw signature" : "Upload image"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "draw" ? (
+        <div className="mt-3 space-y-3">
+          <canvas
+            ref={canvasRef}
+            width={600}
+            height={200}
+            onPointerDown={down}
+            onPointerMove={move}
+            onPointerUp={up}
+            onPointerLeave={up}
+            className="h-[150px] w-full max-w-[450px] touch-none rounded-xl border-2 border-dashed border-border-strong bg-white"
+            aria-label="Draw your signature here"
+          />
+          <div className="flex gap-2">
+            <Btn variant="outline" size="sm" onClick={clear} disabled={!hasInk}>Clear</Btn>
+            <Btn variant="brand" size="sm" loading={saving || uploading} disabled={!hasInk} onClick={() => void saveDrawing()}>
+              {current ? "Replace signature" : "Save signature"}
+            </Btn>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          <input
+            type="file"
+            accept="image/png,image/jpeg"
+            className="block text-sm"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              if (!file) return;
+              void run(async () => {
+                const url = await upload(file);
+                onSaved(await sellerCenter.setSignature(url), "Signature saved. It will appear on your invoices.");
+              });
+            }}
+          />
+          <p className="text-xs text-muted-foreground">PNG or JPG of your signature on a plain white background.</p>
+        </div>
+      )}
     </Panel>
   );
 }
