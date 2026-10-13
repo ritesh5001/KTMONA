@@ -43,18 +43,18 @@ export const COMPANY_ADDRESS_LINES = [
   "India",
 ] as const;
 
-const DEFAULT_CONTACT_EMAIL = "support@ktmona.com";
+/**
+ * Every customer- and seller-facing contact address is support@ktmona.in.
+ * Fixed in code (not read from env) so an old hosting env value cannot
+ * bring back a personal address.
+ */
+const CONTACT_EMAIL = "support@ktmona.in";
 
-export const SUPPORT_EMAIL = (process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? DEFAULT_CONTACT_EMAIL)
-  .trim();
-export const ONBOARDING_EMAIL = (process.env.NEXT_PUBLIC_ONBOARDING_EMAIL ?? DEFAULT_CONTACT_EMAIL)
-  .trim();
-export const REFUND_EMAIL = (process.env.NEXT_PUBLIC_REFUND_EMAIL ?? DEFAULT_CONTACT_EMAIL)
-  .trim();
-export const SELLER_SUPPORT_EMAIL = (process.env.NEXT_PUBLIC_SELLER_SUPPORT_EMAIL ?? DEFAULT_CONTACT_EMAIL)
-  .trim();
-export const PARTNERSHIP_EMAIL = (process.env.NEXT_PUBLIC_PARTNERSHIP_EMAIL ?? DEFAULT_CONTACT_EMAIL)
-  .trim();
+export const SUPPORT_EMAIL = CONTACT_EMAIL;
+export const ONBOARDING_EMAIL = CONTACT_EMAIL;
+export const REFUND_EMAIL = CONTACT_EMAIL;
+export const SELLER_SUPPORT_EMAIL = CONTACT_EMAIL;
+export const PARTNERSHIP_EMAIL = CONTACT_EMAIL;
 export const SUPPORT_PHONE_DISPLAY = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DISPLAY ?? "+91-7503304533")
   .trim();
 export const SUPPORT_PHONE_DIAL = (process.env.NEXT_PUBLIC_SUPPORT_PHONE_DIAL ?? "+917503304533")

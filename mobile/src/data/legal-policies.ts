@@ -119,7 +119,7 @@ export const termsPolicy: PolicyDocument = {
     {
       title: "Contact Information",
       body:
-        "For grievance matters, contact the KTMONA Grievance Desk at support@ktmona.com. For general support, email support@ktmona.com, call 7503304533, or write to KTMONA, Faridabad, Haryana 121013, India.",
+        "For grievance matters, contact the KTMONA Grievance Desk at support@ktmona.in. For general support, email support@ktmona.in, call 7503304533, or write to KTMONA, Faridabad, Haryana 121013, India.",
     },
   ],
 };
@@ -140,7 +140,7 @@ export const privacyPolicy: PolicyDocument = {
     { title: "User Rights", body: "Under applicable Indian laws, users may access, review, correct, update, withdraw consent for marketing, or request deletion of their data, subject to legal obligations." },
     { title: "Children’s Privacy", body: "Our services are not intended for individuals under 18, and we do not knowingly collect personal information from minors." },
     { title: "Changes to This Policy", body: "We may update this Privacy Policy at any time and changes will be posted with an updated effective date." },
-    { title: "Contact Us", body: "Contact support@ktmona.com or support@ktmona.com for privacy or grievance matters. Address: KTMONA, Faridabad, Haryana 121013, India." },
+    { title: "Contact Us", body: "Contact support@ktmona.in or support@ktmona.in for privacy or grievance matters. Address: KTMONA, Faridabad, Haryana 121013, India." },
   ],
 };
 
@@ -153,7 +153,7 @@ export const returnPolicy: PolicyDocument = {
     { title: "Eligibility for Returns", body: "Customers may request a return if the product is damaged, defective, incorrect, or significantly different from its description, and the request is raised within 7 days of delivery." },
     { title: "Return Process", body: "Log in to your account, open My Orders, select the item, click Request Return, provide the reason and supporting images, and wait for pickup approval." },
     { title: "Refunds", body: "Refunds are initiated after the returned product passes quality inspection and are credited to the original payment method within 7-10 business days. COD refunds are processed to the customer’s bank account." },
-    { title: "Contact Us", body: "For return assistance, contact support@ktmona.com or call 7503304533." },
+    { title: "Contact Us", body: "For return assistance, contact support@ktmona.in or call 7503304533." },
   ],
 };
 
@@ -165,7 +165,7 @@ export const refundPolicy: PolicyDocument = {
     { title: "Approval Process", body: "Refund initiation starts after return quality check approval or seller-side cancellation confirmation." },
     { title: "Credited Time", body: "UPI and wallet refunds are usually credited within 2-4 business days, and card or net-banking refunds within 5-7 business days." },
     { title: "Partial Refunds", body: "Partial refunds may be issued for partial returns, promotional adjustments, or policy-based deductions where applicable." },
-    { title: "Refund Escalation", body: "If your refund is delayed beyond the SLA, contact support@ktmona.com with your order ID and payment reference." },
+    { title: "Refund Escalation", body: "If your refund is delayed beyond the SLA, contact support@ktmona.in with your order ID and payment reference." },
   ],
 };
 
@@ -199,7 +199,7 @@ export const vendorAgreementPolicy: PolicyDocument = {
     { title: "Indemnification", body: "Vendors agree to indemnify and hold KTMONA harmless from any claims arising from their products or actions." },
     { title: "Legal and Compliance", body: "GST invoicing responsibility lies with the vendor, and product prices must include GST as applicable." },
     { title: "Governing Law", body: "This Agreement is governed by the laws of India, with jurisdiction in Faridabad, Haryana." },
-    { title: "Contact Information", body: "For vendor inquiries, contact support@ktmona.com or call 7503304533. Address: KTMONA, Faridabad, Haryana 121013, India." },
+    { title: "Contact Information", body: "For vendor inquiries, contact support@ktmona.in or call 7503304533. Address: KTMONA, Faridabad, Haryana 121013, India." },
   ],
 };
 

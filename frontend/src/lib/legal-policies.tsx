@@ -261,11 +261,11 @@ export const termsPolicy: PolicyDocument = {
           </p>
           <ul>
             <li>Grievance Officer: KTMONA Grievance Desk</li>
-            <li>Email: support@ktmona.com</li>
+            <li>Email: support@ktmona.in</li>
             <li>Response Time: Within 48 hours acknowledgment, 15 days resolution</li>
           </ul>
           <p>
-            For any questions or concerns regarding these Terms, please contact KTMONA at support@ktmona.com, 7503304533, or KTMONA, Faridabad, Haryana 121013, India.
+            For any questions or concerns regarding these Terms, please contact KTMONA at support@ktmona.in, 7503304533, or KTMONA, Faridabad, Haryana 121013, India.
           </p>
         </>
       ),
@@ -418,12 +418,12 @@ export const privacyPolicy: PolicyDocument = {
         <>
           <p>KTMONA</p>
           <ul>
-            <li>Email: support@ktmona.com</li>
+            <li>Email: support@ktmona.in</li>
             <li>Phone: 7503304533</li>
             <li>Address: KTMONA, Faridabad, Haryana 121013, India.</li>
           </ul>
           <p>
-            For grievance matters, contact the KTMONA Grievance Desk at support@ktmona.com. Response time: within 48 hours acknowledgment, 15 days resolution.
+            For grievance matters, contact the KTMONA Grievance Desk at support@ktmona.in. Response time: within 48 hours acknowledgment, 15 days resolution.
           </p>
         </>
       ),
@@ -493,7 +493,7 @@ export const returnPolicy: PolicyDocument = {
       title: "Contact Us",
       body: (
         <p>
-          For return or refund help, email support@ktmona.com or call 7503304533.
+          For return or refund help, email support@ktmona.in or call 7503304533.
         </p>
       ),
     },
@@ -530,7 +530,7 @@ export const refundPolicy: PolicyDocument = {
       title: "Support",
       body: (
         <p>
-          If a refund is delayed beyond the normal window, please contact support@ktmona.com with your order ID and payment reference.
+          If a refund is delayed beyond the normal window, please contact support@ktmona.in with your order ID and payment reference.
         </p>
       ),
     },
@@ -611,7 +611,7 @@ export const shippingPolicy: PolicyDocument = {
       title: "Contact Us",
       body: (
         <p>
-          For shipping-related questions, email support@ktmona.com or call 7503304533.
+          For shipping-related questions, email support@ktmona.in or call 7503304533.
         </p>
       ),
     },
@@ -729,7 +729,7 @@ export const vendorAgreementPolicy: PolicyDocument = {
       title: "Contact Information",
       body: (
         <p>
-          For vendor inquiries, email support@ktmona.com or call 7503304533. Address: KTMONA, Faridabad, Haryana 121013, India.
+          For vendor inquiries, email support@ktmona.in or call 7503304533. Address: KTMONA, Faridabad, Haryana 121013, India.
         </p>
       ),
     },
