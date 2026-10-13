@@ -155,27 +155,24 @@ function canRedirectCrossDomain(host: string | null): boolean {
 /*  Seller/admin subdomains may only access their own portal + auth pages.    */
 /* ──────────────────────────────────────────────────────────────────────────── */
 
-/** Paths that belong to the public storefront — blocked on seller/admin subdomains */
-const PUBLIC_SHOP_PREFIXES = [
-  "/marketplace",
-  "/product",
-  "/collections",
-  "/blog",
-  "/cart",
-  "/checkout",
-  "/search",
-  "/vendors",
-  "/occasion",
-  "/reels",
-  "/categories",
-  "/sale",
-  "/user",
-  "/investors",
+
+/**
+ * Pages that exist ONLY on the main domain (storefront, legal, account).
+ * Names the seller/admin portals also use (careers, support, reels,
+ * price-lock, investors, categories) are left out on purpose: on a portal
+ * subdomain those mean the portal page. Any other unknown path that 404s on a
+ * portal subdomain is forwarded to the main domain by app/not-found.tsx.
+ */
+const MAIN_ONLY_PREFIXES = [
+  "/marketplace", "/product", "/collections", "/blog", "/cart", "/checkout",
+  "/search", "/vendors", "/occasion", "/sale", "/user",
+  "/about", "/contact", "/disclaimer", "/privacy", "/refund-policy", "/return-policy",
+  "/seller-terms", "/shipping-policy", "/terms", "/vendor-agreement",
 ];
 
-/** Check if a path is a public storefront page (including exact "/" root). */
+/** Check if a path is a page that only the main domain serves. */
 function isPublicShopPage(pathname: string): boolean {
-  return PUBLIC_SHOP_PREFIXES.some(
+  return MAIN_ONLY_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(prefix + "/")
   );
 }
@@ -225,12 +222,12 @@ export function proxy(request: NextRequest) {
       return NextResponse.redirect(dashboardUrl);
     }
 
-    // PORTAL ISOLATION: Block public storefront pages on seller/admin subdomains.
-    // These pages only belong on the main domain.
+    // Main-site pages (About, policies, products, cart…) opened on a portal
+    // subdomain go to the same page on the main domain, e.g.
+    // seller.ktmona.com/about → ktmona.com/about.
     if (crossDomain && !isRootLevelPage(pathname) && isPublicShopPage(pathname)) {
-      const dashboardUrl = request.nextUrl.clone();
-      dashboardUrl.pathname = `${basePath}/dashboard`;
-      const response = NextResponse.redirect(dashboardUrl);
+      const target = buildSubdomainUrl(null, `${pathname}${request.nextUrl.search}`, request);
+      const response = redirectAcrossSubdomains(target, request);
       response.headers.set("x-robots-tag", "noindex, nofollow");
       return response;
     }
