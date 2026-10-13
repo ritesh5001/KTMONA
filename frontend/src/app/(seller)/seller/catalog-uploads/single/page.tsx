@@ -14,6 +14,7 @@ import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/component
 import { IMAGE_SLOTS, LEGAL_FIELDS, NOT_ALLOWED_IMAGES, attributesFor, sizePresetsFor, type AttributeDef } from "@/components/seller/catalog-attributes";
 import { cn } from "@/lib/utils";
 import { categoryFieldsApi } from "@/services/platform";
+import { KycGate } from "@/components/seller/KycGate";
 
 const MAX_PRODUCTS = 9;
 
@@ -96,7 +97,7 @@ function validate(p: ProductForm, attrs: AttributeDef[], index: number): string 
   return null;
 }
 
-export default function AddSingleCatalogPage() {
+function AddSingleCatalogPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const draftParam = params.get("draft");
@@ -610,5 +611,14 @@ function ImageSlot({ label, hint, url, onChange }: { label: string; hint: string
         }}
       />
     </div>
+  );
+}
+
+/** Sellers can list products only after KTMONA verifies their KYC. */
+export default function AddSingleCatalogPage() {
+  return (
+    <KycGate>
+      <AddSingleCatalogPageContent />
+    </KycGate>
   );
 }

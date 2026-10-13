@@ -8,10 +8,11 @@ import { ArrowLeft, CheckCircle2, Download, Headset, Images, Upload } from "luci
 import { sellerCenter } from "@/services/seller-center";
 import { Badge, Btn, errorMessage } from "@/components/seller/kit";
 import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/components/seller/CategoryColumns";
+import { KycGate } from "@/components/seller/KycGate";
 
 type Report = Awaited<ReturnType<typeof sellerCenter.bulkUpload>>;
 
-export default function BulkCatalogUploadPage() {
+function BulkCatalogUploadPageContent() {
   const router = useRouter();
   const { byId } = useCategoryTree();
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
@@ -110,5 +111,14 @@ export default function BulkCatalogUploadPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+/** Sellers can list products only after KTMONA verifies their KYC. */
+export default function BulkCatalogUploadPage() {
+  return (
+    <KycGate>
+      <BulkCatalogUploadPageContent />
+    </KycGate>
   );
 }

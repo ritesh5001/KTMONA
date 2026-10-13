@@ -1,4 +1,5 @@
 import { ProductRepository, productRepository } from '../repositories/product.repository.js';
+import { assertSellerKycVerified } from './seller-center/kyc-gate.js';
 import { VariantRepository, variantRepository } from '../repositories/variant.repository.js';
 import { InventoryRepository, inventoryRepository } from '../repositories/inventory.repository.js';
 import { CategoryRepository, categoryRepository } from '../repositories/category.repository.js';
@@ -526,6 +527,7 @@ export class ProductService {
         sellerId: string,
         data: CreateProductRequest
     ): Promise<ProductCreateResponse> {
+        await assertSellerKycVerified(sellerId);
         const normalizedVariants: CreateVariantRequest[] = (data.variants ?? []).map((variant) => ({
             size: variant.size,
             color: variant.color ?? undefined,

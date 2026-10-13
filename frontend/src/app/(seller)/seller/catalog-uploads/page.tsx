@@ -11,6 +11,7 @@ import { supplier, type CatalogUploadRow, type QcStatus, type QcTab } from "@/se
 import { Badge, Btn, Empty, ErrorNote, Loading, Modal, Pager, SearchBox, Tabs, errorMessage, useDebounced } from "@/components/seller/kit";
 import { useCategoryTree } from "@/components/seller/CategoryColumns";
 import { cn } from "@/lib/utils";
+import { KycGate } from "@/components/seller/KycGate";
 
 type Mode = "bulk" | "single";
 
@@ -31,7 +32,7 @@ const QC_BADGE: Record<QcStatus, { tone: "green" | "orange" | "red" | "gray" | "
   DRAFT: { tone: "gray", label: "Draft" },
 };
 
-export default function CatalogUploadsPage() {
+function CatalogUploadsPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const [mode, setMode] = React.useState<Mode>(params.get("mode") === "bulk" ? "bulk" : "single");
@@ -280,5 +281,14 @@ export default function CatalogUploadsPage() {
         ) : null}
       </Modal>
     </div>
+  );
+}
+
+/** Sellers can list products only after KTMONA verifies their KYC. */
+export default function CatalogUploadsPage() {
+  return (
+    <KycGate mode="banner">
+      <CatalogUploadsPageContent />
+    </KycGate>
   );
 }

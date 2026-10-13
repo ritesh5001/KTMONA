@@ -10,10 +10,11 @@ import { getCategories } from "@/services/catalog";
 import { sellerCenter } from "@/services/seller-center";
 import { Btn, Field, PageHeader, PageShell, Panel, errorMessage, inputCls } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
+import { KycGate } from "@/components/seller/KycGate";
 
 type Report = Awaited<ReturnType<typeof sellerCenter.bulkUpload>>;
 
-export default function BulkUploadPage() {
+function BulkUploadPageContent() {
   const { data: cats } = useSWR("categories", () => getCategories());
   const categories = cats?.categories ?? [];
   const [categoryId, setCategoryId] = React.useState("");
@@ -180,5 +181,14 @@ export default function BulkUploadPage() {
         </Panel>
       ) : null}
     </PageShell>
+  );
+}
+
+/** Sellers can list products only after KTMONA verifies their KYC. */
+export default function BulkUploadPage() {
+  return (
+    <KycGate>
+      <BulkUploadPageContent />
+    </KycGate>
   );
 }

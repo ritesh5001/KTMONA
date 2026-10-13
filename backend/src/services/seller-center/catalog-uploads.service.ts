@@ -4,6 +4,7 @@
  * prefilled bulk template.
  */
 
+import { assertSellerKycVerified } from './kyc-gate.js';
 import ExcelJS from 'exceljs';
 import { categoryAttributeService } from '../category-attribute.service.js';
 import { CatalogUploadMode, Prisma } from '@prisma/client';
@@ -226,6 +227,7 @@ class SellerCatalogUploadsService {
      */
     async submitSingle(sellerId: string, input: { draftId?: string | undefined; categoryId: string; products: CatalogProductInput[] }) {
         if (input.products.length === 0) throw ApiError.badRequest('Add at least one product');
+        await assertSellerKycVerified(sellerId);
         if (input.products.length > MAX_PRODUCTS_PER_CATALOG) {
             throw ApiError.badRequest(`A catalog can have at most ${MAX_PRODUCTS_PER_CATALOG} products`);
         }

@@ -3,6 +3,7 @@
  * bulk catalog upload via an Excel template.
  */
 
+import { assertSellerKycVerified } from './kyc-gate.js';
 import ExcelJS from 'exceljs';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/db.js';
@@ -486,6 +487,7 @@ class SellerCatalogService {
     }
 
     async importCatalog(sellerId: string, categoryId: string, file: Buffer) {
+        await assertSellerKycVerified(sellerId);
         const category = await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } });
         if (!category) throw ApiError.notFound('Category not found');
 
