@@ -80,6 +80,32 @@ function toPayload(p: ProductForm): CatalogProductInput {
   };
 }
 
+/** Shown in red under MRP when it is below the seller's price. */
+const mrpError = (price: string) => `Enter a price more than or equal to KTMONA price ₹${Number(price)}`;
+
+/** Inline, red error for one price row (null when the row is fine so far). */
+function sizeRowErrors(s: SizeRow, attempted: boolean): Partial<Record<keyof SizeRow, string>> {
+  const e: Partial<Record<keyof SizeRow, string>> = {};
+  const price = Number(s.price);
+  if (attempted && !(price > 0)) e.price = "Enter your price";
+  if (s.mrp.trim() && price > 0 && Number(s.mrp) < price) e.mrp = mrpError(s.price);
+  else if (attempted && !(Number(s.mrp) > 0)) e.mrp = "Enter MRP";
+  if (s.wdrp.trim() && price > 0 && Number(s.wdrp) > price) e.wdrp = "Can't be more than your price";
+  if (s.prepaid.trim() && price > 0 && Number(s.prepaid) >= price) e.prepaid = "Must be less than your price";
+  if (attempted && s.stock.trim() === "") e.stock = "Enter inventory";
+  return e;
+}
+
+/** "40% off · ₹200 discount" between MRP and the seller's price. */
+function discountLabel(s: SizeRow): string | null {
+  const price = Number(s.price);
+  const mrp = Number(s.mrp);
+  if (!(price > 0) || !(mrp > price)) return null;
+  return `${Math.round(((mrp - price) / mrp) * 100)}% off · ₹${Math.round((mrp - price) * 100) / 100} discount`;
+}
+
+const PRICE_KEYS: (keyof SizeRow)[] = ["price", "wdrp", "prepaid", "mrp", "stock"];
+
 function validate(p: ProductForm, attrs: AttributeDef[], index: number): string | null {
   const n = `Product ${index + 1}`;
   if (p.name.trim().length < 3) return `${n}: enter a product name`;
@@ -88,7 +114,9 @@ function validate(p: ProductForm, attrs: AttributeDef[], index: number): string 
   if (p.sizes.length === 0) return `${n}: select at least one size`;
   for (const s of p.sizes) {
     if (!(Number(s.price) > 0)) return `${n}: enter price for size ${s.size}`;
-    if (!(Number(s.mrp) >= Number(s.price))) return `${n}: MRP must be at least the price for size ${s.size}`;
+    if (!(Number(s.mrp) > 0)) return `${n}: enter MRP for size ${s.size}`;
+    if (Number(s.mrp) < Number(s.price)) return `${n}: ${mrpError(s.price)} (size ${s.size})`;
+    if (s.prepaid && Number(s.prepaid) >= Number(s.price)) return `${n}: prepaid discount must be less than the price (${s.size})`;
     if (s.stock.trim() === "" || Number(s.stock) < 0) return `${n}: enter inventory for size ${s.size}`;
     if (s.wdrp && Number(s.wdrp) > Number(s.price)) return `${n}: wrong/defective returns price can't exceed the price (${s.size})`;
   }
@@ -108,6 +136,12 @@ function AddSingleCatalogPageContent() {
   const [products, setProducts] = React.useState<ProductForm[]>([]);
   const [active, setActive] = React.useState(0);
   const [saving, setSaving] = React.useState<"draft" | "submit" | null>(null);
+  /** Meesho-style: a price typed in one size row fills every size row. */
+  const [copyPrices, setCopyPrices] = React.useState(true);
+  /** Product details typed once apply to every product in the catalog (colour stays per product). */
+  const [sameDetails, setSameDetails] = React.useState(true);
+  /** After a submit attempt, empty required fields are shown in red too. */
+  const [attempted, setAttempted] = React.useState(false);
   const { upload, uploading } = useImageKitUpload("/catalogs");
   const firstImagesRef = React.useRef<HTMLInputElement>(null);
   const { data: calc } = useSWR("seller-calc-terms", () => sellerCenter.calculator(100), { revalidateOnFocus: false });
@@ -169,16 +203,24 @@ function AddSingleCatalogPageContent() {
   };
 
   const update = (patch: Partial<ProductForm>) => setProducts((prev) => prev.map((p, i) => (i === active ? { ...p, ...patch } : p)));
+  const shareDetails = sameDetails && products.length > 1;
+  /** One product-detail field; with "same details" on it is written to every product. */
+  const setAttr = (key: string, value: string) =>
+    setProducts((prev) => prev.map((x, i) => (i === active || (shareDetails && key !== "Color") ? { ...x, attributes: { ...x.attributes, [key]: value } } : x)));
+  const setLegal = (key: string, value: string) =>
+    setProducts((prev) => prev.map((x, i) => (i === active || shareDetails ? { ...x, legal: { ...x.legal, [key]: value } } : x)));
+  const setShared = (patch: Partial<Pick<ProductForm, "netWeight" | "hsnCode" | "gst" | "description">>) =>
+    setProducts((prev) => prev.map((x, i) => (i === active || shareDetails ? { ...x, ...patch } : x)));
   const p = products[active];
 
   const copyToAll = () => {
     if (!p) return;
     setProducts((prev) =>
       prev.map((x, i) =>
-        i === active ? x : { ...x, attributes: { ...p.attributes, ...x.attributes, Color: x.attributes.Color ?? "" }, legal: { ...p.legal }, netWeight: x.netWeight || p.netWeight, hsnCode: x.hsnCode || p.hsnCode, gst: p.gst, sizes: x.sizes.length ? x.sizes : p.sizes.map((s) => ({ ...s, sku: "" })) }
+        i === active ? x : { ...x, attributes: { ...p.attributes, Color: x.attributes.Color ?? "" }, legal: { ...p.legal }, netWeight: p.netWeight, hsnCode: p.hsnCode, gst: p.gst, description: x.description || p.description, sizes: p.sizes.map((s) => ({ ...s, sku: "" })) }
       )
     );
-    toast.success("Details copied to all products (colour kept per product)");
+    toast.success("Details, sizes and prices copied to all products (colour kept per product)");
   };
 
   const saveDraft = async () => {
@@ -197,6 +239,7 @@ function AddSingleCatalogPageContent() {
 
   const submit = async () => {
     if (!categoryId) return;
+    setAttempted(true);
     for (const [i, prod] of products.entries()) {
       const msg = validate(prod, attrs, i);
       if (msg) {
@@ -344,14 +387,14 @@ function AddSingleCatalogPageContent() {
                 <h2 className="mt-6 text-base font-semibold">Product Details</h2>
                 <p className="mt-4 text-sm font-semibold text-muted-foreground">Price, Size and Inventory</p>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
-                  <Field label="Net Weight (gms) *">
-                    <input className={inputCls} inputMode="numeric" value={p.netWeight} onChange={(e) => update({ netWeight: e.target.value.replace(/[^\d]/g, "") })} />
+                  <Field label="Net Weight (gms) *" error={attempted && !(Number(p.netWeight) > 0) ? "Enter net weight in grams" : undefined}>
+                    <input className={inputCls} inputMode="numeric" value={p.netWeight} onChange={(e) => setShared({ netWeight: e.target.value.replace(/[^\d]/g, "") })} />
                   </Field>
                   <Field label="Style code / Product ID (optional)">
                     <input className={inputCls} value={p.styleCode} onChange={(e) => update({ styleCode: e.target.value })} />
                   </Field>
                   <div className="sm:col-span-2">
-                    <Field label="Product Name *">
+                    <Field label="Product Name *" error={attempted && p.name.trim().length < 3 ? "Enter a product name" : undefined}>
                       <input className={inputCls} maxLength={255} value={p.name} onChange={(e) => update({ name: e.target.value })} />
                     </Field>
                   </div>
@@ -381,8 +424,26 @@ function AddSingleCatalogPageContent() {
                   <CustomSize onAdd={(size) => !p.sizes.some((s) => s.size === size) && update({ sizes: [...p.sizes, { size, price: "", wdrp: "", prepaid: "", mrp: "", stock: "", sku: "" }] })} />
                 </div>
 
+                {p.sizes.length > 1 ? (
+                  <label className="mt-4 flex w-fit cursor-pointer items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-brand"
+                      checked={copyPrices}
+                      onChange={(e) => {
+                        setCopyPrices(e.target.checked);
+                        // Turning it on lines every size up with the first one.
+                        if (e.target.checked && p.sizes[0]) {
+                          const first = p.sizes[0];
+                          update({ sizes: p.sizes.map((x) => ({ ...x, price: first.price, wdrp: first.wdrp, prepaid: first.prepaid, mrp: first.mrp, stock: first.stock })) });
+                        }
+                      }}
+                    />
+                    Copy price details to all sizes
+                  </label>
+                ) : null}
                 {p.sizes.length ? (
-                  <div className="mt-4 overflow-x-auto rounded-xl border border-border-soft">
+                  <div className="mt-3 overflow-x-auto rounded-xl border border-border-soft">
                     <table className="w-full min-w-[860px] text-left text-sm">
                       <thead>
                         <tr className="bg-mist/60 text-xs text-muted-foreground">
@@ -397,19 +458,29 @@ function AddSingleCatalogPageContent() {
                       </thead>
                       <tbody>
                         {p.sizes.map((s, idx) => {
-                          const set = (patch: Partial<SizeRow>) => update({ sizes: p.sizes.map((x, j) => (j === idx ? { ...x, ...patch } : x)) });
+                          // Price columns follow the edited row in every size while "copy" is on (SKU never).
+                          const set = (patch: Partial<SizeRow>) =>
+                            update({
+                              sizes: p.sizes.map((x, j) =>
+                                j === idx ? { ...x, ...patch } : copyPrices && Object.keys(patch).every((k) => PRICE_KEYS.includes(k as keyof SizeRow)) ? { ...x, ...patch } : x
+                              ),
+                            });
+                          const errors = sizeRowErrors(s, attempted);
                           const cell = (key: keyof SizeRow, rupee = true) => (
                             <div className="relative">
-                              {rupee ? <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₹</span> : null}
+                              {rupee ? <span className="pointer-events-none absolute left-2 top-[18px] -translate-y-1/2 text-xs text-muted-foreground">₹</span> : null}
                               <input
-                                className={cn(inputCls, "h-9", rupee && "pl-5")}
+                                className={cn(inputCls, "h-9", rupee && "pl-5", errors[key] && "border-red-500 focus:border-red-500 focus:ring-red-500/20")}
+                                aria-invalid={Boolean(errors[key])}
                                 inputMode={key === "sku" ? "text" : "decimal"}
                                 value={s[key]}
                                 onChange={(e) => set({ [key]: key === "sku" ? e.target.value : e.target.value.replace(/[^\d.]/g, "") } as Partial<SizeRow>)}
                                 aria-label={`${key} for size ${s.size}`}
                               />
+                              {errors[key] ? <p className="mt-1 max-w-[180px] text-[11px] font-medium leading-snug text-red-600">{errors[key]}</p> : null}
                             </div>
                           );
+                          const discount = discountLabel(s);
                           const net = earn(s.price);
                           return (
                             <tr key={s.size} className="border-t border-border-soft align-top">
@@ -420,7 +491,10 @@ function AddSingleCatalogPageContent() {
                               </td>
                               <td className="px-2 py-2">{cell("wdrp")}</td>
                               <td className="px-2 py-2">{cell("prepaid")}</td>
-                              <td className="px-2 py-2">{cell("mrp")}</td>
+                              <td className="px-2 py-2">
+                                {cell("mrp")}
+                                {discount && !errors.mrp ? <p className="mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">{discount}</p> : null}
+                              </td>
                               <td className="px-2 py-2">{cell("stock", false)}</td>
                               <td className="px-2 py-2">{cell("sku", false)}</td>
                             </tr>
@@ -431,23 +505,31 @@ function AddSingleCatalogPageContent() {
                   </div>
                 ) : null}
 
-                <p className="mt-6 text-sm font-semibold text-muted-foreground">Product Details</p>
+                <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-muted-foreground">Product Details</p>
+                  {products.length > 1 ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                      <input type="checkbox" className="h-4 w-4 accent-brand" checked={sameDetails} onChange={(e) => setSameDetails(e.target.checked)} />
+                      Same details for all {products.length} products (colour stays per product)
+                    </label>
+                  ) : null}
+                </div>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   {attrs.map((a) => (
-                    <AttrInput key={a.key} def={a} value={p.attributes[a.key] ?? ""} onChange={(v) => update({ attributes: { ...p.attributes, [a.key]: v } })} />
+                    <AttrInput key={`${active}-${a.key}`} def={a} value={p.attributes[a.key] ?? ""} onChange={(v) => setAttr(a.key, v)} error={attempted && a.required && !p.attributes[a.key]?.trim()} />
                   ))}
                   {LEGAL_FIELDS.map((a) => (
-                    <AttrInput key={a.key} def={a} value={p.legal[a.key] ?? ""} onChange={(v) => update({ legal: { ...p.legal, [a.key]: v } })} />
+                    <AttrInput key={`${active}-${a.key}`} def={a} value={p.legal[a.key] ?? ""} onChange={(v) => setLegal(a.key, v)} error={attempted && a.required && !p.legal[a.key]?.trim()} />
                   ))}
                 </div>
 
                 <p className="mt-6 text-sm font-semibold text-muted-foreground">Other Attributes</p>
                 <div className="mt-3 grid gap-4 sm:grid-cols-2">
                   <Field label="HSN Code">
-                    <input className={inputCls} value={p.hsnCode} onChange={(e) => update({ hsnCode: e.target.value })} />
+                    <input className={inputCls} value={p.hsnCode} onChange={(e) => setShared({ hsnCode: e.target.value })} />
                   </Field>
                   <Field label="GST %">
-                    <select className={inputCls} value={p.gst} onChange={(e) => update({ gst: e.target.value })}>
+                    <select className={inputCls} value={p.gst} onChange={(e) => setShared({ gst: e.target.value })}>
                       {["0", "3", "5", "12", "18", "28"].map((g) => (
                         <option key={g} value={g}>{g}%</option>
                       ))}
@@ -542,26 +624,68 @@ function CustomSize({ onAdd }: { onAdd: (size: string) => void }) {
   );
 }
 
-function AttrInput({ def, value, onChange }: { def: AttributeDef; value: string; onChange: (v: string) => void }) {
+const OTHER = "__other__";
+
+/**
+ * A product-detail field. Drop-downs also take the seller's own value
+ * ("+ Add your own"), because colours, styles and patterns are endless.
+ */
+function AttrInput({ def, value, onChange, error }: { def: AttributeDef; value: string; onChange: (v: string) => void; error?: boolean }) {
   const label = `${def.label}${def.required ? " *" : ""}`;
-  return (
-    <Field label={label}>
-      {def.options ? (
-        <select className={inputCls} value={value} onChange={(e) => onChange(e.target.value)}>
+  const isCustom = Boolean(def.options && value && !def.options.includes(value));
+  const [typing, setTyping] = React.useState(isCustom);
+  const message = error ? `${def.label} is required` : undefined;
+  const errorCls = error ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : "";
+
+  if (def.options && !typing && !isCustom) {
+    return (
+      <Field label={label} error={message}>
+        <select
+          className={cn(inputCls, errorCls)}
+          value={value}
+          aria-invalid={Boolean(error)}
+          onChange={(e) => {
+            if (e.target.value === OTHER) {
+              setTyping(true);
+              onChange("");
+            } else onChange(e.target.value);
+          }}
+        >
           <option value="">Select</option>
           {def.options.map((o) => (
             <option key={o}>{o}</option>
           ))}
+          <option value={OTHER}>+ Add your own…</option>
         </select>
-      ) : (
+      </Field>
+    );
+  }
+
+  return (
+    <Field label={label} error={message}>
+      <div className="flex gap-2">
         <input
-          className={inputCls}
+          className={cn(inputCls, errorCls)}
           value={value}
-          placeholder={def.placeholder}
+          autoFocus={typing && !value}
+          aria-invalid={Boolean(error)}
+          placeholder={def.options ? `Type your ${def.label.toLowerCase()}` : def.placeholder}
           inputMode={def.numeric ? "decimal" : undefined}
           onChange={(e) => onChange(def.numeric ? e.target.value.replace(/[^\d.]/g, "") : e.target.value)}
         />
-      )}
+        {def.options ? (
+          <button
+            type="button"
+            className="shrink-0 text-xs font-medium text-brand-strong hover:underline"
+            onClick={() => {
+              setTyping(false);
+              onChange("");
+            }}
+          >
+            Choose from list
+          </button>
+        ) : null}
+      </div>
     </Field>
   );
 }

@@ -337,7 +337,7 @@ function FieldsEditor({ categoryId, pathLabel, pathNames }: { categoryId: string
                 <tr className="text-xs text-muted-foreground">
                   <th className="px-2 py-2 font-semibold">Field name</th>
                   <th className="px-2 py-2 font-semibold">Type</th>
-                  <th className="px-2 py-2 font-semibold">Options (one per line)</th>
+                  <th className="px-2 py-2 font-semibold">Options (click one to edit)</th>
                   <th className="px-2 py-2 text-center font-semibold">Required *</th>
                   <th className="px-2 py-2" />
                 </tr>
@@ -358,7 +358,7 @@ function FieldsEditor({ categoryId, pathLabel, pathNames }: { categoryId: string
                     </td>
                     <td className="px-2 py-2">
                       {f.type === "SELECT" ? (
-                        <textarea rows={3} className={cn(inputCls, "h-auto py-1.5 text-xs")} value={f.optionsText} onChange={(e) => set(i, { optionsText: e.target.value })} placeholder={"Cotton\nSilk\nRayon"} />
+                        <OptionsEditor value={f.optionsText} onChange={(optionsText) => set(i, { optionsText })} />
                       ) : (
                         <span className="text-xs text-muted-foreground">Seller types the value</span>
                       )}
@@ -389,6 +389,68 @@ function FieldsEditor({ categoryId, pathLabel, pathNames }: { categoryId: string
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Drop-down options as editable chips: every option is visible, each one can
+ * be renamed in place or removed, and new ones are added one by one (or many
+ * at once, comma / new-line separated). Stored as one option per line.
+ */
+function OptionsEditor({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  const options = value.split(/\n/).map((o) => o.trim()).filter(Boolean);
+  const [draft, setDraft] = React.useState("");
+  const write = (list: string[]) => onChange(list.join("\n"));
+  const add = () => {
+    const extra = draft.split(/\n|,/).map((o) => o.trim()).filter(Boolean);
+    if (!extra.length) return;
+    const seen = new Set(options.map((o) => o.toLowerCase()));
+    write([...options, ...extra.filter((o) => !seen.has(o.toLowerCase()) && seen.add(o.toLowerCase()))]);
+    setDraft("");
+  };
+  return (
+    <div className="min-w-[260px] space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o, idx) => (
+          <span key={`${idx}-${o}`} className="inline-flex items-center rounded-full border border-border-soft bg-mist/60 pl-2.5 pr-1 text-xs">
+            <input
+              className="min-w-[3ch] bg-transparent py-1 outline-none"
+              style={{ width: `${Math.max(3, o.length + 1)}ch` }}
+              defaultValue={o}
+              aria-label={`Option ${o}`}
+              onBlur={(e) => {
+                const next = e.target.value.trim();
+                if (next === o) return;
+                write(next ? options.map((x, j) => (j === idx ? next : x)) : options.filter((_, j) => j !== idx));
+              }}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), (e.target as HTMLInputElement).blur())}
+            />
+            <button type="button" className="rounded-full p-0.5 text-muted-foreground hover:bg-card hover:text-red-600" aria-label={`Remove ${o}`} onClick={() => write(options.filter((_, j) => j !== idx))}>
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ))}
+        {options.length === 0 ? <span className="text-xs text-red-600">Add at least one option</span> : null}
+      </div>
+      <div className="flex gap-1.5">
+        <input
+          className={cn(inputCls, "h-8 text-xs")}
+          value={draft}
+          placeholder="Add option (e.g. Maroon, Teal)"
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add();
+            }
+          }}
+        />
+        <Btn size="sm" variant="outline" onClick={add} disabled={!draft.trim()}>
+          <Plus className="h-3.5 w-3.5" /> Add
+        </Btn>
+      </div>
+      <p className="text-[11px] text-muted-foreground">{options.length} options · sellers can also type their own value</p>
     </div>
   );
 }
