@@ -235,6 +235,8 @@ export interface ListSessionsResponse {
  */
 export interface MessageResponse {
     message: string;
+    /** Seller sign-up verified: the application is waiting for admin approval. */
+    applicationSubmitted?: boolean;
 }
 
 // Export dummy value to ensure this file is treated as a module by all tools

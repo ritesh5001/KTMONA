@@ -92,6 +92,8 @@ export interface OtpRequestResponse {
 
 export interface VerifyOtpResponse {
   message?: string;
+  /** Seller sign-up verified: the application now waits for admin approval. */
+  applicationSubmitted?: boolean;
   user?: {
     id: string;
     email: string | null;

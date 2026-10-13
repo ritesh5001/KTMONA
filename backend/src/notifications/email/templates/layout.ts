@@ -15,6 +15,13 @@ type BrandedEmailOptions = {
   accentText?: string;
 };
 
+/**
+ * The full-colour logo on its own white card (frontend/public/ktmona-logo-email.png).
+ * The white is part of the image, so Gmail/Outlook dark mode, which recolours
+ * backgrounds but never image pixels, cannot make the navy lettering unreadable.
+ */
+const EMAIL_LOGO_URL = `${(process.env.FRONTEND_BASE_URL || 'https://www.ktmona.com').replace(/\/+$/, '')}/ktmona-logo-email.png`;
+
 export function escapeHtml(value: string | number | null | undefined): string {
   const input = String(value ?? '');
   return input
@@ -87,8 +94,8 @@ export function renderBrandedEmail(options: BrandedEmailOptions): string {
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
                       <tr>
                         <td>
-                          <p style="margin:0;color:#ffffff;font-size:24px;font-weight:800;letter-spacing:0.04em;"><span style="color:#ff8a00;">K</span>TMONA</p>
-                          <p style="margin:4px 0 0;color:#c3cce3;font-size:12px;letter-spacing:0.06em;">Trust Every Click</p>
+                          <img src="${EMAIL_LOGO_URL}" width="204" height="53" alt="KTMONA" style="display:block;border:0;outline:none;width:204px;height:auto;max-width:100%;color:#ff8a00;font-size:22px;font-weight:800;letter-spacing:0.04em;" />
+                          <p style="margin:8px 0 0 4px;color:#c3cce3;font-size:12px;letter-spacing:0.06em;">Trust Every Click</p>
                         </td>
                         <td align="right" style="vertical-align:top;">
                           <span style="display:inline-block;border:1px solid rgba(255,255,255,0.25);background:rgba(255,255,255,0.08);color:#ffffff;border-radius:999px;padding:5px 10px;font-size:10px;letter-spacing:0.08em;text-transform:uppercase;">Official Mail</span>

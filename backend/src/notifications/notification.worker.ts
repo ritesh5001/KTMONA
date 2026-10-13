@@ -18,6 +18,8 @@ import { sellerProductRejectedTemplate } from './email/templates/seller-product-
 import { paymentSuccessTemplate } from './email/templates/payment-success.js';
 import { paymentFailedTemplate } from './email/templates/payment-failed.js';
 
+const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
 export async function processNotificationJob(job: Job<NotificationJobPayload>): Promise<void> {
     console.log(`Job ${job.id} started. Notification: ${job.data.notificationId}`); // LOG START
     const { notificationId } = job.data;
@@ -31,6 +33,15 @@ export async function processNotificationJob(job: Job<NotificationJobPayload>): 
 
         if (notification.status === 'SENT') {
             console.log(`Notification ${notificationId} already sent. Skipping.`);
+            return;
+        }
+
+        // Jobs queued while no worker was running must not all go out at once
+        // days later ("your order was placed" for a week-old order).
+        if (Date.now() - new Date(notification.createdAt).getTime() > STALE_AFTER_MS) {
+            await notificationRepository.updateStatus(notificationId, 'FAILED');
+            await notificationRepository.createEvent(notificationId, 'RESEND', 'FAILED', undefined, 'Skipped: older than 24 hours when processed');
+            console.log(`Notification ${notificationId} is stale. Skipped.`);
             return;
         }
 

@@ -1,6 +1,9 @@
 import { CreateNotificationInput } from './types.js';
 import { notificationRepository } from './notification.repository.js';
 import { notificationQueue } from './notification.queue.js';
+import { processNotificationJob } from './notification.worker.js';
+import type { Job } from 'bullmq';
+import type { NotificationJobPayload } from './types.js';
 
 export class NotificationService {
 
@@ -22,10 +25,17 @@ export class NotificationService {
         // 1. Persist to DB (Status: PENDING)
         const notification = await notificationRepository.create(data);
 
-        // 2. Add to BullMQ
-        await notificationQueue.add(data.type, {
-            notificationId: notification.id
-        });
+        // 2. Deliver. Production runs only the API process (no `start:worker`),
+        //    and an always-polling BullMQ worker would burn Upstash's per-command
+        //    quota, so emails are sent right here in the background. Set
+        //    NOTIFICATIONS_VIA_QUEUE=true when a dedicated worker is running.
+        const job = process.env['NOTIFICATIONS_VIA_QUEUE'] === 'true'
+            ? await notificationQueue.add(data.type, { notificationId: notification.id })
+            : undefined;
+        if (!job) {
+            void processNotificationJob({ id: `inline-${notification.id}`, data: { notificationId: notification.id } } as Job<NotificationJobPayload>)
+                .catch(() => undefined); // failure already recorded as a notification event
+        }
 
         return notification;
     }

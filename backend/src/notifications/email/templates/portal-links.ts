@@ -11,6 +11,7 @@ export const portalLinks = {
   adminDashboard: `${frontendBaseUrl}/admin`,
   userOrders: `${frontendBaseUrl}/user/orders`,
   sellerDashboard: `${sellerBaseUrl}/seller/dashboard`,
+  sellerLogin: `${sellerBaseUrl}/login`,
   sellerOrders: `${sellerBaseUrl}/seller/orders`,
   sellerProducts: `${sellerBaseUrl}/seller/products`,
 };

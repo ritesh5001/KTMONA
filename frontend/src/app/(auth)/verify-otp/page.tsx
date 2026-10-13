@@ -21,6 +21,8 @@ import {
 } from "@/services/auth";
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
+import { CheckCircle2 } from "lucide-react";
+import Link from "next/link";
 import { buyerReturnPath } from "@/lib/login-redirect";
 
 function VerifyOtpContent() {
@@ -38,6 +40,8 @@ function VerifyOtpContent() {
   const [otp, setOtp] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [sending, setSending] = React.useState(false);
+  /** Set once a seller's application is submitted: the page shows the green confirmation. */
+  const [submitted, setSubmitted] = React.useState<string | null>(null);
   const submittedOtpRef = React.useRef<string | null>(null);
 
   // One-time-code autofill supported on mobile browsers.
@@ -72,8 +76,9 @@ function VerifyOtpContent() {
 
         router.push(staffDestination[role] ?? buyerReturnPath());
       } else {
-        toast.success(result.message ?? `Verified. Await admin approval.`);
-        router.push("/login");
+        const message = result.message ?? "Your seller application has been submitted for approval.";
+        toast.success(message);
+        setSubmitted(message);
       }
     } catch (error) {
       console.error("[auth-ui][verify-otp] failed", error);
@@ -114,6 +119,32 @@ function VerifyOtpContent() {
     submittedOtpRef.current = otp;
     void handleVerify({ preventDefault() {} } as React.FormEvent<HTMLFormElement>);
   }, [handleVerify, loading, otp]);
+
+  if (submitted) {
+    return (
+      <div className="flex min-h-[calc(100vh-160px)] items-center justify-center bg-background px-6 py-16">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45 }}
+          role="status"
+          className="w-full max-w-lg rounded-2xl border border-emerald-300 bg-emerald-50 p-8 text-center shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/10"
+        >
+          <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden />
+          <h1 className="mt-4 font-serif text-3xl font-normal text-emerald-800 dark:text-emerald-300">
+            Application submitted for approval
+          </h1>
+          <p className="mt-3 text-base leading-relaxed text-emerald-900/80 dark:text-emerald-100/80">{submitted}</p>
+          <p className="mt-2 text-sm text-emerald-900/70 dark:text-emerald-100/70">
+            We have also sent a confirmation to your email. You can sign in once your account is approved.
+          </p>
+          <Button asChild className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700" size="lg">
+            <Link href="/login">Go to Seller Login</Link>
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-160px)] bg-background">

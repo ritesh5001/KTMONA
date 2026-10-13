@@ -16,6 +16,8 @@ import { env } from '../config/env.js';
 import type { StringValue } from 'ms';
 import ms from 'ms';
 import { otpService, type OtpDelivery, type SignupOtpPayload } from './otp.service.js';
+import { sendEmail } from '../notifications/email/resend.client.js';
+import { sellerApplicationSubmittedTemplate } from '../notifications/email/templates/seller-application-submitted.js';
 
 /** "OTP sent to your email address" / mobile, plus what to verify with. */
 function otpSent(d: OtpDelivery, suffix = ''): { message: string; verifyWith: { email: string } | { phone: string } } {
@@ -413,8 +415,17 @@ export class AuthService {
 
             if (created.role === 'SELLER') {
                 this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_seller_created');
+                // "Application submitted" email, sent directly (like the OTP) so it
+                // never waits on the notification queue. Never blocks the response.
+                if (created.email) {
+                    const { subject, html } = sellerApplicationSubmittedTemplate({ sellerEmail: created.email });
+                    void sendEmail(created.email, subject, html).catch((err) => {
+                        this.logger.warn({ userId: created.id, err: err instanceof Error ? err.message : String(err) }, 'seller_application_email_failed');
+                    });
+                }
                 return {
-                    message: `${channel === 'email' ? 'Email' : 'Phone'} verified. Seller account pending admin approval.`,
+                    message: 'Your seller application has been submitted for approval. We will email you once your account is approved.',
+                    applicationSubmitted: true,
                 };
             }
 
