@@ -252,7 +252,7 @@ export const supplier = {
     get<{ mode: string; tab: QcTab; counts: Record<QcTab, number>; uploads: CatalogUploadRow[]; pagination: Pagination }>(
       `/catalog-uploads${qs(params)}`
     ),
-  submitSingle: (body: { draftId?: string; categoryId: string; products: CatalogProductInput[] }) =>
+  submitSingle: (body: { draftId?: string; categoryId: string; products: CatalogProductInput[]; priceLock?: boolean }) =>
     send<{ id: string; fileId: string; productsCreated: number; products: { id: string; title: string }[]; errors: { row: number; message: string }[] }>(
       "POST",
       "/catalog-uploads/single",

@@ -3,7 +3,8 @@
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { BadgeCheck, Eye, Lock, TrendingDown } from "lucide-react";
+import Link from "next/link";
+import { BadgeCheck, Eye, Lock, Plus, TrendingDown } from "lucide-react";
 import { fmtDate, inr } from "@/services/seller-center";
 import { priceLockApi, type PriceLockProduct, type SellerPriceLockTab } from "@/services/platform";
 import {
@@ -93,6 +94,14 @@ export default function SellerPriceLockPage() {
       <PageHeader
         title="KTMONA Price Lock"
         description="List the products you sell at the lowest price in the market. Our team checks each one; approved products get the Price Lock badge and extra visibility."
+        actions={
+          <Link
+            href="/seller/catalog-uploads/single?priceLock=1"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-dark"
+          >
+            <Plus className="h-4 w-4" /> Upload new product
+          </Link>
+        }
       />
 
       <div className="mb-5 grid gap-3 md:grid-cols-3">
@@ -134,7 +143,7 @@ export default function SellerPriceLockPage() {
           <Empty
             icon={Lock}
             title={tab === "eligible" ? "No products to add" : "Nothing here yet"}
-            text={tab === "eligible" ? "Only live (QC-approved) products that are not already in Price Lock appear here." : undefined}
+            text={tab === "eligible" ? "Only live (QC-approved) products that are not already in Price Lock appear here. Use \"Upload new product\" to add a new one straight into Price Lock." : undefined}
           />
         ) : (
           <>

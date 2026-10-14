@@ -292,6 +292,7 @@ export const adminCenter = {
   reviewKyc: (id: string, status: "VERIFIED" | "REJECTED", reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc`, { status, reason }),
   /** Whether the seller needs verified KYC before listing products. */
   setKycRequired: (id: string, required: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc-required`, { required }),
+  deleteSeller: (id: string, confirm: string) => send<{ deleted: boolean }>("DELETE", `/sellers/${id}`, { confirm }),
   /** `days` makes a suspension temporary: it lifts by itself after that many days. */
   setSellerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string, days?: number) =>
     send<AdminSellerDetail>("POST", `/sellers/${id}/status`, { status, reason, ...(days ? { days } : {}) }),

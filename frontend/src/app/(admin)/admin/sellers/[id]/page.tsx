@@ -1,17 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { AlertTriangle, BadgeCheck, Banknote, CheckCircle2, Gavel, IndianRupee, Landmark, MapPin, Package, PauseCircle, Star, XCircle } from "lucide-react";
+import { AlertTriangle, BadgeCheck, Banknote, CheckCircle2, Gavel, IndianRupee, Landmark, MapPin, Package, PauseCircle, Star, Trash2, XCircle } from "lucide-react";
 import { adminCenter, type AdminSellerDetail } from "@/services/admin-center";
 import { inr, inr2, fmtDate, shortId } from "@/services/seller-center";
 import { Badge, Btn, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, Panel, StatCard, StatusBadge, errorMessage, inputCls } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 import { ReasonDialog } from "@/components/admin/ReasonDialog";
 
-type Dialog = null | "kyc-reject" | "suspend" | "hold" | "commission" | "penalty";
+type Dialog = null | "kyc-reject" | "suspend" | "hold" | "commission" | "penalty" | "delete";
 
 export default function AdminSellerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +19,7 @@ export default function AdminSellerDetailPage() {
   const [dialog, setDialog] = React.useState<Dialog>(null);
   const [suspendDays, setSuspendDays] = React.useState(0);
   const [busy, setBusy] = React.useState<string | null>(null);
+  const router = useRouter();
 
   const act = async (key: string, fn: () => Promise<AdminSellerDetail | unknown>, message: string) => {
     setBusy(key);
@@ -52,6 +53,7 @@ export default function AdminSellerDetailPage() {
             {s.status === "PENDING" ? <Btn variant="brand" loading={busy === "approve"} onClick={() => act("approve", () => adminCenter.setSellerStatus(s.id, "ACTIVE"), "Seller approved")}>Approve seller</Btn> : null}
             {s.status === "ACTIVE" ? <Btn variant="danger" onClick={() => setDialog("suspend")}>Suspend</Btn> : null}
             {s.status === "SUSPENDED" ? <Btn variant="brand" loading={busy === "reactivate"} onClick={() => act("reactivate", () => adminCenter.setSellerStatus(s.id, "ACTIVE", "Reactivated by admin"), "Seller reactivated")}>Reactivate</Btn> : null}
+            <Btn variant="outline" onClick={() => setDialog("delete")}><Trash2 className="h-4 w-4" /> Delete permanently</Btn>
           </>
         }
       />
@@ -265,6 +267,25 @@ export default function AdminSellerDetailPage() {
         onClose={() => setDialog(null)}
         onConfirm={(reason) => act("hold", () => adminCenter.setPayoutHold(s.id, true, reason), "Payouts on hold")}
       />
+      <DeleteSellerDialog
+        open={dialog === "delete"}
+        onClose={() => setDialog(null)}
+        identifier={s.email ?? s.phone ?? ""}
+        storeName={s.store?.name ?? null}
+        busy={busy === "delete"}
+        onConfirm={async (confirm) => {
+          setBusy("delete");
+          try {
+            await adminCenter.deleteSeller(s.id, confirm);
+            toast.success("Seller deleted permanently");
+            router.replace("/admin/sellers");
+          } catch (err) {
+            toast.error(errorMessage(err));
+          } finally {
+            setBusy(null);
+          }
+        }}
+      />
       <Modal
         open={dialog === "hold" && s.payoutHold}
         onClose={() => setDialog(null)}
@@ -318,3 +339,29 @@ function PenaltyDialog({ open, busy, onClose, onSave }: { open: boolean; busy: b
   );
 }
 
+
+function DeleteSellerDialog({ open, onClose, identifier, storeName, busy, onConfirm }: { open: boolean; onClose: () => void; identifier: string; storeName: string | null; busy: boolean; onConfirm: (confirm: string) => void }) {
+  const [typed, setTyped] = React.useState("");
+  React.useEffect(() => {
+    if (open) setTyped("");
+  }, [open]);
+  const matches = typed.trim().toLowerCase() === identifier.trim().toLowerCase() && identifier !== "";
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Delete seller permanently?"
+      footer={<><Btn variant="outline" onClick={onClose}>Cancel</Btn><Btn variant="danger" loading={busy} disabled={!matches} onClick={() => onConfirm(typed)}>Delete permanently</Btn></>}
+    >
+      <div className="space-y-4 text-sm">
+        <p>
+          This removes {storeName ? <strong>{storeName}</strong> : "this seller"}&apos;s account, store, products, catalog uploads and reels for good. It cannot be undone. The same email can then be used to register again.
+        </p>
+        <p className="text-muted-foreground">Sellers with orders or payment history cannot be deleted; suspend them instead.</p>
+        <Field label={`Type ${identifier} to confirm`}>
+          <input className={inputCls} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={identifier} autoComplete="off" />
+        </Field>
+      </div>
+    </Modal>
+  );
+}

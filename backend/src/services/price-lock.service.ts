@@ -53,9 +53,14 @@ async function refreshProductCaches(productIds: string[]): Promise<void> {
     await Promise.allSettled(productIds.map((id) => invalidateProductCaches(id)));
 }
 
-/** Lowest price a shopper pays for the product today (approved variants). */
+/**
+ * Lowest price a shopper pays for the product today (approved variants). A
+ * product still in QC has no approved variant yet, so its submitted prices
+ * are used instead; shoppers only see the badge once QC approves it.
+ */
 function lowestPrice(row: Row): number | null {
-    const prices = row.variants.filter((v) => v.status === 'APPROVED').map((v) => v.price);
+    const approved = row.variants.filter((v) => v.status === 'APPROVED').map((v) => v.price);
+    const prices = approved.length || row.status === 'APPROVED' ? approved : row.variants.map((v) => v.price);
     return prices.length ? Math.min(...prices) : null;
 }
 
@@ -148,6 +153,18 @@ class PriceLockService {
             }
         }
         return { results, done: results.filter((r) => r.ok).length };
+    }
+
+    /** Products just uploaded from the Price Lock page, still waiting for QC. */
+    async requestForNewProducts(sellerId: string, productIds: string[]) {
+        if (productIds.length === 0) return;
+        const rows = await prisma.product.findMany({ where: { id: { in: productIds }, sellerId }, select: productSelect });
+        for (const row of rows) {
+            await prisma.product.update({
+                where: { id: row.id },
+                data: { priceLockStatus: 'PENDING', priceLockPrice: lowestPrice(row), priceLockRequestedAt: new Date() },
+            });
+        }
     }
 
     async sellerWithdraw(sellerId: string, input: z.infer<typeof priceLockIdsSchema>) {

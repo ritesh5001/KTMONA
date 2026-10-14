@@ -210,7 +210,7 @@ sellerCenterRouter.post(
     '/catalog-uploads/single',
     h((req) => {
         const body = z
-            .object({ draftId: z.string().optional(), categoryId: z.string().min(1), products: z.array(catalogProduct).min(1).max(MAX_PRODUCTS_PER_CATALOG) })
+            .object({ draftId: z.string().optional(), categoryId: z.string().min(1), products: z.array(catalogProduct).min(1).max(MAX_PRODUCTS_PER_CATALOG), priceLock: z.boolean().optional() })
             .parse(req.body);
         return sellerCatalogUploadsService.submitSingle(sid(req), body);
     })

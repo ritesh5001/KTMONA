@@ -12,7 +12,7 @@ export function sellerApplicationSubmittedTemplate(data: { sellerEmail: string }
             title: 'Application Submitted',
             message: [
                 'Thank you for registering as a seller on KTMONA. Your email is verified and your application has been submitted for approval.',
-                'Our team will review it shortly. We will email you as soon as your seller account is approved, and you can then sign in and start listing products.',
+                'Our team will review it shortly. We will email you as soon as your seller account is approved. After that, complete your KYC from the seller panel; once KTMONA verifies it you can start listing products.',
             ],
             details: [
                 { label: 'Seller Account', value: data.sellerEmail },

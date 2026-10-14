@@ -133,6 +133,8 @@ function AddSingleCatalogPageContent() {
   const [step, setStep] = React.useState<1 | 2>(1);
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [draftId, setDraftId] = React.useState<string | null>(draftParam);
+  /** Opened from Price Lock: also apply for Price Lock when sent for QC. */
+  const [priceLock, setPriceLock] = React.useState(params.get("priceLock") === "1");
   const [products, setProducts] = React.useState<ProductForm[]>([]);
   const [active, setActive] = React.useState(0);
   const [saving, setSaving] = React.useState<"draft" | "submit" | null>(null);
@@ -250,10 +252,14 @@ function AddSingleCatalogPageContent() {
     }
     setSaving("submit");
     try {
-      const res = await supplier.submitSingle({ draftId: draftId ?? undefined, categoryId, products: products.map(toPayload) });
-      toast.success(`${res.productsCreated} product(s) sent for QC. File ID ${res.fileId}`);
+      const res = await supplier.submitSingle({ draftId: draftId ?? undefined, categoryId, products: products.map(toPayload), priceLock });
+      toast.success(
+        priceLock
+          ? `${res.productsCreated} product(s) sent for QC and Price Lock review. File ID ${res.fileId}`
+          : `${res.productsCreated} product(s) sent for QC. File ID ${res.fileId}`
+      );
       res.errors.forEach((e) => toast.error(`Product ${e.row}: ${e.message}`));
-      router.push("/seller/catalog-uploads?mode=single");
+      router.push(priceLock ? "/seller/price-lock" : "/seller/catalog-uploads?mode=single");
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -583,7 +589,11 @@ function AddSingleCatalogPageContent() {
             Discard Catalog
           </Btn>
           {step === 2 ? (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="mr-2 inline-flex cursor-pointer items-center gap-2 text-sm">
+                <input type="checkbox" checked={priceLock} onChange={(e) => setPriceLock(e.target.checked)} className="h-4 w-4 accent-[var(--color-brand)]" />
+                Apply for KTMONA Price Lock
+              </label>
               <Btn variant="outline" onClick={() => setStep(1)}>Back</Btn>
               <Btn variant="outline" loading={saving === "draft"} onClick={saveDraft}>
                 Save Draft

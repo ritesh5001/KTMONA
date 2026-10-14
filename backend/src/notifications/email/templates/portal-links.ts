@@ -14,4 +14,6 @@ export const portalLinks = {
   sellerLogin: `${sellerBaseUrl}/login`,
   sellerOrders: `${sellerBaseUrl}/seller/orders`,
   sellerProducts: `${sellerBaseUrl}/seller/products`,
+  sellerSettings: `${sellerBaseUrl}/seller/settings`,
+  sellerNewProduct: `${sellerBaseUrl}/seller/catalog-uploads/single`,
 };

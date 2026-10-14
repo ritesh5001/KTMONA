@@ -5,6 +5,7 @@
  */
 
 import { assertSellerKycVerified } from './kyc-gate.js';
+import { priceLockService } from '../price-lock.service.js';
 import ExcelJS from 'exceljs';
 import { categoryAttributeService } from '../category-attribute.service.js';
 import { CatalogUploadMode, Prisma } from '@prisma/client';
@@ -225,7 +226,7 @@ class SellerCatalogUploadsService {
      * variant per size, then goes to QC (admin review). All-or-nothing per
      * product: a failing product is reported and the others are kept.
      */
-    async submitSingle(sellerId: string, input: { draftId?: string | undefined; categoryId: string; products: CatalogProductInput[] }) {
+    async submitSingle(sellerId: string, input: { draftId?: string | undefined; categoryId: string; products: CatalogProductInput[]; priceLock?: boolean | undefined }) {
         if (input.products.length === 0) throw ApiError.badRequest('Add at least one product');
         await assertSellerKycVerified(sellerId);
         if (input.products.length > MAX_PRODUCTS_PER_CATALOG) {
@@ -276,6 +277,9 @@ class SellerCatalogUploadsService {
             where: { id: upload.id },
             data: { rowsFailed: errors.length, errors: errors as unknown as Prisma.InputJsonValue },
         });
+        // Uploaded from Price Lock: the products wait for QC and the Price
+        // Lock review together instead of the seller coming back after QC.
+        if (input.priceLock) await priceLockService.requestForNewProducts(sellerId, created.map((c) => c.id));
         await invalidateSellerPrivateCaches(sellerId);
         return { id: upload.id, fileId: upload.fileId, productsCreated: created.length, products: created, errors };
     }

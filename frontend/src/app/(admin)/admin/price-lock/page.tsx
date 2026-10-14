@@ -181,6 +181,7 @@ function Row({
           <div className="min-w-0">
             <p className="line-clamp-2 text-sm font-medium">{p.title}</p>
             <p className="text-xs text-muted-foreground">{p.category.name}</p>
+            {!p.isLive ? <Badge tone="gray">Not live yet (in QC)</Badge> : null}
           </div>
         </div>
       </Td>

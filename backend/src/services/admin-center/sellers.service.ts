@@ -13,6 +13,9 @@ import { sellerInsightsService } from '../seller-center/insights.service.js';
 import { sellerOrdersService } from '../seller-center/orders.service.js';
 import { DEFAULT_COMMISSION_PCT, addDays, parseLimit, parsePage, round2, sellerCode } from '../seller-center/common.js';
 import { adminPayoutsService } from './payouts.service.js';
+import { sendEmail } from '../../notifications/email/resend.client.js';
+import { sellerKycVerifiedTemplate } from '../../notifications/email/templates/seller-kyc-verified.js';
+import { sellerKycRejectedTemplate } from '../../notifications/email/templates/seller-kyc-rejected.js';
 
 export const SELLER_TABS = ['all', 'pending', 'active', 'suspended', 'kyc_review', 'at_risk'] as const;
 type SellerTab = (typeof SELLER_TABS)[number];
@@ -227,6 +230,20 @@ class AdminSellersService {
         await prisma.auditLog.create({
             data: { actorId: adminId, action: `SELLER_KYC_${input.status}`, entityType: 'USER', entityId: sellerId, metadata: { reason: input.reason ?? null } },
         }).catch(() => undefined);
+        // Tell the seller: verified → they can list now; rejected → what to fix.
+        // Only on a change, so re-saving the same decision does not email again.
+        if (profile.kyc_status !== input.status) {
+            const seller = await prisma.user.findUnique({ where: { id: sellerId }, select: { email: true } });
+            if (seller?.email) {
+                const { subject, html } =
+                    input.status === 'VERIFIED'
+                        ? sellerKycVerifiedTemplate({ sellerEmail: seller.email, storeName: profile.store_name })
+                        : sellerKycRejectedTemplate({ sellerEmail: seller.email, reason: input.reason!.trim() });
+                void sendEmail(seller.email, subject, html).catch((err) => {
+                    console.error(`[kyc] could not email seller ${sellerId}:`, err instanceof Error ? err.message : err);
+                });
+            }
+        }
         return this.detail(sellerId);
     }
 
@@ -239,6 +256,64 @@ class AdminSellersService {
             data: { actorId: adminId, action: required ? 'SELLER_KYC_REQUIRED' : 'SELLER_KYC_EXEMPTED', entityType: 'USER', entityId: sellerId, metadata: {} },
         }).catch(() => undefined);
         return this.detail(sellerId);
+    }
+
+    /**
+     * Permanently delete a seller account and everything it owns (store,
+     * products, uploads, reels, offers…). Sellers with orders or payment
+     * history cannot be deleted, since invoices, refunds and accounts depend
+     * on those records; suspend them instead. The admin confirms by typing
+     * the seller's email.
+     */
+    async deletePermanently(adminId: string, sellerId: string, confirmEmail: string) {
+        const user = await prisma.user.findFirst({ where: { id: sellerId, role: 'SELLER' }, select: { id: true, email: true, phone: true } });
+        if (!user) throw ApiError.notFound('Seller not found');
+        const expected = (user.email ?? user.phone ?? '').trim().toLowerCase();
+        if (!expected || confirmEmail.trim().toLowerCase() !== expected) {
+            throw ApiError.badRequest(`Type the seller's ${user.email ? 'email' : 'mobile number'} exactly to confirm`);
+        }
+
+        const [history] = await prisma.$queryRaw<{ orders: bigint; money: bigint }[]>`
+            SELECT
+              (SELECT COUNT(*) FROM "order_items" WHERE "seller_id" = ${sellerId})
+              + (SELECT COUNT(*) FROM "shipments" WHERE "seller_id" = ${sellerId}) AS orders,
+              (SELECT COUNT(*) FROM "seller_settlements" WHERE "seller_id" = ${sellerId})
+              + (SELECT COUNT(*) FROM "seller_ledger_entries" WHERE "seller_id" = ${sellerId})
+              + (SELECT COUNT(*) FROM "seller_payouts" WHERE "seller_id" = ${sellerId}) AS money`;
+        if (Number(history?.orders ?? 0) > 0 || Number(history?.money ?? 0) > 0) {
+            throw ApiError.badRequest('This seller has orders or payment history, so the account cannot be deleted permanently. Suspend the seller instead.');
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Tables that point at the seller or their products without a
+            // foreign key (so nothing cascades to them).
+            const productIds = Prisma.sql`SELECT "id" FROM "products" WHERE "seller_id" = ${sellerId}`;
+            const variantIds = Prisma.sql`SELECT v."id" FROM "product_variants" v JOIN "products" p ON p."id" = v."product_id" WHERE p."seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "cart_items" WHERE "product_id" IN (${productIds})`;
+            await tx.$executeRaw`DELETE FROM "inventory_movements" WHERE "variant_id" IN (${variantIds})`;
+            await tx.$executeRaw`DELETE FROM "seller_offer_items" WHERE "product_id" IN (${productIds})`;
+            await tx.$executeRaw`DELETE FROM "seller_offer_items" WHERE "variant_id" IN (${variantIds})`;
+            await tx.$executeRaw`DELETE FROM "ad_campaign_products" WHERE "product_id" IN (${productIds})`;
+            await tx.$executeRaw`DELETE FROM "ad_daily_stats" WHERE "product_id" IN (${productIds})`;
+            await tx.$executeRaw`DELETE FROM "product_view_daily" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "seller_offers" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "ad_campaigns" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "seller_claims" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "seller_order_cancellations" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "category_requests" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "products" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "catalog_uploads" WHERE "seller_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "notifications" WHERE "user_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "carts" WHERE "user_id" = ${sellerId}`;
+            await tx.$executeRaw`DELETE FROM "audit_logs" WHERE "actor_id" = ${sellerId}`;
+            // Everything else (profile, bank accounts, reels, sessions…) cascades.
+            await tx.user.delete({ where: { id: sellerId } });
+            await tx.auditLog.create({
+                data: { actorId: adminId, action: 'SELLER_DELETED', entityType: 'USER', entityId: sellerId, metadata: { email: user.email, phone: user.phone } },
+            });
+        });
+        await invalidateProductCaches();
+        return { deleted: true };
     }
 
     /**

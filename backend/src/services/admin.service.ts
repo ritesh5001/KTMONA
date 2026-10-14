@@ -14,6 +14,7 @@ import {
     AdminPricingOverviewItem,
     AdminProfitAnalytics,
 } from '../repositories/admin.repository.js';
+import { prisma } from '../config/db.js';
 import { productRepository } from '../repositories/product.repository.js';
 import { variantRepository } from '../repositories/variant.repository.js';
 import { inventoryRepository } from '../repositories/inventory.repository.js';
@@ -122,9 +123,13 @@ export class AdminService {
         // Update status to ACTIVE
         const updatedSeller = await this.adminRepo.updateSellerStatus(sellerId, 'ACTIVE');
 
+        // The approval email asks for KYC unless it is already done or waived.
+        const profile = await prisma.seller_profiles.findUnique({ where: { user_id: sellerId }, select: { kyc_status: true, kyc_required: true } });
+        const kycPending = !(profile?.kyc_status === 'VERIFIED' || profile?.kyc_required === false);
+
         // Fire side-effects in parallel (no data dependency)
         await Promise.all([
-            notificationService.notifySellerApproved(updatedSeller.id, updatedSeller.email),
+            notificationService.notifySellerApproved(updatedSeller.id, updatedSeller.email, kycPending),
             invalidateCache(CACHE_KEYS.ADMIN_STATS),
             this.auditSvc.logAction(actorId, 'SELLER_APPROVED', 'USER', sellerId, {
                 previousStatus: seller.status,

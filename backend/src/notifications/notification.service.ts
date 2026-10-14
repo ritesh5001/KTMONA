@@ -148,14 +148,14 @@ export class NotificationService {
     /**
      * Trigger SELLER_APPROVED (Seller)
      */
-    async notifySellerApproved(sellerId: string, email?: string | null) {
+    async notifySellerApproved(sellerId: string, email?: string | null, kycPending = true) {
         return this.create({
             userId: sellerId,
             role: 'SELLER',
             type: 'SELLER_APPROVED',
             channel: 'EMAIL',
             content: 'Your seller account is approved',
-            metadata: { sellerEmail: email },
+            metadata: { sellerEmail: email, kycPending },
             eventKey: `SELLER_APPROVED:${sellerId}`
         });
     }
