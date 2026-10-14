@@ -284,7 +284,8 @@ class AdminSellersService {
             throw ApiError.badRequest('This seller has orders or payment history, so the account cannot be deleted permanently. Suspend the seller instead.');
         }
 
-        await prisma.$transaction(async (tx) => {
+        try {
+            await prisma.$transaction(async (tx) => {
             // Tables that point at the seller or their products without a
             // foreign key (so nothing cascades to them).
             const productIds = Prisma.sql`SELECT "id" FROM "products" WHERE "seller_id" = ${sellerId}`;
@@ -311,7 +312,14 @@ class AdminSellersService {
             await tx.auditLog.create({
                 data: { actorId: adminId, action: 'SELLER_DELETED', entityType: 'USER', entityId: sellerId, metadata: { email: user.email, phone: user.phone } },
             });
-        });
+            // ~20 statements in a row: from Render to Neon that outlasts
+            // Prisma's 5s default for interactive transactions.
+            }, { maxWait: 10_000, timeout: 60_000 });
+        } catch (err) {
+            console.error(`[admin] permanent delete of seller ${sellerId} failed:`, err);
+            const detail = err instanceof Prisma.PrismaClientKnownRequestError ? ` (${err.code}${err.meta ? `: ${JSON.stringify(err.meta)}` : ''})` : '';
+            throw ApiError.badRequest(`Could not delete this seller. Nothing was removed.${detail}`);
+        }
         await invalidateProductCaches();
         return { deleted: true };
     }
