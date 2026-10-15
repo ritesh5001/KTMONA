@@ -273,14 +273,31 @@ class AdminSellersService {
             throw ApiError.badRequest(`Type the seller's ${user.email ? 'email' : 'mobile number'} exactly to confirm`);
         }
 
-        const [history] = await prisma.$queryRaw<{ orders: bigint; money: bigint }[]>`
-            SELECT
-              (SELECT COUNT(*) FROM "order_items" WHERE "seller_id" = ${sellerId})
-              + (SELECT COUNT(*) FROM "shipments" WHERE "seller_id" = ${sellerId}) AS orders,
-              (SELECT COUNT(*) FROM "seller_settlements" WHERE "seller_id" = ${sellerId})
-              + (SELECT COUNT(*) FROM "seller_ledger_entries" WHERE "seller_id" = ${sellerId})
-              + (SELECT COUNT(*) FROM "seller_payouts" WHERE "seller_id" = ${sellerId}) AS money`;
-        if (Number(history?.orders ?? 0) > 0 || Number(history?.money ?? 0) > 0) {
+        // Only touch tables this database has: a database a migration behind
+        // must not turn the delete into a server error.
+        const tables = [
+            'order_items', 'shipments', 'seller_settlements', 'seller_ledger_entries', 'seller_payouts',
+            'cart_items', 'inventory_movements', 'seller_offer_items', 'ad_campaign_products', 'ad_daily_stats',
+            'product_view_daily', 'seller_offers', 'ad_campaigns', 'seller_claims', 'seller_order_cancellations',
+            'category_requests', 'catalog_uploads', 'notifications', 'carts',
+        ];
+        const present = new Set(
+            (await prisma.$queryRaw<{ name: string }[]>`
+                SELECT table_name AS name FROM information_schema.tables
+                WHERE table_schema = current_schema() AND table_name IN (${Prisma.join(tables)})`).map((r) => r.name)
+        );
+        const table = (name: string) => Prisma.raw(`"${name}"`); // names come from the fixed list above
+
+        let history = 0;
+        for (const [name, column] of [
+            ['order_items', 'seller_id'], ['shipments', 'seller_id'], ['seller_settlements', 'seller_id'],
+            ['seller_ledger_entries', 'seller_id'], ['seller_payouts', 'seller_id'],
+        ] as const) {
+            if (!present.has(name)) continue;
+            const [row] = await prisma.$queryRaw<{ n: bigint }[]>`SELECT COUNT(*) AS n FROM ${table(name)} WHERE ${Prisma.raw(`"${column}"`)} = ${sellerId}`;
+            history += Number(row?.n ?? 0);
+        }
+        if (history > 0) {
             throw ApiError.badRequest('This seller has orders or payment history, so the account cannot be deleted permanently. Suspend the seller instead.');
         }
 
@@ -290,22 +307,24 @@ class AdminSellersService {
             // foreign key (so nothing cascades to them).
             const productIds = Prisma.sql`SELECT "id" FROM "products" WHERE "seller_id" = ${sellerId}`;
             const variantIds = Prisma.sql`SELECT v."id" FROM "product_variants" v JOIN "products" p ON p."id" = v."product_id" WHERE p."seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "cart_items" WHERE "product_id" IN (${productIds})`;
-            await tx.$executeRaw`DELETE FROM "inventory_movements" WHERE "variant_id" IN (${variantIds})`;
-            await tx.$executeRaw`DELETE FROM "seller_offer_items" WHERE "product_id" IN (${productIds})`;
-            await tx.$executeRaw`DELETE FROM "seller_offer_items" WHERE "variant_id" IN (${variantIds})`;
-            await tx.$executeRaw`DELETE FROM "ad_campaign_products" WHERE "product_id" IN (${productIds})`;
-            await tx.$executeRaw`DELETE FROM "ad_daily_stats" WHERE "product_id" IN (${productIds})`;
-            await tx.$executeRaw`DELETE FROM "product_view_daily" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "seller_offers" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "ad_campaigns" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "seller_claims" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "seller_order_cancellations" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "category_requests" WHERE "seller_id" = ${sellerId}`;
+            const remove = async (name: string, where: Prisma.Sql) => {
+                if (present.has(name)) await tx.$executeRaw`DELETE FROM ${table(name)} WHERE ${where}`;
+            };
+            await remove('cart_items', Prisma.sql`"product_id" IN (${productIds})`);
+            await remove('inventory_movements', Prisma.sql`"variant_id" IN (${variantIds})`);
+            await remove('seller_offer_items', Prisma.sql`"product_id" IN (${productIds}) OR "variant_id" IN (${variantIds})`);
+            await remove('ad_campaign_products', Prisma.sql`"product_id" IN (${productIds})`);
+            await remove('ad_daily_stats', Prisma.sql`"product_id" IN (${productIds})`);
+            await remove('product_view_daily', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('seller_offers', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('ad_campaigns', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('seller_claims', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('seller_order_cancellations', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('category_requests', Prisma.sql`"seller_id" = ${sellerId}`);
             await tx.$executeRaw`DELETE FROM "products" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "catalog_uploads" WHERE "seller_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "notifications" WHERE "user_id" = ${sellerId}`;
-            await tx.$executeRaw`DELETE FROM "carts" WHERE "user_id" = ${sellerId}`;
+            await remove('catalog_uploads', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('notifications', Prisma.sql`"user_id" = ${sellerId}`);
+            await remove('carts', Prisma.sql`"user_id" = ${sellerId}`);
             await tx.$executeRaw`DELETE FROM "audit_logs" WHERE "actor_id" = ${sellerId}`;
             // Everything else (profile, bank accounts, reels, sessions…) cascades.
             await tx.user.delete({ where: { id: sellerId } });
@@ -317,7 +336,12 @@ class AdminSellersService {
             }, { maxWait: 10_000, timeout: 60_000 });
         } catch (err) {
             console.error(`[admin] permanent delete of seller ${sellerId} failed:`, err);
-            const detail = err instanceof Prisma.PrismaClientKnownRequestError ? ` (${err.code}${err.meta ? `: ${JSON.stringify(err.meta)}` : ''})` : '';
+            const detail =
+                err instanceof Prisma.PrismaClientKnownRequestError
+                    ? ` (${err.code}${err.meta ? `: ${JSON.stringify(err.meta)}` : ''})`
+                    : err instanceof Error
+                      ? ` (${err.message.split('\n').filter(Boolean).pop()?.slice(0, 200)})`
+                      : '';
             throw ApiError.badRequest(`Could not delete this seller. Nothing was removed.${detail}`);
         }
         await invalidateProductCaches();
