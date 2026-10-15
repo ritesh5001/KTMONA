@@ -75,7 +75,8 @@ class SellerCatalogUploadsService {
     async overview(sellerId: string) {
         const grouped = await prisma.catalogUpload.groupBy({
             by: ['mode'],
-            where: { sellerId, isDraft: false },
+            // Uploads whose products were all deleted no longer count.
+            where: { sellerId, isDraft: false, OR: [{ products: { some: {} } }, { rowsFailed: { gt: 0 } }] },
             _count: { _all: true },
         });
         const bulk = grouped.find((g) => g.mode === 'BULK')?._count._all ?? 0;
@@ -117,7 +118,10 @@ class SellerCatalogUploadsService {
         });
         const catMap = new Map(categories.map((c) => [c.id, c.name]));
 
-        const rows = uploads.map((u) => {
+        const rows = uploads
+            // Nothing left to show: every product of this upload was deleted.
+            .filter((u) => u.isDraft || u.products.length > 0 || u.rowsFailed > 0)
+            .map((u) => {
             const status = qcStatusOf(u);
             const draftProducts = u.isDraft ? ((u.draft as { products?: CatalogProductInput[] } | null)?.products ?? []) : [];
             const firstImage = u.products.find((p) => p.images.length)?.images[0] ?? draftProducts.find((p) => p.images?.length)?.images[0] ?? null;

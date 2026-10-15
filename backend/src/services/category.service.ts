@@ -78,8 +78,10 @@ export class CategoryService {
 
         const { categories } = await this.listCategories();
         // Same rule as the storefront product list (productRepository.findPublished).
-        const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint; latest: Date }[]>`
-            SELECT p."category_id" AS "categoryId", COUNT(*) AS "count", MAX(p."created_at") AS "latest"
+        const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint; latest: Date; image: string | null }[]>`
+            SELECT p."category_id" AS "categoryId", COUNT(*) AS "count", MAX(p."created_at") AS "latest",
+                   -- First photo of the newest product: art for categories with no image.
+                   (ARRAY_AGG(p."images"[1] ORDER BY p."created_at" DESC) FILTER (WHERE p."images"[1] IS NOT NULL))[1] AS "image"
             FROM "products" p
             WHERE p."status" = 'APPROVED'
               AND p."deleted_by_admin" = false
@@ -92,12 +94,15 @@ export class CategoryService {
         const byId = new Map(categories.map((c) => [c.id, c]));
         const count = new Map<string, number>();
         const latest = new Map<string, number>();
+        const preview = new Map<string, { image: string; at: number }>();
         for (const row of rows) {
             // Credit the category and every ancestor (a parent shows if any child has stock).
+            const at = new Date(row.latest).getTime();
             let id: string | null = row.categoryId;
             for (let guard = 0; id && guard < 10; guard++) {
                 count.set(id, (count.get(id) ?? 0) + Number(row.count));
-                latest.set(id, Math.max(latest.get(id) ?? 0, new Date(row.latest).getTime()));
+                latest.set(id, Math.max(latest.get(id) ?? 0, at));
+                if (row.image && (preview.get(id)?.at ?? -1) < at) preview.set(id, { image: row.image, at });
                 id = byId.get(id)?.parentId ?? null;
             }
         }
@@ -117,7 +122,7 @@ export class CategoryService {
         // Newest stock first; the admin's order breaks ties.
         visible.sort((a, b) => (latest.get(b.id)! - latest.get(a.id)!) || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
         const response: CategoryListResponse = {
-            categories: visible.map((c, index) => ({ ...c, sortOrder: index, productCount: count.get(c.id)! })),
+            categories: visible.map((c, index) => ({ ...c, sortOrder: index, productCount: count.get(c.id)!, previewImage: preview.get(c.id)?.image ?? null })),
         };
         await setCache(CACHE_KEYS.CATEGORIES_VISIBLE, response, 120);
         return response;

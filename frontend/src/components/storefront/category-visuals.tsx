@@ -55,8 +55,45 @@ const VISUALS: Record<string, Visual> = {
 
 const FALLBACK: Visual = { icon: Sparkles, bg: "#FFF1E0", fg: "#E05A00" };
 
+/**
+ * Built-in key for a category whose slug is not one of ours, matched on the
+ * words in its slug ("women-fashion" → women-western, "mens-clothing" → men).
+ * Lets categories built in Category Builder keep the built-in photos.
+ * Order matters: "women" is checked before "men".
+ */
+const KEYWORD_ALIASES: [RegExp, string][] = [
+  [/^(sarees?|kurtis?|kurtas?-women|ethnic-women|women-ethnic)$/, "kurti-saree"],
+  [/^(lingerie|bra|bras|nightwear)$/, "lingerie"],
+  [/^(women|womens|woman|ladies|girls?)$/, "women-western"],
+  [/^(kids?|toys?|baby|babies|infant)$/, "kids-toys"],
+  [/^(men|mens|man|gents|boys?)$/, "men"],
+  [/^(home|kitchen|decor|furnishing|furniture|living|dining)$/, "home-kitchen"],
+  [/^(beauty|health|wellness|makeup|skincare|personal|care)$/, "beauty-health"],
+  [/^(jewell?ery|jewelry|accessories|accessory)$/, "jewellery-accessories"],
+  [/^(bags?|footwear|shoes?|sandals?|handbags?)$/, "bags-footwear"],
+  [/^(electronics?|mobiles?|tablets?|laptops?|computers?|audio|cameras?|gadgets?)$/, "electronics"],
+  [/^(watch|watches)$/, "watches"],
+  [/^(electricals?|appliances?)$/, "electricals"],
+  [/^(sports?|fitness|gym)$/, "sports-fitness"],
+  [/^(car|cars|bike|bikes|motorbike|automotive)$/, "car-motorbike"],
+  [/^(office|stationery|stationary)$/, "office-supplies-stationery"],
+  [/^(grocery|groceries|food)$/, "grocery"],
+  [/^(books?)$/, "books"],
+  [/^(pets?)$/, "pet-supplies"],
+  [/^(music|musical|instruments?)$/, "musical-instruments"],
+];
+
+function builtInKey(slug: string): string {
+  if (VISUALS[slug]) return slug;
+  const words = slug.toLowerCase().split("-").filter(Boolean);
+  for (const [re, key] of KEYWORD_ALIASES) {
+    if (words.some((w) => re.test(w))) return key;
+  }
+  return slug;
+}
+
 export function categoryVisual(slug: string): Visual {
-  return VISUALS[slug] ?? FALLBACK;
+  return VISUALS[builtInKey(slug)] ?? FALLBACK;
 }
 
 /**
@@ -66,6 +103,8 @@ export function categoryVisual(slug: string): Visual {
 export function defaultCategoryImage(slug: string): string | null {
   if (CATEGORY_IMAGE_SLUGS.has(slug)) return `/storefront/categories/${slug}.webp`;
   if (CARD_IMAGE_SLUGS.has(slug)) return `/storefront/cards/${slug}.webp`;
+  const key = builtInKey(slug);
+  if (key !== slug && CATEGORY_IMAGE_SLUGS.has(key)) return `/storefront/categories/${key}.webp`;
   return null;
 }
 
@@ -76,24 +115,28 @@ export function defaultBannerImage(key: string): string | null {
 
 /**
  * Category art. Order of preference: the image uploaded in Admin → Categories,
- * the built-in photo in public/storefront, then an icon on the category colour.
+ * the built-in photo in public/storefront, the newest product's photo, then an
+ * icon on the category colour.
  */
 export function CategoryArt({
   slug,
   image,
+  fallbackImage,
   name,
   className,
   iconClassName,
 }: {
   slug: string;
   image?: string | null;
+  /** Newest product photo in the category, used when nothing else fits. */
+  fallbackImage?: string | null;
   name: string;
   className?: string;
   iconClassName?: string;
 }) {
   const v = categoryVisual(slug);
   const Icon = v.icon;
-  const src = image ?? defaultCategoryImage(slug);
+  const src = image ?? defaultCategoryImage(slug) ?? fallbackImage ?? null;
   return (
     <div className={cn("relative flex items-center justify-center overflow-hidden", className)} style={{ backgroundColor: v.bg }}>
       {src ? (

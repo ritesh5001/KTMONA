@@ -38,6 +38,7 @@ export function CategoryArches({ tree }: { tree: CategoryNode[] }) {
               <CategoryArt
                 slug={c.slug}
                 image={c.image}
+                fallbackImage={c.previewImage}
                 name={c.name}
                 className="mx-auto aspect-[5/6] w-full max-w-[120px] rounded-t-full transition-transform group-hover:-translate-y-1"
               />
@@ -136,6 +137,7 @@ export function ShopByCategory({ tree }: { tree: CategoryNode[] }) {
               <CategoryArt
                 slug={main?.slug ?? node.slug}
                 image={node.image ?? defaultCategoryImage(node.slug)}
+                fallbackImage={node.previewImage}
                 name={node.name}
                 className="aspect-square rounded-b-[40%_18%]"
                 iconClassName="transition-transform group-hover:scale-110"

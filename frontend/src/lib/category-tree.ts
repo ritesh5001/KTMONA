@@ -9,6 +9,8 @@ export interface FlatCategory {
   parentId?: string | null;
   sortOrder?: number | null;
   image?: string | null;
+  /** Newest product photo in this category (storefront list only). */
+  previewImage?: string | null;
   bannerImage?: string | null;
   description?: string | null;
   seoTitle?: string | null;

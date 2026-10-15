@@ -106,7 +106,7 @@ export default async function CollectionPage({ params }: Props) {
 
         <div className="mt-3 flex items-center gap-3">
           {path.length === 1 ? (
-            <CategoryArt slug={main.slug} image={main.image} name={main.name} className="h-12 w-12 shrink-0 rounded-full" />
+            <CategoryArt slug={main.slug} image={main.image} fallbackImage={main.previewImage} name={main.name} className="h-12 w-12 shrink-0 rounded-full" />
           ) : null}
           <div>
             <h1 className="text-2xl font-semibold text-foreground sm:text-3xl">{category.name}</h1>
@@ -122,7 +122,7 @@ export default async function CollectionPage({ params }: Props) {
                   href={categoryHref(child.slug)}
                   className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-card py-1.5 pl-1.5 pr-4 text-sm font-medium hover:border-brand hover:text-brand-strong"
                 >
-                  <CategoryArt slug={main.slug} image={child.image} name={child.name} className="h-7 w-7 rounded-full" />
+                  <CategoryArt slug={main.slug} image={child.image} fallbackImage={child.previewImage} name={child.name} className="h-7 w-7 rounded-full" />
                   {child.name}
                 </Link>
               </li>

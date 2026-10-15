@@ -51,7 +51,7 @@ export default async function CategoriesPage() {
           {tree.map((main) => (
             <section key={main.id} id={main.slug} className="rounded-xl border border-border-soft bg-card p-4 sm:p-5">
               <Link href={categoryHref(main.slug)} className="group flex items-center gap-3">
-                <CategoryArt slug={main.slug} image={main.image} name={main.name} className="h-12 w-12 shrink-0 rounded-full" />
+                <CategoryArt slug={main.slug} image={main.image} fallbackImage={main.previewImage} name={main.name} className="h-12 w-12 shrink-0 rounded-full" />
                 <h2 className="text-lg font-semibold group-hover:text-brand-strong">{main.name}</h2>
                 <span className="ml-auto text-sm font-semibold text-brand-strong">View all ›</span>
               </Link>

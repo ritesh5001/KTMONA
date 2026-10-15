@@ -67,7 +67,7 @@ export function MobileCategoryDrawer({
                     className="flex w-full items-center gap-3 px-4 py-3 text-left"
                     aria-expanded={isOpen}
                   >
-                    <CategoryArt slug={main.slug} image={main.image} name={main.name} className="h-10 w-10 shrink-0 rounded-full" />
+                    <CategoryArt slug={main.slug} image={main.image} fallbackImage={main.previewImage} name={main.name} className="h-10 w-10 shrink-0 rounded-full" />
                     <span className="flex-1 text-sm font-medium">{main.name}</span>
                     <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                   </button>
