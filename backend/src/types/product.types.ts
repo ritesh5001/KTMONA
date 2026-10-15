@@ -151,6 +151,17 @@ export interface PublicProductWithCategory {
     priceLock?: boolean;
     /** Shopper reviews; only on list responses. */
     rating?: { average: number | null; count: number } | undefined;
+    socialProof?: SocialProof;
+}
+
+/**
+ * Rating, review count and "people viewed" shown to shoppers: the admin's
+ * figure when set, otherwise real reviews; null lets the client fall back.
+ */
+export interface SocialProof {
+    rating: number | null;
+    reviewCount: number | null;
+    viewCount: number | null;
 }
 
 export interface PublicProductWithDetails {
@@ -176,6 +187,7 @@ export interface PublicProductWithDetails {
     priceLock?: boolean;
     /** Public store identity of the seller (detail responses only). */
     seller?: { storeName: string; storeSlug: string } | null;
+    socialProof?: SocialProof;
 }
 
 export interface SellerProductVariant {

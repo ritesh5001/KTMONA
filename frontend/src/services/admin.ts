@@ -264,6 +264,8 @@ export interface AdminReview {
   helpfulCount?: number;
   isHidden?: boolean;
   createdAt: string;
+  /** Set when an admin added or edited the reviewer name. */
+  authorName?: string | null;
   product: {
     id: string;
     title: string;

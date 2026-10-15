@@ -31,6 +31,8 @@ export interface MarketplaceCardProduct {
   activeCoupon?: MarketplaceCardCouponPreview | null;
   /** KTMONA Price Lock badge (lowest market price, verified). */
   priceLock?: boolean;
+  /** Admin-set (or real) rating, review count and views; null = fallback. */
+  socialProof?: { rating: number | null; reviewCount: number | null; viewCount: number | null } | null;
   coupon?: MarketplaceCardCouponPreview | null;
   couponPreview?: MarketplaceCardCouponPreview | null;
   coupons?: MarketplaceCardCouponPreview[] | null;
@@ -189,8 +191,8 @@ export function MarketplaceProductCard({ product }: { product: MarketplaceCardPr
   const realOriginalPrice = resolveOriginalPrice(product, displayPrice);
   const couponPrice = resolveCouponPrice(product, displayPrice);
   const availableSizes = resolveAvailableSizes(product);
-  const rating = Math.round(seededRandom(product.id, 39, 48)) / 10;
-  const reviewCount = Math.round(seededRandom(product.id + "r", 50, 500));
+  const rating = product.socialProof?.rating ?? Math.round(seededRandom(product.id, 39, 48)) / 10;
+  const reviewCount = product.socialProof?.reviewCount ?? Math.round(seededRandom(product.id + "r", 50, 500));
 
   const originalPrice = (() => {
     if (typeof realOriginalPrice === "number") return realOriginalPrice;

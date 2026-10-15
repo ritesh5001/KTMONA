@@ -227,7 +227,13 @@ export default function ProductScreen({ id }: { id: string }) {
             </View>
           ) : null}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-            {summary && summary.totalReviews > 0 ? <RatingBadge average={summary.averageRating} count={summary.totalReviews} /> : <T size={12} color={C.faint}>No ratings yet</T>}
+            {product.socialProof?.rating != null && product.socialProof.reviewCount != null ? (
+              <RatingBadge average={product.socialProof.rating} count={product.socialProof.reviewCount} />
+            ) : summary && summary.totalReviews > 0 ? (
+              <RatingBadge average={summary.averageRating} count={summary.totalReviews} />
+            ) : (
+              <T size={12} color={C.faint}>No ratings yet</T>
+            )}
             {freeDelivery ? <View style={styles.pill}><T size={11} color={C.textSoft}>Free Delivery</T></View> : null}
           </View>
         </View>

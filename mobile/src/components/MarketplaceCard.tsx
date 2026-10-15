@@ -119,8 +119,8 @@ function MarketplaceCardComponent({
 
   // Keep the review treatment stable between renders and aligned with the web
   // storefront card until aggregate review fields are included in list APIs.
-  const rating = Math.round(seededRandom(product.id, 39, 48)) / 10;
-  const reviewCount = Math.round(seededRandom(`${product.id}r`, 50, 500));
+  const rating = product.socialProof?.rating ?? Math.round(seededRandom(product.id, 39, 48)) / 10;
+  const reviewCount = product.socialProof?.reviewCount ?? Math.round(seededRandom(`${product.id}r`, 50, 500));
 
   const firstImage =
     Array.isArray(product.images) && product.images.length > 0 ? product.images[0] : null;

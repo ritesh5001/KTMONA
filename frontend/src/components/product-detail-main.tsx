@@ -21,6 +21,8 @@ interface ProductDetailMainProps {
   product: {
     /** KTMONA Price Lock badge (lowest market price, verified). */
     priceLock?: boolean;
+    /** Admin-set (or real) rating, review count and views; null = fallback. */
+    socialProof?: { rating: number | null; reviewCount: number | null; viewCount: number | null } | null;
     id: string;
     title: string;
     description?: string | null;

@@ -226,6 +226,10 @@ model Product {
   priceLockReviewedAt  DateTime?                @map("price_lock_reviewed_at")
   priceLockReviewedBy  String?                  @map("price_lock_reviewed_by")
   priceLockNote        String?                  @map("price_lock_note")
+  /// Admin-set social proof shown on the storefront; null = automatic.
+  displayRating        Float?                   @map("display_rating")
+  displayReviewCount   Int?                     @map("display_review_count")
+  displayViewCount     Int?                     @map("display_view_count")
   catalogUpload        CatalogUpload?           @relation(fields: [catalogUploadId], references: [id], onDelete: SetNull)
   searchVector         Unsupported("tsvector")? @map("search_vector")
   moderation           ProductModeration?
@@ -1225,6 +1229,8 @@ model Review {
   title        String?
   text         String
   images       String[] @default([])
+  /// Reviewer name shown publicly for reviews an admin adds or edits.
+  authorName   String?  @map("author_name")
   helpfulCount Int      @default(0) @map("helpful_count")
   isHidden     Boolean  @default(false) @map("is_hidden")
   createdAt    DateTime @default(now()) @map("created_at")

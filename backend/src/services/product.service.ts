@@ -41,6 +41,7 @@ import type {
     PublicProductWithCategory,
     PublicProductCouponPreview,
     PublicProductWithDetails,
+    SocialProof,
 } from '../types/product.types.js';
 
 interface ActiveCouponCandidate {
@@ -240,6 +241,17 @@ export class ProductService {
             ...(product.ratingCount !== undefined && {
                 rating: { average: product.ratingAverage ?? null, count: product.ratingCount },
             }),
+            socialProof: this.socialProof(product, product.ratingAverage ?? null, product.ratingCount ?? 0),
+        };
+    }
+
+    /** Admin figures win; otherwise real (visible) reviews; else null. */
+    private socialProof(product: any, realAverage: number | null, realCount: number): SocialProof {
+        const hasReal = realCount > 0 && realAverage != null;
+        return {
+            rating: product.displayRating ?? (hasReal ? Math.round(Number(realAverage) * 10) / 10 : null),
+            reviewCount: product.displayReviewCount ?? (hasReal ? realCount : null),
+            viewCount: product.displayViewCount ?? null,
         };
     }
 
@@ -491,18 +503,20 @@ export class ProductService {
             throw ApiError.notFound('Product not found');
         }
 
-        const [coupons, store] = await Promise.all([
+        const [coupons, store, reviewAgg] = await Promise.all([
             this.getActiveCouponsForSellers([product.sellerId]),
             // Public store identity for the "Sold by" card (same as the store page).
             prisma.seller_profiles.findUnique({
                 where: { user_id: product.sellerId },
                 select: { store_name: true, store_slug: true },
             }),
+            prisma.review.aggregate({ where: { productId: id, isHidden: false }, _avg: { rating: true }, _count: { _all: true } }),
         ]);
         const response: ProductDetailResponse = {
             product: {
                 ...this.toPublicProductDetail(product, coupons),
                 seller: store ? { storeName: store.store_name, storeSlug: store.store_slug } : null,
+                socialProof: this.socialProof(product, reviewAgg._avg.rating ?? null, reviewAgg._count._all),
             },
         };
 

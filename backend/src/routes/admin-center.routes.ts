@@ -11,6 +11,7 @@ import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { ApiError } from '../errors/ApiError.js';
 import { adminOpsService } from '../services/admin-center/ops.service.js';
 import { adminSellersService } from '../services/admin-center/sellers.service.js';
+import { adminReviewCreateSchema, adminReviewUpdateSchema, adminReviewsService, socialProofSchema } from '../services/admin-center/reviews.service.js';
 import { adminQcService } from '../services/admin-center/qc.service.js';
 import { adminPayoutsService } from '../services/admin-center/payouts.service.js';
 import { adminPenaltiesService } from '../services/admin-center/penalties.service.js';
@@ -70,6 +71,14 @@ adminCenterRouter.post(
     '/sellers/:id/kyc-required',
     h((req) => adminSellersService.setKycRequired(aid(req), param(req, 'id'), z.object({ required: z.boolean() }).parse(req.body).required))
 );
+// Ratings & reviews: storefront figures per product, and admin-written reviews.
+adminCenterRouter.get('/reviews/products', h((req) => adminReviewsService.searchProducts(req.query)));
+adminCenterRouter.get('/reviews/products/:id', h((req) => adminReviewsService.productDetail(param(req, 'id'))));
+adminCenterRouter.put('/reviews/products/:id/social-proof', h((req) => adminReviewsService.setSocialProof(aid(req), param(req, 'id'), socialProofSchema.parse(req.body))));
+adminCenterRouter.post('/reviews', h((req) => adminReviewsService.create(aid(req), adminReviewCreateSchema.parse(req.body))));
+adminCenterRouter.patch('/reviews/:id', h((req) => adminReviewsService.update(param(req, 'id'), adminReviewUpdateSchema.parse(req.body))));
+adminCenterRouter.post('/reviews/:id/hidden', h((req) => adminReviewsService.setHidden(param(req, 'id'), z.object({ hidden: z.boolean() }).parse(req.body).hidden)));
+adminCenterRouter.delete('/reviews/:id', h((req) => adminReviewsService.remove(param(req, 'id'))));
 adminCenterRouter.delete(
     '/sellers/:id',
     h((req) => adminSellersService.deletePermanently(aid(req), param(req, 'id'), z.object({ confirm: z.string().min(1) }).parse(req.body).confirm))

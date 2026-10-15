@@ -44,6 +44,45 @@ export async function downloadAdminFile(path: string, fallbackName: string) {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
+export interface SocialProofInput {
+  /** null = automatic (real reviews, else the default). */
+  displayRating: number | null;
+  displayReviewCount: number | null;
+  displayViewCount: number | null;
+}
+export interface ReviewProductRow extends SocialProofInput {
+  id: string;
+  title: string;
+  image: string | null;
+  status: string;
+}
+export interface ManagedReview {
+  id: string;
+  rating: number;
+  title: string | null;
+  text: string;
+  images: string[];
+  helpfulCount: number;
+  isHidden: boolean;
+  createdAt: string;
+  authorName: string;
+  addedByAdmin: boolean;
+  customerEmail: string | null;
+}
+export interface ReviewProductDetail {
+  product: ReviewProductRow;
+  actual: { rating: number | null; reviewCount: number };
+  reviews: ManagedReview[];
+}
+export interface AdminReviewInput {
+  authorName: string;
+  rating: number;
+  title?: string | null;
+  text: string;
+  /** ISO date shown on the review. */
+  createdAt?: string;
+}
+
 export interface AdminDashboard {
   rangeDays: number;
   kpis: {
@@ -293,6 +332,15 @@ export const adminCenter = {
   /** Whether the seller needs verified KYC before listing products. */
   setKycRequired: (id: string, required: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc-required`, { required }),
   deleteSeller: (id: string, confirm: string) => send<{ deleted: boolean }>("DELETE", `/sellers/${id}`, { confirm }),
+
+  // Ratings & reviews
+  reviewProducts: (search: string) => get<{ products: ReviewProductRow[] }>(`/reviews/products${qs({ search })}`),
+  reviewProduct: (id: string) => get<ReviewProductDetail>(`/reviews/products/${id}`),
+  setSocialProof: (id: string, body: SocialProofInput) => send<ReviewProductDetail>("PUT", `/reviews/products/${id}/social-proof`, body),
+  createReview: (body: AdminReviewInput & { productId: string }) => send<ManagedReview>("POST", "/reviews", body),
+  updateReview: (id: string, body: Partial<AdminReviewInput>) => send<ManagedReview>("PATCH", `/reviews/${id}`, body),
+  setReviewHidden: (id: string, hidden: boolean) => send<ManagedReview>("POST", `/reviews/${id}/hidden`, { hidden }),
+  deleteReview: (id: string) => send<{ deleted: boolean }>("DELETE", `/reviews/${id}`),
   /** `days` makes a suspension temporary: it lifts by itself after that many days. */
   setSellerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string, days?: number) =>
     send<AdminSellerDetail>("POST", `/sellers/${id}/status`, { status, reason, ...(days ? { days } : {}) }),

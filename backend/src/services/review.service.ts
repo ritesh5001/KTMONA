@@ -163,8 +163,9 @@ export class ReviewService {
             reviews: reviews.map((r: any) =>
                 toReviewResponse(r, {
                     id: r.user.id,
-                    email: r.user.email,
-                    fullName: r.user.user_profiles?.full_name ?? 'Anonymous',
+                    // Admin-written reviews carry their own name; never expose the admin's email.
+                    email: r.authorName ? '' : r.user.email,
+                    fullName: r.authorName ?? r.user.user_profiles?.full_name ?? 'Anonymous',
                     avatar: r.user.user_profiles?.avatar ?? null,
                 }),
             ),
@@ -239,14 +240,15 @@ export class ReviewService {
                 helpfulCount: review.helpfulCount,
                 isHidden: review.isHidden,
                 createdAt: review.createdAt,
+                authorName: review.authorName ?? null,
                 product: {
                     id: review.product.id,
                     title: review.product.title,
                 },
                 user: {
                     id: review.user.id,
-                    email: review.user.email,
-                    fullName: review.user.user_profiles?.full_name ?? 'Anonymous',
+                    email: review.authorName ? null : review.user.email,
+                    fullName: review.authorName ?? review.user.user_profiles?.full_name ?? 'Anonymous',
                     avatar: review.user.user_profiles?.avatar ?? null,
                 },
             })),

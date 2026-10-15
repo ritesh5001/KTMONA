@@ -17,6 +17,8 @@ export interface ProductVariant {
 
 export interface ProductSummary {
   id: string;
+  /** Admin-set (or real) rating, review count and views; null = fallback. */
+  socialProof?: { rating: number | null; reviewCount: number | null; viewCount: number | null } | null;
   categoryId?: string;
   title: string;
   description?: string | null;

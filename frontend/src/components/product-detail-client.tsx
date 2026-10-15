@@ -52,6 +52,8 @@ interface ProductDetailClientProps {
     salePrice?: number;
     /** KTMONA Price Lock badge (lowest market price, verified). */
     priceLock?: boolean;
+    /** Admin-set (or real) rating, review count and views; null = fallback. */
+    socialProof?: { rating: number | null; reviewCount: number | null; viewCount: number | null } | null;
     variants: Variant[];
   };
   onVariantImagesChange?: (images: string[]) => void;
@@ -263,8 +265,9 @@ export default function ProductDetailClient({
       ? Math.round(salePrice / (1 - Math.round(seededRandom(product.id + "m", 50, 75)) / 100) / 10) * 10
       : null;
   const compareAtPrice = realCompareAt ?? fakeCompareAt;
-  const rating = Math.round(seededRandom(product.id, 39, 48)) / 10;
-  const reviewCount = Math.round(seededRandom(product.id + "r", 50, 500));
+  const rating = product.socialProof?.rating ?? Math.round(seededRandom(product.id, 39, 48)) / 10;
+  const reviewCount = product.socialProof?.reviewCount ?? Math.round(seededRandom(product.id + "r", 50, 500));
+  const viewCount = product.socialProof?.viewCount ?? Math.round(seededRandom(product.id + "v", 200, 900));
   const deliveryEstimate = formatDeliveryEstimate(6);
   const selectedColorImages = React.useMemo(() => {
     const selectedVariantImages =
@@ -559,7 +562,7 @@ export default function ProductDetailClient({
             {rating.toFixed(1)}
           </span>
           <span className="text-muted-foreground">|</span>
-          <span className="text-muted-foreground">{reviewCount} reviews</span>
+          <span className="text-muted-foreground">{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span>
         </div>
 
         {/* 2. Price & SKU */}
@@ -689,7 +692,7 @@ export default function ProductDetailClient({
         {/* 5. Views Counter */}
         <div className="flex items-center gap-2 pt-6 pb-2 text-[13px] text-foreground">
           <Eye className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
-          <span className="font-medium tracking-wide">{Math.round(seededRandom(product.id + "v", 200, 900))}</span> people have viewed the product recently
+          <span className="font-medium tracking-wide">{viewCount}</span> people have viewed the product recently
         </div>
 
         {/* 6. Action Buttons */}

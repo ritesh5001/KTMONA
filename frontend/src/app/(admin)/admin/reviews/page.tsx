@@ -1,213 +1,498 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  deleteAdminReview,
-  getAdminReviews,
-  hideAdminReview,
-  type AdminReview,
-} from "@/services/admin";
+import useSWR from "swr";
 import { toast } from "sonner";
+import { Eye, EyeOff, MessageSquareText, Pencil, Plus, Star, Trash2, X } from "lucide-react";
+import { getAdminReviews, type AdminReview } from "@/services/admin";
+import {
+  adminCenter,
+  type AdminReviewInput,
+  type ManagedReview,
+  type ReviewProductDetail,
+  type ReviewProductRow,
+} from "@/services/admin-center";
+import {
+  Badge,
+  Btn,
+  Empty,
+  ErrorNote,
+  Field,
+  Loading,
+  Modal,
+  PageHeader,
+  PageShell,
+  Panel,
+  SearchBox,
+  Thumb,
+  errorMessage,
+  inputCls,
+  useDebounced,
+} from "@/components/seller/kit";
+import { cn } from "@/lib/utils";
+
+/** The review being edited (with its product), or a new one for a product. */
+type Editing = { productId: string; review: (Partial<ManagedReview> & { id?: string }) | null } | null;
 
 export default function AdminReviewsPage() {
-  const [loading, setLoading] = React.useState(true);
-  const [reviews, setReviews] = React.useState<AdminReview[]>([]);
-  const [query, setQuery] = React.useState("");
+  const [productId, setProductId] = React.useState<string | null>(null);
+  const [editing, setEditing] = React.useState<Editing>(null);
+  const all = useSWR("admin-reviews-all", () => getAdminReviews());
+  const detail = useSWR(productId ? ["admin-review-product", productId] : null, () => adminCenter.reviewProduct(productId!));
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await getAdminReviews();
-      setReviews(result.reviews ?? []);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to load reviews"
-      );
-    } finally {
-      setLoading(false);
-    }
+  const refresh = () => {
+    all.mutate();
+    detail.mutate();
+  };
+
+  return (
+    <PageShell>
+      <PageHeader
+        title="Ratings & Reviews"
+        description="Set the rating, review count and “people viewed” number shoppers see on a product, and add or edit its reviews."
+      />
+
+      <ProductPicker selectedId={productId} onSelect={setProductId} />
+
+      {productId ? (
+        detail.error && !detail.data ? (
+          <ErrorNote message={errorMessage(detail.error)} onRetry={() => detail.mutate()} />
+        ) : !detail.data ? (
+          <Loading rows={4} />
+        ) : (
+          <ProductManager
+            key={detail.data.product.id}
+            data={detail.data}
+            onChange={(d) => {
+              detail.mutate(d, { revalidate: false });
+              all.mutate();
+            }}
+            onClose={() => setProductId(null)}
+            onAdd={() => setEditing({ productId, review: null })}
+            onEdit={(r) => setEditing({ productId, review: r })}
+            onRefresh={refresh}
+          />
+        )
+      ) : null}
+
+      <AllReviews
+        reviews={all.data?.reviews ?? []}
+        loading={!all.data && !all.error}
+        error={all.error && !all.data ? errorMessage(all.error) : null}
+        onRetry={() => all.mutate()}
+        onOpenProduct={setProductId}
+        onEdit={(r) =>
+          setEditing({
+            productId: r.product.id,
+            review: { id: r.id, rating: r.rating, title: r.title ?? null, text: r.text, createdAt: r.createdAt, authorName: r.authorName ?? r.user?.fullName ?? "" },
+          })
+        }
+        onRefresh={refresh}
+      />
+
+      <ReviewDialog
+        editing={editing}
+        onClose={() => setEditing(null)}
+        onSaved={() => {
+          setEditing(null);
+          refresh();
+        }}
+      />
+    </PageShell>
+  );
+}
+
+function ProductPicker({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+  const [search, setSearch] = React.useState("");
+  const debounced = useDebounced(search);
+  const { data, isLoading } = useSWR(["admin-review-products", debounced], () => adminCenter.reviewProducts(debounced));
+  const products = data?.products ?? [];
+
+  return (
+    <Panel title="Choose a product">
+      <div className="sm:w-96">
+        <SearchBox value={search} onChange={setSearch} placeholder="Search by product name or ID" />
+      </div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {isLoading && !data ? (
+          <p className="text-sm text-muted-foreground">Loading products…</p>
+        ) : products.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No products match.</p>
+        ) : (
+          products.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => onSelect(p.id)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border p-2.5 text-left transition hover:border-brand/50 hover:bg-mist",
+                selectedId === p.id ? "border-brand bg-brand/5" : "border-border-soft"
+              )}
+            >
+              <Thumb src={p.image} alt={p.title} />
+              <span className="min-w-0 flex-1">
+                <span className="line-clamp-2 text-sm font-medium">{p.title}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{figuresLabel(p)}</span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function figuresLabel(p: ReviewProductRow) {
+  if (p.displayRating == null && p.displayReviewCount == null && p.displayViewCount == null) return "Automatic figures";
+  return [
+    p.displayRating != null ? `★ ${p.displayRating.toFixed(1)}` : null,
+    p.displayReviewCount != null ? `${p.displayReviewCount} reviews` : null,
+    p.displayViewCount != null ? `${p.displayViewCount} views` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function ProductManager({
+  data,
+  onChange,
+  onClose,
+  onAdd,
+  onEdit,
+  onRefresh,
+}: {
+  data: ReviewProductDetail;
+  onChange: (d: ReviewProductDetail) => void;
+  onClose: () => void;
+  onAdd: () => void;
+  onEdit: (r: ManagedReview) => void;
+  onRefresh: () => void;
+}) {
+  const { product, actual, reviews } = data;
+  const str = (n: number | null) => (n == null ? "" : String(n));
+  const [rating, setRating] = React.useState(str(product.displayRating));
+  const [count, setCount] = React.useState(str(product.displayReviewCount));
+  const [views, setViews] = React.useState(str(product.displayViewCount));
+  const [saving, setSaving] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  // The editor opens below the product list: bring it into view.
+  React.useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
-  React.useEffect(() => {
-    load();
-  }, [load]);
+  const num = (v: string) => (v.trim() === "" ? null : Number(v));
+  const ratingN = num(rating);
+  const ratingError = ratingN != null && (Number.isNaN(ratingN) || ratingN < 1 || ratingN > 5) ? "Enter a rating from 1 to 5" : null;
+  const countN = num(count);
+  const viewsN = num(views);
+  const intError = (n: number | null) => (n != null && (!Number.isInteger(n) || n < 0) ? "Enter a whole number" : null);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this review permanently?")) return;
+  const save = async (body: { displayRating: number | null; displayReviewCount: number | null; displayViewCount: number | null }) => {
+    setSaving(true);
     try {
-      await deleteAdminReview(id);
-      toast.success("Review deleted.");
-      load();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to delete review"
-      );
+      const res = await adminCenter.setSocialProof(product.id, body);
+      onChange(res);
+      setRating(str(res.product.displayRating));
+      setCount(str(res.product.displayReviewCount));
+      setViews(str(res.product.displayViewCount));
+      toast.success("Saved. Shoppers see the new figures within a few minutes.");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleToggleHide = async (id: string, currentlyHidden: boolean) => {
+  return (
+    <div ref={ref} className="scroll-mt-20">
+    <Panel
+      title={
+        <span className="flex items-center gap-3">
+          <Thumb src={product.image} alt={product.title} />
+          <span className="line-clamp-1">{product.title}</span>
+        </span>
+      }
+      action={
+        <Btn size="sm" variant="ghost" onClick={onClose} aria-label="Close product">
+          <X className="h-4 w-4" />
+        </Btn>
+      }
+    >
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_1fr]">
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold">Figures shown to shoppers</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Leave a box empty for automatic: real reviews ({actual.reviewCount ? `★ ${actual.rating?.toFixed(1)} from ${actual.reviewCount}` : "none yet"}), otherwise a default.
+            </p>
+          </div>
+          <Field label="Rating (1–5)" error={ratingError}>
+            <input type="number" min={1} max={5} step={0.1} className={inputCls} value={rating} onChange={(e) => setRating(e.target.value)} placeholder="Automatic" />
+          </Field>
+          <Field label="Number of reviews" error={intError(countN)}>
+            <input type="number" min={0} step={1} className={inputCls} value={count} onChange={(e) => setCount(e.target.value)} placeholder="Automatic" />
+          </Field>
+          <Field label="People viewed recently" error={intError(viewsN)}>
+            <input type="number" min={0} step={1} className={inputCls} value={views} onChange={(e) => setViews(e.target.value)} placeholder="Automatic" />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <Btn
+              variant="brand"
+              loading={saving}
+              disabled={!!ratingError || !!intError(countN) || !!intError(viewsN)}
+              onClick={() => save({ displayRating: ratingN, displayReviewCount: countN, displayViewCount: viewsN })}
+            >
+              Save figures
+            </Btn>
+            <Btn variant="outline" disabled={saving} onClick={() => save({ displayRating: null, displayReviewCount: null, displayViewCount: null })}>
+              Reset to automatic
+            </Btn>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-semibold">Reviews ({reviews.length})</p>
+            <Btn size="sm" variant="brand" onClick={onAdd}>
+              <Plus className="h-4 w-4" /> Add review
+            </Btn>
+          </div>
+          {reviews.length === 0 ? (
+            <Empty icon={MessageSquareText} title="No reviews yet" text="Add one with any reviewer name, rating and date." />
+          ) : (
+            <ul className="space-y-3">
+              {reviews.map((r) => (
+                <ReviewItem
+                  key={r.id}
+                  review={{ id: r.id, rating: r.rating, title: r.title, text: r.text, createdAt: r.createdAt, isHidden: r.isHidden, name: r.authorName, sub: r.addedByAdmin ? "Added by admin" : r.customerEmail ?? "Customer" }}
+                  onEdit={() => onEdit(r)}
+                  onRefresh={onRefresh}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Panel>
+    </div>
+  );
+}
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5 text-amber-500" aria-label={`${value} out of 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className={cn("h-3.5 w-3.5", i <= value ? "fill-current" : "text-border-strong")} />
+      ))}
+    </span>
+  );
+}
+
+function ReviewItem({
+  review,
+  product,
+  onOpenProduct,
+  onEdit,
+  onRefresh,
+}: {
+  review: { id: string; rating: number; title: string | null; text: string; createdAt: string; isHidden: boolean; name: string; sub: string };
+  product?: { id: string; title: string };
+  onOpenProduct?: (id: string) => void;
+  onEdit: () => void;
+  onRefresh: () => void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  const run = async (fn: () => Promise<unknown>, message: string) => {
+    setBusy(true);
     try {
-      await hideAdminReview(id, !currentlyHidden);
-      toast.success(currentlyHidden ? "Review visible again." : "Review hidden.");
-      setReviews((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, isHidden: !currentlyHidden } : r))
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Unable to update review"
-      );
+      await fn();
+      toast.success(message);
+      onRefresh();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
     }
   };
 
-  const filteredReviews = React.useMemo(() => {
+  return (
+    <li className={cn("rounded-xl border border-border-soft p-4", review.isHidden && "opacity-60")}>
+      {product ? (
+        <button type="button" onClick={() => onOpenProduct?.(product.id)} className="mb-2 line-clamp-1 text-left text-sm font-semibold text-brand-strong hover:underline">
+          {product.title}
+        </button>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <Stars value={review.rating} />
+        <span className="text-sm font-medium">{review.name}</span>
+        <span className="text-xs text-muted-foreground">· {review.sub} · {new Date(review.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+        {review.isHidden ? <Badge tone="gray">Hidden</Badge> : null}
+      </div>
+      {review.title ? <p className="mt-2 text-sm font-semibold">{review.title}</p> : null}
+      <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{review.text}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Btn size="sm" variant="outline" disabled={busy} onClick={onEdit}>
+          <Pencil className="h-3.5 w-3.5" /> Edit
+        </Btn>
+        <Btn size="sm" variant="outline" disabled={busy} onClick={() => run(() => adminCenter.setReviewHidden(review.id, !review.isHidden), review.isHidden ? "Review shown" : "Review hidden")}>
+          {review.isHidden ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} {review.isHidden ? "Show" : "Hide"}
+        </Btn>
+        <Btn
+          size="sm"
+          variant="ghost"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm("Delete this review permanently?")) void run(() => adminCenter.deleteReview(review.id), "Review deleted");
+          }}
+        >
+          <Trash2 className="h-3.5 w-3.5" /> Delete
+        </Btn>
+      </div>
+    </li>
+  );
+}
+
+function AllReviews({
+  reviews,
+  loading,
+  error,
+  onRetry,
+  onOpenProduct,
+  onEdit,
+  onRefresh,
+}: {
+  reviews: AdminReview[];
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  onOpenProduct: (id: string) => void;
+  onEdit: (r: AdminReview) => void;
+  onRefresh: () => void;
+}) {
+  const [query, setQuery] = React.useState("");
+  const filtered = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return reviews;
-
-    return reviews.filter((review) => {
-      const haystack = [
-        review.product?.title,
-        review.user?.email,
-        review.user?.fullName,
-        review.title,
-        review.text,
-        review.rating?.toString(),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(needle);
-    });
+    return reviews.filter((r) =>
+      [r.product?.title, r.user?.email, r.authorName, r.user?.fullName, r.title, r.text, String(r.rating)].filter(Boolean).join(" ").toLowerCase().includes(needle)
+    );
   }, [reviews, query]);
 
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-background">
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-        className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-16 lg:py-20"
-      >
-        {/* Header */}
-        <div className="space-y-4">
-          <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-brand-strong">
-            Customer Feedback
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            Reviews
-          </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Monitor product reviews, spot trends, and manage visibility.
-          </p>
-        </div>
+    <Panel title="All reviews" action={<div className="w-56 sm:w-72"><SearchBox value={query} onChange={setQuery} placeholder="Search reviews" /></div>}>
+      {error ? (
+        <ErrorNote message={error} onRetry={onRetry} />
+      ) : loading ? (
+        <Loading rows={4} />
+      ) : filtered.length === 0 ? (
+        <Empty icon={MessageSquareText} title="No reviews found" />
+      ) : (
+        <ul className="space-y-3">
+          {filtered.map((r) => (
+            <ReviewItem
+              key={r.id}
+              product={r.product}
+              onOpenProduct={onOpenProduct}
+              review={{
+                id: r.id,
+                rating: r.rating,
+                title: r.title ?? null,
+                text: r.text,
+                createdAt: r.createdAt,
+                isHidden: !!r.isHidden,
+                name: r.authorName ?? r.user?.fullName ?? "Anonymous",
+                sub: r.authorName ? "Added by admin" : r.user?.email ?? "Customer",
+              }}
+              onEdit={() => onEdit(r)}
+              onRefresh={onRefresh}
+            />
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
 
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.5 }}
-          className="border border-border-soft bg-card p-4 flex items-center gap-3"
-        >
-          <Input
-            placeholder="Search by product, user, rating, title, or review text..."
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="border-0 bg-transparent focus-visible:ring-0 h-10"
-          />
-        </motion.div>
+function ReviewDialog({ editing, onClose, onSaved }: { editing: Editing; onClose: () => void; onSaved: () => void }) {
+  const isNew = !editing?.review?.id;
+  const [form, setForm] = React.useState({ authorName: "", rating: 5, title: "", text: "", date: "" });
+  const [saving, setSaving] = React.useState(false);
 
-        <section className="space-y-6">
-          {loading ? (
-            <div className="border border-border-soft bg-card p-12 text-center">
-              <p className="text-sm text-muted-foreground">Loading reviews...</p>
-            </div>
-          ) : filteredReviews.length === 0 ? (
-            <div className="border border-border-soft bg-card p-12 text-center space-y-2">
-              <p className="font-serif text-lg font-light text-foreground">
-                No reviews found
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Try a different search keyword.
-              </p>
-            </div>
-          ) : (
-            filteredReviews.map((review, index) => (
-              <motion.div
-                key={review.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + index * 0.04, duration: 0.5 }}
-                className={`border bg-card ${review.isHidden ? "border-[#A67575]/30 opacity-60" : "border-border-soft"}`}
-              >
-                <div className="flex flex-col gap-4 border-b border-border-soft p-6 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <p className="font-serif text-lg font-normal text-foreground">
-                        {review.product?.title ?? "Unknown product"}
-                      </p>
-                      {review.isHidden && (
-                        <span className="px-2 py-0.5 text-[9px] uppercase tracking-wider border border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5">
-                          Hidden
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {review.user?.fullName ?? "Anonymous"} · {review.user?.email ?? "No email"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border border-brand/30 text-[#B84A00] bg-brand/5">
-                      {review.rating} ★
-                    </span>
-                    {typeof review.helpfulCount === "number" && review.helpfulCount > 0 && (
-                      <span className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border border-[#7B9971]/30 text-[#5A7352] bg-[#7B9971]/5">
-                        {review.helpfulCount} helpful
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-6 space-y-4">
-                  {review.title && (
-                    <p className="text-sm font-medium text-foreground">{review.title}</p>
-                  )}
-                  <p className="text-sm leading-relaxed text-foreground">
-                    {review.text}
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleString()}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className={
-                          review.isHidden
-                            ? "border-[#7B9971]/40 text-[#5A7352]"
-                            : "border-brand/40 text-[#B84A00]"
-                        }
-                        onClick={() => handleToggleHide(review.id, !!review.isHidden)}
-                      >
-                        {review.isHidden ? "Show" : "Hide"}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-[#A67575]/40 text-[#7A5656]"
-                        onClick={() => handleDelete(review.id)}
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </section>
-      </motion.div>
-    </div>
+  React.useEffect(() => {
+    if (!editing) return;
+    const r = editing.review;
+    setForm({
+      authorName: r?.authorName ?? "",
+      rating: r?.rating ?? 5,
+      title: r?.title ?? "",
+      text: r?.text ?? "",
+      date: (r?.createdAt ? new Date(r.createdAt) : new Date()).toISOString().slice(0, 10),
+    });
+  }, [editing]);
+
+  const valid = form.authorName.trim() && form.text.trim() && form.rating >= 1 && form.rating <= 5;
+
+  const save = async () => {
+    if (!editing || !valid) return;
+    setSaving(true);
+    // Keep the time of day when only the date is unchanged; otherwise midday.
+    const original = editing.review?.createdAt ? new Date(editing.review.createdAt) : null;
+    const createdAt =
+      original && original.toISOString().slice(0, 10) === form.date ? original.toISOString() : new Date(`${form.date}T12:00:00`).toISOString();
+    const body: AdminReviewInput = {
+      authorName: form.authorName.trim(),
+      rating: form.rating,
+      title: form.title.trim() || null,
+      text: form.text.trim(),
+      createdAt,
+    };
+    try {
+      if (isNew) await adminCenter.createReview({ ...body, productId: editing.productId });
+      else await adminCenter.updateReview(editing.review!.id!, body);
+      toast.success(isNew ? "Review added" : "Review updated");
+      onSaved();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={!!editing}
+      onClose={onClose}
+      title={isNew ? "Add review" : "Edit review"}
+      footer={
+        <>
+          <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+          <Btn variant="brand" loading={saving} disabled={!valid} onClick={save}>{isNew ? "Add review" : "Save changes"}</Btn>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <Field label="Reviewer name">
+          <input className={inputCls} value={form.authorName} onChange={(e) => setForm({ ...form, authorName: e.target.value })} placeholder="e.g. Priya S." maxLength={80} />
+        </Field>
+        <Field label="Rating">
+          <div className="flex gap-1" role="radiogroup" aria-label="Rating">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <button key={i} type="button" role="radio" aria-checked={form.rating === i} aria-label={`${i} star${i > 1 ? "s" : ""}`} onClick={() => setForm({ ...form, rating: i })} className="p-1">
+                <Star className={cn("h-7 w-7 text-amber-500", i <= form.rating ? "fill-current" : "text-border-strong")} />
+              </button>
+            ))}
+          </div>
+        </Field>
+        <Field label="Title (optional)">
+          <input className={inputCls} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} maxLength={150} />
+        </Field>
+        <Field label="Review">
+          <textarea className={cn(inputCls, "min-h-28 py-2")} value={form.text} onChange={(e) => setForm({ ...form, text: e.target.value })} maxLength={3000} />
+        </Field>
+        <Field label="Review date">
+          <input type="date" className={inputCls} value={form.date} max={new Date().toISOString().slice(0, 10)} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+        </Field>
+      </div>
+    </Modal>
   );
 }
