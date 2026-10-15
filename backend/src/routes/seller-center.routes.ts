@@ -441,11 +441,14 @@ sellerCenterRouter.post(
                 holderName: z.string().trim().min(2).max(80),
                 accountNumber: z.string().min(9).max(20),
                 ifsc: z.string().length(11),
+                makePrimary: z.boolean().optional(),
             })
             .parse(req.body);
         return sellerSettingsService.upsertBank(sid(req), body);
     })
 );
+sellerCenterRouter.post('/settings/bank/:id/primary', h((req) => sellerSettingsService.setPrimaryBank(sid(req), param(req, 'id'))));
+sellerCenterRouter.delete('/settings/bank/:id', h((req) => sellerSettingsService.deleteBank(sid(req), param(req, 'id'))));
 sellerCenterRouter.put(
     '/settings/signature',
     h((req) =>

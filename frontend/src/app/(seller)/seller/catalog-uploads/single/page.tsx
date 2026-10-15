@@ -166,6 +166,8 @@ function AddSingleCatalogPageContent() {
 
   const path = categoryId ? (byId.get(categoryId)?.path ?? []) : [];
   const pathNames = path.map((n) => n.name);
+  /** Example set by KTMONA for this category (or its nearest parent). */
+  const exampleImage = [...path].reverse().find((n) => n.image)?.image ?? null;
   // Fields the admin set for this category (Category Builder); built-in ones otherwise.
   const { data: remoteFields } = useSWR(categoryId ? ["category-fields", categoryId] : null, () => categoryFieldsApi.resolve(categoryId!), { revalidateOnFocus: false });
   const attrs = React.useMemo<AttributeDef[]>(
@@ -303,6 +305,9 @@ function AddSingleCatalogPageContent() {
               <aside className="h-fit rounded-2xl border border-border-soft bg-card">
                 <p className="border-b border-border-soft bg-mist/60 px-4 py-3 text-xs text-muted-foreground">{categoryPathLabel(path)}</p>
                 <div className="space-y-4 p-4">
+                  {exampleImage ? (
+                    <img src={exampleImage} alt={`Example: ${pathNames[pathNames.length - 1] ?? "product"}`} className="mx-auto h-56 w-auto max-w-full rounded-lg object-contain" />
+                  ) : null}
                   <p className="text-center text-sm font-semibold">Please provide only front image for each product</p>
                   <Btn variant="primary" className="w-full" loading={uploading} onClick={() => firstImagesRef.current?.click()}>
                     <Upload className="h-4 w-4" /> Add Product Images
@@ -427,6 +432,22 @@ function AddSingleCatalogPageContent() {
                       </button>
                     );
                   })}
+                  {/* Sizes typed in by the seller: shown as chips so they can be removed. */}
+                  {p.sizes
+                    .filter((s) => !presets.includes(s.size))
+                    .map((s) => (
+                      <span key={s.size} className="inline-flex items-center gap-1 rounded-lg border border-brand bg-brand/10 py-1.5 pl-3 pr-1.5 text-sm font-semibold">
+                        {s.size}
+                        <button
+                          type="button"
+                          aria-label={`Remove size ${s.size}`}
+                          className="rounded p-0.5 text-muted-foreground hover:bg-card hover:text-red-600"
+                          onClick={() => update({ sizes: p.sizes.filter((x) => x.size !== s.size) })}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </span>
+                    ))}
                   <CustomSize onAdd={(size) => !p.sizes.some((s) => s.size === size) && update({ sizes: [...p.sizes, { size, price: "", wdrp: "", prepaid: "", mrp: "", stock: "", sku: "" }] })} />
                 </div>
 
@@ -460,6 +481,7 @@ function AddSingleCatalogPageContent() {
                           <th className="px-2 py-2 font-semibold">MRP *</th>
                           <th className="px-2 py-2 font-semibold">Inventory *</th>
                           <th className="px-2 py-2 font-semibold">SKU ID (optional)</th>
+                          <th className="w-10 px-2 py-2"><span className="sr-only">Remove</span></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -503,6 +525,16 @@ function AddSingleCatalogPageContent() {
                               </td>
                               <td className="px-2 py-2">{cell("stock", false)}</td>
                               <td className="px-2 py-2">{cell("sku", false)}</td>
+                              <td className="px-2 py-2">
+                                <button
+                                  type="button"
+                                  aria-label={`Remove size ${s.size}`}
+                                  className="rounded p-1.5 text-muted-foreground hover:bg-mist hover:text-red-600"
+                                  onClick={() => update({ sizes: p.sizes.filter((x) => x.size !== s.size) })}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </td>
                             </tr>
                           );
                         })}

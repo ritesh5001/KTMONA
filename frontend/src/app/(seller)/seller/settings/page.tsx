@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { useSWRConfig } from "swr";
 import { toast } from "sonner";
-import { Building2, CheckCircle2, Landmark, MapPin, Palmtree, PenLine, Store, XCircle } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, MapPin, Palmtree, PenLine, Store, Trash2, XCircle } from "lucide-react";
 import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 import { sellerCenter, type BusinessType, type SellerSettings } from "@/services/seller-center";
 import { Badge, Btn, ErrorNote, Field, Loading, PageHeader, PageShell, Panel, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
@@ -291,6 +291,7 @@ function PickupForm({ data, onSaved }: FormProps) {
 
 function BankForm({ data, onSaved }: FormProps) {
   const [f, setF] = React.useState({ holderName: "", bankName: "", accountNumber: "", confirm: "", ifsc: "" });
+  const [makePrimary, setMakePrimary] = React.useState(true);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF((prev) => ({ ...prev, [k]: e.target.value }));
   const { saving, run } = useSave();
   const mismatch = f.confirm.length > 0 && f.confirm !== f.accountNumber;
@@ -307,13 +308,33 @@ function BankForm({ data, onSaved }: FormProps) {
                   <p className="font-medium">{b.bankName} · {b.accountNumberMasked}</p>
                   <p className="text-xs text-muted-foreground">{b.holderName} · {b.ifsc}</p>
                 </div>
-                {b.isPrimary ? <Badge tone="green">Payouts go here</Badge> : null}
+                {b.isPrimary ? <Badge tone="green">Primary · payouts go here</Badge> : <Badge tone="gray">Secondary</Badge>}
+                <div className="flex shrink-0 gap-1">
+                  {!b.isPrimary ? (
+                    <Btn size="sm" variant="outline" disabled={saving} onClick={() => run(async () => onSaved(await sellerCenter.setPrimaryBank(b.id), "Primary account changed. Payouts now go here."))}>
+                      Make primary
+                    </Btn>
+                  ) : null}
+                  <Btn
+                    size="sm"
+                    variant="ghost"
+                    disabled={saving}
+                    aria-label={`Remove ${b.bankName} ${b.accountNumberMasked}`}
+                    onClick={() => {
+                      if (window.confirm(`Remove ${b.bankName} ${b.accountNumberMasked}?${b.isPrimary ? " Your other account becomes primary." : ""}`)) {
+                        void run(async () => onSaved(await sellerCenter.deleteBank(b.id), "Bank account removed"));
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Btn>
+                </div>
               </li>
             ))}
           </ul>
         </Panel>
       ) : null}
-      <Panel title={data.bankAccounts.length ? "Change payout account" : "Add bank account"}>
+      <Panel title={data.bankAccounts.length ? "Add another bank account" : "Add bank account"}>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Account holder name"><input className={inputCls} value={f.holderName} onChange={set("holderName")} /></Field>
           <Field label="Bank name"><input className={inputCls} value={f.bankName} onChange={set("bankName")} /></Field>
@@ -323,14 +344,20 @@ function BankForm({ data, onSaved }: FormProps) {
           </Field>
           <Field label="IFSC code"><input className={`${inputCls} uppercase`} value={f.ifsc} maxLength={11} onChange={(e) => setF((p) => ({ ...p, ifsc: e.target.value.toUpperCase() }))} /></Field>
         </div>
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-4">
+          {data.bankAccounts.length ? (
+            <label className="mr-auto flex cursor-pointer items-center gap-2 text-sm">
+              <input type="checkbox" checked={makePrimary} onChange={(e) => setMakePrimary(e.target.checked)} />
+              Make this my primary account (payouts go here)
+            </label>
+          ) : null}
           <Btn
             variant="primary"
             loading={saving}
             disabled={mismatch || !f.confirm}
             onClick={() =>
               run(async () => {
-                onSaved(await sellerCenter.addBank({ holderName: f.holderName, bankName: f.bankName, accountNumber: f.accountNumber, ifsc: f.ifsc }), "Bank account saved");
+                onSaved(await sellerCenter.addBank({ holderName: f.holderName, bankName: f.bankName, accountNumber: f.accountNumber, ifsc: f.ifsc, makePrimary }), "Bank account saved");
                 setF({ holderName: "", bankName: "", accountNumber: "", confirm: "", ifsc: "" });
               })
             }

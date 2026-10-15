@@ -149,3 +149,71 @@ Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
 [2026-10-15T15:10:35.812Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
 [2026-10-15T15:10:40.818Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
 [2026-10-15T15:10:45.823Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:17:08.868Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T15:17:08.943Z] [log] [HMR] connected
+[2026-10-15T15:17:08.954Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:17:08.954Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:17:14.356Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
+[2026-10-15T15:17:14.356Z] [info] [auth-api][login] request {identifier: adm***}
+[2026-10-15T15:17:14.538Z] [info] [auth-api][login] success {role: ADMIN}
+[2026-10-15T15:17:14.538Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
+[2026-10-15T15:17:14.649Z] [log] [Fast Refresh] rebuilding
+[2026-10-15T15:17:14.700Z] [log] [Fast Refresh] done in 152ms
+[2026-10-15T15:17:14.763Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+[2026-10-15T15:17:14.868Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[2026-10-15T15:17:14.868Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[2026-10-15T15:17:20.540Z] [log] [Fast Refresh] rebuilding
+[2026-10-15T15:17:20.867Z] [log] [Fast Refresh] done in 428ms
+[2026-10-15T15:17:20.918Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T15:17:20.929Z] [log] [HMR] connected
+[2026-10-15T15:17:20.950Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:18:05.913Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T15:18:05.940Z] [log] [HMR] connected
+[2026-10-15T15:18:05.947Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:18:05.948Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:18:11.338Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
+[2026-10-15T15:18:11.338Z] [info] [auth-api][login] request {identifier: adm***}
+[2026-10-15T15:18:11.520Z] [info] [auth-api][login] success {role: ADMIN}
+[2026-10-15T15:18:11.520Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
+[2026-10-15T15:18:11.591Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+[2026-10-15T15:18:11.681Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[2026-10-15T15:18:11.681Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[2026-10-15T15:18:17.466Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T15:18:17.487Z] [log] [HMR] connected
+[2026-10-15T15:18:17.491Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:18:38.267Z] [log] [Fast Refresh] rebuilding
+[2026-10-15T15:18:38.310Z] [log] [Fast Refresh] done in 77ms
+[2026-10-15T15:18:42.500Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T15:18:42.527Z] [log] [HMR] connected
+[2026-10-15T15:18:42.528Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T15:20:03.457Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:04.460Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:05.464Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:06.467Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:07.470Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:12.473Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:17.476Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:22.480Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:27.483Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:32.487Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:37.490Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T15:20:42.493Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED

@@ -357,7 +357,7 @@ function DeleteSellerDialog({ open, onClose, identifier, storeName, busy, onConf
         <p>
           This removes {storeName ? <strong>{storeName}</strong> : "this seller"}&apos;s account, store, products, catalog uploads and reels for good. It cannot be undone. The same email can then be used to register again.
         </p>
-        <p className="text-muted-foreground">Sellers with orders or payment history cannot be deleted; suspend them instead.</p>
+        <p className="text-muted-foreground">Sellers with completed orders or payouts cannot be deleted; suspend them instead. Unpaid and cancelled orders stay in the buyers’ order history.</p>
         <Field label={`Type ${identifier} to confirm`}>
           <input className={inputCls} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={identifier} autoComplete="off" />
         </Field>

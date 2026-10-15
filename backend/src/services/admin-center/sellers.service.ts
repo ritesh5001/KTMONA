@@ -276,7 +276,7 @@ class AdminSellersService {
         // Only touch tables this database has: a database a migration behind
         // must not turn the delete into a server error.
         const tables = [
-            'order_items', 'shipments', 'seller_settlements', 'seller_ledger_entries', 'seller_payouts',
+            'shipments', 'seller_ledger_entries', 'seller_payouts',
             'cart_items', 'inventory_movements', 'seller_offer_items', 'ad_campaign_products', 'ad_daily_stats',
             'product_view_daily', 'seller_offers', 'ad_campaigns', 'seller_claims', 'seller_order_cancellations',
             'category_requests', 'catalog_uploads', 'notifications', 'carts',
@@ -288,17 +288,22 @@ class AdminSellersService {
         );
         const table = (name: string) => Prisma.raw(`"${name}"`); // names come from the fixed list above
 
-        let history = 0;
-        for (const [name, column] of [
-            ['order_items', 'seller_id'], ['shipments', 'seller_id'], ['seller_settlements', 'seller_id'],
-            ['seller_ledger_entries', 'seller_id'], ['seller_payouts', 'seller_id'],
-        ] as const) {
-            if (!present.has(name)) continue;
-            const [row] = await prisma.$queryRaw<{ n: bigint }[]>`SELECT COUNT(*) AS n FROM ${table(name)} WHERE ${Prisma.raw(`"${column}"`)} = ${sellerId}`;
-            history += Number(row?.n ?? 0);
-        }
-        if (history > 0) {
-            throw ApiError.badRequest('This seller has orders or payment history, so the account cannot be deleted permanently. Suspend the seller instead.');
+        // Real sales (same rule as the "Lifetime GMV / orders" card: not
+        // unpaid, not cancelled) or money already paid out block the delete.
+        // Unpaid and cancelled orders stay in the buyers' order history.
+        const [sales] = await prisma.$queryRaw<{ n: bigint }[]>`
+            SELECT COUNT(DISTINCT oi."order_id") AS n
+            FROM "order_items" oi JOIN "orders" o ON o."id" = oi."order_id"
+            WHERE oi."seller_id" = ${sellerId} AND o."status" NOT IN ('PLACED', 'CANCELLED')`;
+        const paidOut = present.has('seller_payouts')
+            ? Number((await prisma.$queryRaw<{ n: bigint }[]>`SELECT COUNT(*) AS n FROM "seller_payouts" WHERE "seller_id" = ${sellerId}`)[0]?.n ?? 0)
+            : 0;
+        const salesCount = Number(sales?.n ?? 0);
+        if (salesCount > 0 || paidOut > 0) {
+            const why = [salesCount ? `${salesCount} completed order${salesCount === 1 ? '' : 's'}` : null, paidOut ? `${paidOut} payout${paidOut === 1 ? '' : 's'}` : null]
+                .filter(Boolean)
+                .join(' and ');
+            throw ApiError.badRequest(`This seller has ${why}, so the account cannot be deleted permanently. Suspend the seller instead.`);
         }
 
         try {
@@ -310,6 +315,10 @@ class AdminSellersService {
             const remove = async (name: string, where: Prisma.Sql) => {
                 if (present.has(name)) await tx.$executeRaw`DELETE FROM ${table(name)} WHERE ${where}`;
             };
+            // Unpaid / cancelled orders: their shipments block the user delete
+            // (no cascade); settlements cascade, ledger entries do not.
+            await remove('shipments', Prisma.sql`"seller_id" = ${sellerId}`);
+            await remove('seller_ledger_entries', Prisma.sql`"seller_id" = ${sellerId}`);
             await remove('cart_items', Prisma.sql`"product_id" IN (${productIds})`);
             await remove('inventory_movements', Prisma.sql`"variant_id" IN (${variantIds})`);
             await remove('seller_offer_items', Prisma.sql`"product_id" IN (${productIds}) OR "variant_id" IN (${variantIds})`);

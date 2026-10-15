@@ -92,7 +92,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
       { href: "/seller/claims", label: "Claims", icon: ShieldCheck, section: "Manage Business" },
       { href: "/seller/inventory", label: "Inventory", icon: Boxes, section: "Manage Business" },
       { href: "/seller/catalog-uploads", label: "Catalog Uploads", icon: FileStack, section: "Manage Business" },
-      { href: "/seller/category-requests", label: "Categories", icon: FolderTree, section: "Manage Business" },
+      { href: "/seller/category-requests", label: "Request Category", icon: FolderTree, section: "Manage Business" },
       { href: "/seller/image-bulk-upload", label: "Image Bulk Upload", icon: Images, section: "Manage Business" },
       { href: "/seller/quality", label: "Quality", icon: BadgeCheck, section: "Manage Business" },
       { href: "/seller/settlements", label: "Payments", icon: Wallet, section: "Manage Business" },

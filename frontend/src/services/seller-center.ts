@@ -13,7 +13,7 @@ const BASE = "/v1/seller/center";
 async function get<T>(path: string): Promise<T> {
   return (await apiRequest<Envelope<T>>(`${BASE}${path}`)).data;
 }
-async function send<T>(method: "POST" | "PUT" | "PATCH", path: string, body?: unknown): Promise<T> {
+async function send<T>(method: "POST" | "PUT" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   return (await apiRequest<Envelope<T>>(`${BASE}${path}`, { method, body: body ?? {} })).data;
 }
 
@@ -524,7 +524,9 @@ export const sellerCenter = {
     send<SellerSettings>("PUT", "/settings/business", body),
   savePickup: (body: { contactName: string; phone: string; line1: string; line2?: string | null; city: string; state: string; pincode: string }) =>
     send<SellerSettings>("PUT", "/settings/pickup", body),
-  addBank: (body: { bankName: string; holderName: string; accountNumber: string; ifsc: string }) => send<SellerSettings>("POST", "/settings/bank", body),
+  addBank: (body: { bankName: string; holderName: string; accountNumber: string; ifsc: string; makePrimary?: boolean }) => send<SellerSettings>("POST", "/settings/bank", body),
+  setPrimaryBank: (id: string) => send<SellerSettings>("POST", `/settings/bank/${id}/primary`),
+  deleteBank: (id: string) => send<SellerSettings>("DELETE", `/settings/bank/${id}`),
   setVacation: (on: boolean) => send<SellerSettings>("PUT", "/settings/vacation", { on }),
   /** Signature image for "Authorised Signatory" on invoices; null removes it. */
   setSignature: (url: string | null) => send<SellerSettings>("PUT", "/settings/signature", { url }),

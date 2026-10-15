@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { ChevronRight, FolderPlus, FolderTree, Pencil, Plus, Trash2 } from "lucide-react";
@@ -24,11 +25,24 @@ const TYPE_LABEL = { ADD: "New category", EDIT: "Rename / edit", DELETE: "Remove
  * anything changes in the shared category tree every shop and the store use.
  */
 export default function SellerCategoryRequestsPage() {
+  return (
+    <React.Suspense fallback={null}>
+      <SellerCategoryRequestsContent />
+    </React.Suspense>
+  );
+}
+
+function SellerCategoryRequestsContent() {
   const [tab, setTab] = React.useState<"browse" | "requests">("browse");
   const cats = useSWR("seller-category-tree", getCategories);
   const reqs = useSWR("seller-category-requests", categoryRequestsApi.mine);
   const tree = React.useMemo(() => buildCategoryTree(cats.data?.categories), [cats.data]);
   const [draft, setDraft] = React.useState<Draft | null>(null);
+  // Opened from Add Catalog's "Can't find your category?" link.
+  const params = useSearchParams();
+  React.useEffect(() => {
+    if (params.get("new") === "1") setDraft({ type: "ADD", parent: null });
+  }, [params]);
   const pending = (reqs.data?.requests ?? []).filter((r) => r.status === "PENDING").length;
 
   return (

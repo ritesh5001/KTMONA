@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import useSWR from "swr";
-import { ChevronRight, Search } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, FolderPlus, Search } from "lucide-react";
 import { getCategories } from "@/services/catalog";
 import { buildCategoryTree, type CategoryNode } from "@/lib/category-tree";
 import { cn } from "@/lib/utils";
@@ -64,7 +65,12 @@ export function CategoryColumns({ value, onChange }: { value: string | null; onC
 
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold">Search Category</p>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold">Search Category</p>
+        <Link href="/seller/category-requests?new=1" className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-strong hover:underline">
+          <FolderPlus className="h-4 w-4" /> Can&apos;t find your category? Request a new one
+        </Link>
+      </div>
       <div className="relative max-w-md">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input

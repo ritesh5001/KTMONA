@@ -188,14 +188,20 @@ class SellerSettingsService {
         return this.get(sellerId);
     }
 
-    async upsertBank(sellerId: string, input: { bankName: string; holderName: string; accountNumber: string; ifsc: string }) {
+    async upsertBank(sellerId: string, input: { bankName: string; holderName: string; accountNumber: string; ifsc: string; makePrimary?: boolean | undefined }) {
         await this.ensureProfile(sellerId);
         const ifsc = input.ifsc.trim().toUpperCase();
         const account = input.accountNumber.replace(/\s/g, '');
         if (!IFSC_RE.test(ifsc)) throw ApiError.badRequest('Enter a valid IFSC code, e.g. HDFC0001234');
         if (!/^[0-9]{9,18}$/.test(account)) throw ApiError.badRequest('Account number must be 9–18 digits');
+        const existing = await prisma.seller_bank_accounts.findMany({ where: { seller_id: sellerId }, select: { account_number: true, ifsc_code: true } });
+        if (existing.some((b) => b.account_number === account && b.ifsc_code === ifsc)) {
+            throw ApiError.badRequest('This bank account is already added');
+        }
+        // The first account is always primary; later ones only when asked.
+        const primary = existing.length === 0 || input.makePrimary !== false;
         await prisma.$transaction(async (tx) => {
-            await tx.seller_bank_accounts.updateMany({ where: { seller_id: sellerId }, data: { is_primary: false, updated_at: new Date() } });
+            if (primary) await tx.seller_bank_accounts.updateMany({ where: { seller_id: sellerId }, data: { is_primary: false, updated_at: new Date() } });
             await tx.seller_bank_accounts.create({
                 data: {
                     id: `bank_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -204,11 +210,36 @@ class SellerSettingsService {
                     account_holder_name: input.holderName.trim(),
                     account_number: account,
                     ifsc_code: ifsc,
-                    is_primary: true,
+                    is_primary: primary,
                     updated_at: new Date(),
                 },
             });
         });
+        return this.get(sellerId);
+    }
+
+    /** Payouts go to the primary account. */
+    async setPrimaryBank(sellerId: string, bankId: string) {
+        const bank = await prisma.seller_bank_accounts.findFirst({ where: { id: bankId, seller_id: sellerId } });
+        if (!bank) throw ApiError.notFound('Bank account not found');
+        await prisma.$transaction([
+            prisma.seller_bank_accounts.updateMany({ where: { seller_id: sellerId }, data: { is_primary: false, updated_at: new Date() } }),
+            prisma.seller_bank_accounts.update({ where: { id: bankId }, data: { is_primary: true, updated_at: new Date() } }),
+        ]);
+        return this.get(sellerId);
+    }
+
+    /** Remove an account; removing the primary makes the newest other one primary. */
+    async deleteBank(sellerId: string, bankId: string) {
+        const accounts = await prisma.seller_bank_accounts.findMany({ where: { seller_id: sellerId }, orderBy: { created_at: 'desc' } });
+        const bank = accounts.find((b) => b.id === bankId);
+        if (!bank) throw ApiError.notFound('Bank account not found');
+        if (accounts.length === 1) throw ApiError.badRequest('This is your only bank account. Add another account before removing it, so payouts have somewhere to go.');
+        const next = bank.is_primary ? accounts.find((b) => b.id !== bankId) : null;
+        await prisma.$transaction([
+            prisma.seller_bank_accounts.delete({ where: { id: bankId } }),
+            ...(next ? [prisma.seller_bank_accounts.update({ where: { id: next.id }, data: { is_primary: true, updated_at: new Date() } })] : []),
+        ]);
         return this.get(sellerId);
     }
 

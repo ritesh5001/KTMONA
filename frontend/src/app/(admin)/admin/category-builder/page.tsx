@@ -3,7 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, ChevronRight, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronRight, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   createAdminCategory,
   deleteAdminCategory,
@@ -15,6 +15,7 @@ import { categoryFieldsApi, type CategoryField, type CategoryFieldType } from "@
 import { attributesFor } from "@/components/seller/catalog-attributes";
 import { Badge, Btn, ErrorNote, Loading, PageHeader, PageShell, SearchBox, errorMessage, inputCls } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
+import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 
 /**
  * Meesho-style column view of the whole category tree: pick a category to see
@@ -101,12 +102,81 @@ export default function CategoryBuilderPage() {
             ))}
           </div>
 
+          {selectedId && byId.get(selectedId) ? (
+            <CategoryImageCard key={`img-${selectedId}`} category={byId.get(selectedId)!} pathLabel={label(selectedId)} onChanged={() => mutate()} />
+          ) : null}
+
           {selectedId ? <FieldsEditor key={selectedId} categoryId={selectedId} pathLabel={label(selectedId)} pathNames={pathTo(selectedId).map((x) => byId.get(x)?.name ?? "")} /> : (
             <p className="text-sm text-muted-foreground">Select a category to edit its product-detail fields.</p>
           )}
         </div>
       )}
     </PageShell>
+  );
+}
+
+/* ── Example image sellers see when they pick this category ─────────────── */
+
+/**
+ * The image shown to sellers in Add Catalog once they pick this category, so
+ * they can check they chose the right place for their product. Sub-categories
+ * without an image show their nearest parent's.
+ */
+function CategoryImageCard({ category, pathLabel, onChanged }: { category: AdminCategory; pathLabel: string; onChanged: () => void }) {
+  const { upload, uploading } = useImageKitUpload("/categories");
+  const [saving, setSaving] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const save = async (image: string | null) => {
+    setSaving(true);
+    try {
+      await updateAdminCategory(category.id, { image });
+      toast.success(image ? "Category image saved" : "Category image removed");
+      onChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await save(await upload(file));
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-border-soft bg-card p-5 sm:flex-row sm:items-center">
+      <div className="flex h-36 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border-soft bg-mist">
+        {category.image ? (
+          <img src={category.image} alt={category.name} className="h-full w-full object-contain" />
+        ) : (
+          <ImagePlus className="h-8 w-8 text-muted-foreground" aria-hidden />
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-base font-semibold">Category image</h2>
+        <p className="text-sm text-muted-foreground">{pathLabel}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Sellers see this example when they pick the category in Add Catalog, so they can check they are listing in the right place. Sub-categories without their own image use this one.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Btn size="sm" variant="brand" loading={uploading || saving} onClick={() => fileRef.current?.click()}>
+            <ImagePlus className="h-4 w-4" /> {category.image ? "Change image" : "Upload image"}
+          </Btn>
+          {category.image ? (
+            <Btn size="sm" variant="ghost" disabled={uploading || saving} onClick={() => void save(null)}>
+              Remove
+            </Btn>
+          ) : null}
+          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -332,7 +402,16 @@ function FieldsEditor({ categoryId, pathLabel, pathNames }: { categoryId: string
       ) : (
         <>
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            {/* Fixed column widths: long option lists used to squeeze the
+                name and type columns down to a few letters. */}
+            <table className="w-full min-w-[900px] text-left text-sm" style={{ tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: 240 }} />
+                <col style={{ width: 150 }} />
+                <col />
+                <col style={{ width: 110 }} />
+                <col style={{ width: 100 }} />
+              </colgroup>
               <thead>
                 <tr className="text-xs text-muted-foreground">
                   <th className="px-2 py-2 font-semibold">Field name</th>
@@ -410,7 +489,7 @@ function OptionsEditor({ value, onChange }: { value: string; onChange: (next: st
     setDraft("");
   };
   return (
-    <div className="min-w-[260px] space-y-2">
+    <div className="min-w-0 space-y-2">
       <div className="flex flex-wrap gap-1.5">
         {options.map((o, idx) => (
           <span key={`${idx}-${o}`} className="inline-flex items-center rounded-full border border-border-soft bg-mist/60 pl-2.5 pr-1 text-xs">
