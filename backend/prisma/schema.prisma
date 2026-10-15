@@ -159,6 +159,9 @@ model Category {
   parentId        String?          @map("parent_id")
   sortOrder       Int              @default(0) @map("sort_order")
   isActive        Boolean          @default(true) @map("is_active")
+  /// SELLER: the tree sellers list products in. STOREFRONT: the customer menu,
+  /// which shows products of the seller categories it is linked to.
+  scope           CategoryScope    @default(SELLER)
   seoTitle        String?          @map("seo_title")
   seoDescription  String?          @map("seo_description")
   createdAt       DateTime         @default(now()) @map("created_at")
@@ -167,11 +170,35 @@ model Category {
   parent          Category?        @relation("CategoryParent", fields: [parentId], references: [id])
   children        Category[]       @relation("CategoryParent")
   commissionRules CommissionRule[]
+  /// Storefront category → seller categories whose products it shows.
+  sellerLinks     CategoryLink[]   @relation("StorefrontLinks")
+  storefrontLinks CategoryLink[]   @relation("SellerLinks")
 
   @@index([parentId])
   @@index([sortOrder])
   @@index([isActive])
+  @@index([scope])
   @@map("categories")
+}
+
+enum CategoryScope {
+  SELLER
+  STOREFRONT
+}
+
+/// A customer-menu category shows the products of these seller categories
+/// (and everything below them).
+model CategoryLink {
+  storefrontId     String   @map("storefront_id")
+  sellerCategoryId String   @map("seller_category_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  storefront     Category @relation("StorefrontLinks", fields: [storefrontId], references: [id], onDelete: Cascade)
+  sellerCategory Category @relation("SellerLinks", fields: [sellerCategoryId], references: [id], onDelete: Cascade)
+
+  @@id([storefrontId, sellerCategoryId])
+  @@index([sellerCategoryId])
+  @@map("category_links")
 }
 
 /// Products owned by sellers

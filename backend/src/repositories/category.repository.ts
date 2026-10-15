@@ -18,9 +18,9 @@ export class CategoryRepository {
     /**
      * Find all active categories
      */
-    async findAllActive(): Promise<CategoryEntity[]> {
+    async findAllActive(scope?: 'SELLER' | 'STOREFRONT'): Promise<CategoryEntity[]> {
         return prisma.category.findMany({
-            where: { isActive: true },
+            where: { isActive: true, ...(scope ? { scope } : {}) },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         }) as unknown as CategoryEntity[];
     }
@@ -47,8 +47,9 @@ export class CategoryRepository {
      * Check if category exists and is active
      */
     async existsAndActive(id: string): Promise<boolean> {
+        // Products live in seller categories only; the customer menu links to them.
         const category = await prisma.category.findFirst({
-            where: { id, isActive: true },
+            where: { id, isActive: true, scope: 'SELLER' },
             select: { id: true },
         });
         return category !== null;
@@ -67,6 +68,7 @@ export class CategoryRepository {
         sortOrder?: number | undefined;
         seoTitle?: string | undefined;
         seoDescription?: string | undefined;
+        scope?: 'SELLER' | 'STOREFRONT' | undefined;
     }): Promise<CategoryEntity> {
         return prisma.category.create({
             data: {
@@ -80,6 +82,7 @@ export class CategoryRepository {
                 ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
                 ...(data.seoTitle !== undefined && { seoTitle: data.seoTitle }),
                 ...(data.seoDescription !== undefined && { seoDescription: data.seoDescription }),
+                ...(data.scope !== undefined && { scope: data.scope }),
             },
         }) as unknown as CategoryEntity;
     }

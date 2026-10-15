@@ -52,8 +52,9 @@ export class CategoryService {
             return cached;
         }
 
-        // Fetch from database
-        const categories = await this.repository.findAllActive();
+        // The seller listing tree (seller and admin pickers). The customer
+        // menu is served by listVisibleCategories().
+        const categories = await this.repository.findAllActive('SELLER');
         const response: CategoryListResponse = { categories };
 
         // Cache the result
@@ -64,19 +65,17 @@ export class CategoryService {
     }
 
     /**
-     * Storefront categories (GET /v1/categories?visible=1).
-     *
-     * Hides every category with no live product in it or below it, and puts the
-     * categories whose newest product is most recent first (siblings re-ranked
-     * through `sortOrder`, which the website and app already sort by). Seller and
-     * admin pickers keep using the full list, so empty categories stay listable.
-     * Cached briefly so a newly approved product shows up within a couple of minutes.
+     * Storefront menu: customer (STOREFRONT) categories that have live
+     * products through the seller categories linked to them, newest stock
+     * first. Until a customer menu exists, the seller tree is used instead.
+     * Each category carries `productCount` and `previewImage` (newest product
+     * photo, used when it has no image of its own).
      */
     async listVisibleCategories(): Promise<CategoryListResponse> {
         const cached = await getFromCache<CategoryListResponse>(CACHE_KEYS.CATEGORIES_VISIBLE);
         if (cached) return cached;
 
-        const { categories } = await this.listCategories();
+        const all = await this.repository.findAllActive();
         // Same rule as the storefront product list (productRepository.findPublished).
         const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint; latest: Date; image: string | null }[]>`
             SELECT p."category_id" AS "categoryId", COUNT(*) AS "count", MAX(p."created_at") AS "latest",
@@ -91,25 +90,65 @@ export class CategoryService {
               )
             GROUP BY p."category_id"`;
 
-        const byId = new Map(categories.map((c) => [c.id, c]));
-        const count = new Map<string, number>();
-        const latest = new Map<string, number>();
-        const preview = new Map<string, { image: string; at: number }>();
-        for (const row of rows) {
-            // Credit the category and every ancestor (a parent shows if any child has stock).
-            const at = new Date(row.latest).getTime();
-            let id: string | null = row.categoryId;
+        type Stat = { count: number; latest: number; image: string | null; imageAt: number };
+        const byId = new Map(all.map((c) => [c.id, c]));
+        const add = (stats: Map<string, Stat>, id: string, count: number, latest: number, image: string | null) => {
+            const cur = stats.get(id) ?? { count: 0, latest: 0, image: null, imageAt: -1 };
+            cur.count += count;
+            cur.latest = Math.max(cur.latest, latest);
+            if (image && cur.imageAt < latest) {
+                cur.image = image;
+                cur.imageAt = latest;
+            }
+            stats.set(id, cur);
+        };
+        // Credit a category and every ancestor (a parent shows if any child has stock).
+        const rollUp = (stats: Map<string, Stat>, from: string, count: number, latest: number, image: string | null) => {
+            let id: string | null = from;
             for (let guard = 0; id && guard < 10; guard++) {
-                count.set(id, (count.get(id) ?? 0) + Number(row.count));
-                latest.set(id, Math.max(latest.get(id) ?? 0, at));
-                if (row.image && (preview.get(id)?.at ?? -1) < at) preview.set(id, { image: row.image, at });
+                add(stats, id, count, latest, image);
                 id = byId.get(id)?.parentId ?? null;
+            }
+        };
+
+        const sellerStats = new Map<string, Stat>();
+        for (const row of rows) rollUp(sellerStats, row.categoryId, Number(row.count), new Date(row.latest).getTime(), row.image);
+
+        const storefront = all.filter((c) => c.scope === 'STOREFRONT');
+        let pool = all.filter((c) => c.scope !== 'STOREFRONT');
+        let stats = sellerStats;
+
+        if (storefront.length) {
+            pool = storefront;
+            stats = new Map<string, Stat>();
+            const links = await prisma.categoryLink.findMany({ select: { storefrontId: true, sellerCategoryId: true } });
+            const linked = new Map<string, Set<string>>();
+            for (const l of links) {
+                if (!linked.has(l.storefrontId)) linked.set(l.storefrontId, new Set());
+                linked.get(l.storefrontId)!.add(l.sellerCategoryId);
+            }
+            const isUnder = (id: string, set: Set<string>) => {
+                let parent = byId.get(id)?.parentId ?? null;
+                for (let guard = 0; parent && guard < 10; guard++) {
+                    if (set.has(parent)) return true;
+                    parent = byId.get(parent)?.parentId ?? null;
+                }
+                return false;
+            };
+            for (const [storefrontId, sellerIds] of linked) {
+                if (!byId.has(storefrontId)) continue;
+                for (const sellerId of sellerIds) {
+                    // Linking a category and one of its sub-categories must not count twice.
+                    if (isUnder(sellerId, sellerIds)) continue;
+                    const st = sellerStats.get(sellerId);
+                    if (st?.count) rollUp(stats, storefrontId, st.count, st.latest, st.image);
+                }
             }
         }
 
         // Visible = has products and every ancestor is active (in the list) too.
-        const visible = categories.filter((c) => {
-            if (!count.get(c.id)) return false;
+        const visible = pool.filter((c) => {
+            if (!stats.get(c.id)?.count) return false;
             let parent = c.parentId;
             for (let guard = 0; parent && guard < 10; guard++) {
                 const p = byId.get(parent);
@@ -120,9 +159,14 @@ export class CategoryService {
         });
 
         // Newest stock first; the admin's order breaks ties.
-        visible.sort((a, b) => (latest.get(b.id)! - latest.get(a.id)!) || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+        visible.sort((a, b) => (stats.get(b.id)!.latest - stats.get(a.id)!.latest) || a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
         const response: CategoryListResponse = {
-            categories: visible.map((c, index) => ({ ...c, sortOrder: index, productCount: count.get(c.id)!, previewImage: preview.get(c.id)?.image ?? null })),
+            categories: visible.map((c, index) => ({
+                ...c,
+                sortOrder: index,
+                productCount: stats.get(c.id)!.count,
+                previewImage: stats.get(c.id)!.image,
+            })),
         };
         await setCache(CACHE_KEYS.CATEGORIES_VISIBLE, response, 120);
         return response;
@@ -148,6 +192,7 @@ export class CategoryService {
         sortOrder?: number | undefined;
         seoTitle?: string | undefined;
         seoDescription?: string | undefined;
+        scope?: 'SELLER' | 'STOREFRONT' | undefined;
     }) {
         const baseSlug = this.slugify(input.name);
         if (!baseSlug) {
@@ -155,15 +200,18 @@ export class CategoryService {
         }
 
         // Validate parentId if provided
+        let scope = input.scope ?? 'SELLER';
         if (input.parentId) {
             const parent = await this.repository.findById(input.parentId);
             if (!parent) {
                 throw ApiError.badRequest('Parent category not found');
             }
+            // A sub-category always belongs to its parent's tree.
+            scope = parent.scope ?? 'SELLER';
         }
 
         const slug = await this.getUniqueSlug(baseSlug);
-        const created = await this.repository.create({ ...input, slug });
+        const created = await this.repository.create({ ...input, slug, scope });
 
         await invalidateCategoryCache();
         await dispatchFreshness({
@@ -201,6 +249,9 @@ export class CategoryService {
             const parent = await this.repository.findById(data.parentId);
             if (!parent) {
                 throw ApiError.badRequest('Parent category not found');
+            }
+            if ((parent.scope ?? 'SELLER') !== (category.scope ?? 'SELLER')) {
+                throw ApiError.badRequest('A category cannot move between the seller tree and the customer menu');
             }
         }
 

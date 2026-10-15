@@ -24,18 +24,19 @@ export interface MainCategory {
 
 export const KTMONA_CATEGORIES: MainCategory[] = [
     {
-        name: 'Kurti & Saree',
+        name: 'Kurti, Saree & Lehenga',
         slug: 'kurti-saree',
         description: 'Sarees, kurtis, kurta sets, dress materials, lehengas and more ethnic wear for women.',
         groups: [
-            { name: 'Sarees', items: ['Silk Sarees', 'Cotton Sarees', 'Georgette Sarees', 'Chiffon Sarees', 'Net Sarees', 'Bridal Sarees'] },
+            { name: 'Sarees', items: ['Georgette Sarees', 'Chiffon Sarees', 'Cotton Sarees', 'Net Sarees', 'Silk Sarees', 'Bridal Sarees'] },
             { name: 'Kurtis', items: ['Anarkali Kurtis', 'Rayon Kurtis', 'Cotton Kurtis', 'Straight Kurtis', 'Long Kurtis'] },
             { name: 'Kurta Sets', items: ['Kurta Palazzo Sets', 'Kurta Pant Sets', 'Sharara Sets', 'Anarkali Kurta Sets', 'Cotton Kurta Sets'] },
             { name: 'Dupatta Sets', items: ['Cotton Dupatta Sets', 'Rayon Dupatta Sets'] },
-            { name: 'Dress Materials', items: ['Pakistani Dress Materials', 'Cotton Dress Materials', 'Patiala Dress Materials', 'Banarasi Dress Materials', 'Party Wear Dress Materials'] },
-            { name: 'Lehengas & Gowns', items: ['Party Wear Lehengas', 'Bridal Lehengas', 'Ethnic Gowns'] },
+            { name: 'Suits & Dress Material', items: ['Pakistani Dress Materials', 'Cotton Dress Materials', 'Patiala Dress Materials', 'Banarasi Dress Materials', 'Party Wear Dress Materials'] },
+            { name: 'Lehengas', items: ['Party Wear Lehengas', 'Bridal Lehengas'] },
             { name: 'Blouses', items: ['Readymade Blouses', 'Blouse Pieces'] },
-            { name: 'Other Ethnic', items: ['Ethnic Skirts & Bottomwear', 'Ethnic Jackets & Shrugs', 'Islamic Fashion', 'Petticoats', 'Dupattas'] },
+            { name: 'Gowns', items: ['Ethnic Gowns'] },
+            { name: 'Other Ethnic Wear', items: ['Ethnic Skirts & Bottomwear', 'Ethnic Jackets & Shrugs', 'Islamic Fashion', 'Petticoats', 'Dupattas'] },
         ],
     },
     {

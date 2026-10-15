@@ -21,6 +21,8 @@ export interface CategoryEntity {
     isActive: boolean;
     seoTitle: string | null;
     seoDescription: string | null;
+    /** SELLER: listing tree. STOREFRONT: customer menu. */
+    scope?: 'SELLER' | 'STOREFRONT';
     createdAt: Date;
 }
 
@@ -188,6 +190,8 @@ export interface PublicProductWithDetails {
     /** Public store identity of the seller (detail responses only). */
     seller?: { storeName: string; storeSlug: string } | null;
     socialProof?: SocialProof;
+    /** Customer-menu category for "Shop more" links (detail responses only). */
+    storefrontCategory?: { slug: string; name: string } | null;
 }
 
 export interface SellerProductVariant {

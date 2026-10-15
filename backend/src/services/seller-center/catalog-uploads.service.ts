@@ -236,8 +236,8 @@ class SellerCatalogUploadsService {
         if (input.products.length > MAX_PRODUCTS_PER_CATALOG) {
             throw ApiError.badRequest(`A catalog can have at most ${MAX_PRODUCTS_PER_CATALOG} products`);
         }
-        const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true, externalId: true, isActive: true } });
-        if (!category || !category.isActive) throw ApiError.badRequest('Pick an active category');
+        const category = await prisma.category.findUnique({ where: { id: input.categoryId }, select: { id: true, externalId: true, isActive: true, scope: true } });
+        if (!category || !category.isActive || category.scope !== 'SELLER') throw ApiError.badRequest('Pick an active category');
 
         // Admin-configured required fields (Category Builder) must be filled.
         const { fields } = await categoryAttributeService.resolve(category.id);

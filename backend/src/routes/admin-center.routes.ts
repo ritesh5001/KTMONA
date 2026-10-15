@@ -11,6 +11,7 @@ import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { ApiError } from '../errors/ApiError.js';
 import { adminOpsService } from '../services/admin-center/ops.service.js';
 import { adminSellersService } from '../services/admin-center/sellers.service.js';
+import { categoryLinksSchema, categoryLinksService } from '../services/category-links.service.js';
 import { adminReviewCreateSchema, adminReviewUpdateSchema, adminReviewsService, socialProofSchema } from '../services/admin-center/reviews.service.js';
 import { adminQcService } from '../services/admin-center/qc.service.js';
 import { adminPayoutsService } from '../services/admin-center/payouts.service.js';
@@ -71,6 +72,11 @@ adminCenterRouter.post(
     '/sellers/:id/kyc-required',
     h((req) => adminSellersService.setKycRequired(aid(req), param(req, 'id'), z.object({ required: z.boolean() }).parse(req.body).required))
 );
+// Customer menu ↔ seller categories.
+adminCenterRouter.post('/categories/auto-link', h(() => categoryLinksService.autoLink({ apply: true })));
+adminCenterRouter.get('/categories/:id/links', h((req) => categoryLinksService.get(param(req, 'id'))));
+adminCenterRouter.put('/categories/:id/links', h((req) => categoryLinksService.set(param(req, 'id'), categoryLinksSchema.parse(req.body).sellerCategoryIds)));
+
 // Ratings & reviews: storefront figures per product, and admin-written reviews.
 adminCenterRouter.get('/reviews/products', h((req) => adminReviewsService.searchProducts(req.query)));
 adminCenterRouter.get('/reviews/products/:id', h((req) => adminReviewsService.productDetail(param(req, 'id'))));

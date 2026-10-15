@@ -3,7 +3,7 @@
 import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, ChevronRight, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronRight, ImagePlus, Link2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import {
   createAdminCategory,
   deleteAdminCategory,
@@ -16,6 +16,7 @@ import { attributesFor } from "@/components/seller/catalog-attributes";
 import { Badge, Btn, ErrorNote, Loading, PageHeader, PageShell, SearchBox, errorMessage, inputCls } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 import { useImageKitUpload } from "@/lib/use-imagekit-upload";
+import { adminCenter, type CategoryLinkRow } from "@/services/admin-center";
 
 /**
  * Meesho-style column view of the whole category tree: pick a category to see
@@ -25,7 +26,11 @@ import { useImageKitUpload } from "@/lib/use-imagekit-upload";
  */
 export default function CategoryBuilderPage() {
   const { data, error, isLoading, mutate } = useSWR("admin-category-builder", () => getAdminCategories());
-  const all = React.useMemo(() => data?.categories ?? [], [data]);
+  /** Seller tree (where products are listed) or the customer menu. */
+  const [scope, setScope] = React.useState<"SELLER" | "STOREFRONT">("SELLER");
+  const everything = React.useMemo(() => data?.categories ?? [], [data]);
+  const all = React.useMemo(() => everything.filter((c) => (c.scope ?? "SELLER") === scope), [everything, scope]);
+  const sellerCategories = React.useMemo(() => everything.filter((c) => (c.scope ?? "SELLER") === "SELLER"), [everything]);
   const childrenOf = React.useCallback(
     (parentId: string | null) =>
       all
@@ -36,6 +41,23 @@ export default function CategoryBuilderPage() {
   const byId = React.useMemo(() => new Map(all.map((c) => [c.id, c])), [all]);
   const [path, setPath] = React.useState<string[]>([]);
   const [search, setSearch] = React.useState("");
+  const [linking, setLinking] = React.useState(false);
+  const switchScope = (next: "SELLER" | "STOREFRONT") => {
+    setScope(next);
+    setPath([]);
+    setSearch("");
+  };
+  const autoLink = async () => {
+    setLinking(true);
+    try {
+      const res = await adminCenter.autoLinkCategories();
+      toast.success(res.created ? `Linked ${res.created} menu categories to seller categories with the same name` : "Everything that matches by name is already linked");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setLinking(false);
+    }
+  };
 
   // Drop selections that no longer exist (after a delete).
   React.useEffect(() => {
@@ -65,7 +87,7 @@ export default function CategoryBuilderPage() {
     <PageShell>
       <PageHeader
         title="Category Builder"
-        description="Build the category tree sellers pick from: open a category to see the categories inside it, then add, rename or delete at any level. Select a category to choose the product-detail fields sellers fill for it and which of them are required (*)."
+        description="Two trees: the seller categories sellers list products in, and the customer menu shoppers browse. Open a category to see the ones inside it, then add, rename or delete at any level."
       />
       {error && !data ? (
         <ErrorNote message={errorMessage(error)} onRetry={() => mutate()} />
@@ -73,6 +95,35 @@ export default function CategoryBuilderPage() {
         <Loading />
       ) : (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-xl border border-border-soft bg-card p-1" role="tablist" aria-label="Category tree">
+              {([
+                ["SELLER", "Seller categories"],
+                ["STOREFRONT", "Customer menu"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={scope === key}
+                  onClick={() => switchScope(key)}
+                  className={cn("rounded-lg px-4 py-2 text-sm font-medium transition", scope === key ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "text-muted-foreground hover:bg-mist")}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {scope === "STOREFRONT" ? (
+              <Btn variant="outline" size="sm" loading={linking} onClick={() => void autoLink()}>
+                <Sparkles className="h-4 w-4" /> Auto-link by name
+              </Btn>
+            ) : null}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {scope === "SELLER"
+              ? "The tree sellers pick from when they list a product. Products always belong to a seller category."
+              : "The categories shoppers see in the menu and on the homepage. Link each one to seller categories; it shows the products listed in them. Empty menu categories stay hidden."}
+          </p>
           <div className="relative max-w-md">
             <SearchBox value={search} onChange={setSearch} placeholder="Search categories, e.g. T-shirts" />
             {results.length ? (
@@ -98,20 +149,124 @@ export default function CategoryBuilderPage() {
                 onSelect={(id) => setPath([...path.slice(0, depth), id])}
                 hasChildren={(id) => childrenOf(id).length > 0}
                 onChanged={() => mutate()}
+                scope={scope}
               />
             ))}
           </div>
 
           {selectedId && byId.get(selectedId) ? (
-            <CategoryImageCard key={`img-${selectedId}`} category={byId.get(selectedId)!} pathLabel={label(selectedId)} onChanged={() => mutate()} />
+            <CategoryImageCard key={`img-${selectedId}`} category={byId.get(selectedId)!} pathLabel={label(selectedId)} onChanged={() => mutate()} forShoppers={scope === "STOREFRONT"} />
           ) : null}
 
-          {selectedId ? <FieldsEditor key={selectedId} categoryId={selectedId} pathLabel={label(selectedId)} pathNames={pathTo(selectedId).map((x) => byId.get(x)?.name ?? "")} /> : (
-            <p className="text-sm text-muted-foreground">Select a category to edit its product-detail fields.</p>
+          {selectedId && scope === "STOREFRONT" ? (
+            <LinksEditor key={`links-${selectedId}`} categoryId={selectedId} pathLabel={label(selectedId)} sellerCategories={sellerCategories} />
+          ) : selectedId ? <FieldsEditor key={selectedId} categoryId={selectedId} pathLabel={label(selectedId)} pathNames={pathTo(selectedId).map((x) => byId.get(x)?.name ?? "")} /> : (
+            <p className="text-sm text-muted-foreground">{scope === "STOREFRONT" ? "Select a menu category to choose which seller categories it shows products from." : "Select a category to edit its product-detail fields."}</p>
           )}
         </div>
       )}
     </PageShell>
+  );
+}
+
+/* ── Customer-menu category → seller categories ─────────────────────────── */
+
+function sellerPath(id: string, byId: Map<string, AdminCategory>): string {
+  const out: string[] = [];
+  let cur = byId.get(id);
+  for (let g = 0; cur && g < 10; g += 1) {
+    out.unshift(cur.name);
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+  }
+  return out.join(" › ");
+}
+
+/**
+ * Which seller categories a customer-menu category shows products from. A
+ * linked seller category includes everything below it.
+ */
+function LinksEditor({ categoryId, pathLabel, sellerCategories }: { categoryId: string; pathLabel: string; sellerCategories: AdminCategory[] }) {
+  const { data, error, isLoading, mutate } = useSWR(["category-links", categoryId], () => adminCenter.categoryLinks(categoryId));
+  const [links, setLinks] = React.useState<CategoryLinkRow[] | null>(null);
+  const [query, setQuery] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  React.useEffect(() => {
+    if (data) setLinks(data.links);
+  }, [data]);
+
+  const byId = React.useMemo(() => new Map(sellerCategories.map((c) => [c.id, c])), [sellerCategories]);
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? sellerCategories
+        .filter((c) => !links?.some((l) => l.id === c.id))
+        .map((c) => ({ id: c.id, name: c.name, path: sellerPath(c.id, byId) }))
+        .filter((c) => c.path.toLowerCase().includes(q))
+        .slice(0, 12)
+    : [];
+  const dirty = !!links && !!data && (links.length !== data.links.length || links.some((l) => !data.links.some((d) => d.id === l.id)));
+
+  const save = async () => {
+    if (!links) return;
+    setSaving(true);
+    try {
+      const res = await adminCenter.setCategoryLinks(categoryId, links.map((l) => l.id));
+      mutate(res, { revalidate: false });
+      setLinks(res.links);
+      toast.success("Links saved. The menu updates within a few minutes.");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-2xl border border-border-soft bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-base font-semibold"><Link2 className="h-4 w-4" /> Shows products from</h2>
+          <p className="text-sm text-muted-foreground">{pathLabel}</p>
+        </div>
+        <Btn variant="brand" size="sm" loading={saving} disabled={!dirty} onClick={() => void save()}>Save links</Btn>
+      </div>
+      {error && !data ? (
+        <div className="mt-4"><ErrorNote message={errorMessage(error)} onRetry={() => mutate()} /></div>
+      ) : isLoading || !links ? (
+        <div className="mt-4"><Loading rows={2} /></div>
+      ) : (
+        <>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {links.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No seller categories linked. Sub-categories that have links still show their products here.</p>
+            ) : (
+              links.map((l) => (
+                <span key={l.id} className="inline-flex items-center gap-1.5 rounded-lg border border-border-soft bg-mist py-1 pl-3 pr-1.5 text-sm">
+                  {l.path}
+                  <button type="button" aria-label={`Unlink ${l.path}`} className="rounded p-0.5 text-muted-foreground hover:bg-card hover:text-red-600" onClick={() => setLinks((x) => x && x.filter((y) => y.id !== l.id))}>
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+          <div className="relative mt-4 max-w-xl">
+            <SearchBox value={query} onChange={setQuery} placeholder="Add a seller category, e.g. Tshirts" />
+            {results.length ? (
+              <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border-soft bg-card shadow-lg">
+                {results.map((c) => (
+                  <li key={c.id}>
+                    <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-mist" onClick={() => { setLinks((x) => [...(x ?? []), c]); setQuery(""); }}>
+                      {c.path}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">A linked seller category includes every category inside it.</p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -122,7 +277,7 @@ export default function CategoryBuilderPage() {
  * they can check they chose the right place for their product. Sub-categories
  * without an image show their nearest parent's.
  */
-function CategoryImageCard({ category, pathLabel, onChanged }: { category: AdminCategory; pathLabel: string; onChanged: () => void }) {
+function CategoryImageCard({ category, pathLabel, onChanged, forShoppers }: { category: AdminCategory; pathLabel: string; onChanged: () => void; forShoppers: boolean }) {
   const { upload, uploading } = useImageKitUpload("/categories");
   const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -162,7 +317,9 @@ function CategoryImageCard({ category, pathLabel, onChanged }: { category: Admin
         <h2 className="text-base font-semibold">Category image</h2>
         <p className="text-sm text-muted-foreground">{pathLabel}</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Sellers see this example when they pick the category in Add Catalog, so they can check they are listing in the right place. Sub-categories without their own image use this one.
+          {forShoppers
+            ? "Shown to shoppers on the homepage and in the menu. Without one, the newest product's photo is used."
+            : "Sellers see this example when they pick the category in Add Catalog, so they can check they are listing in the right place. Sub-categories without their own image use this one."}
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Btn size="sm" variant="brand" loading={uploading || saving} onClick={() => fileRef.current?.click()}>
@@ -189,6 +346,7 @@ function Column({
   onSelect,
   hasChildren,
   onChanged,
+  scope,
 }: {
   parentId: string | null;
   items: AdminCategory[];
@@ -196,6 +354,7 @@ function Column({
   onSelect: (id: string) => void;
   hasChildren: (id: string) => boolean;
   onChanged: () => void;
+  scope: "SELLER" | "STOREFRONT";
 }) {
   const [adding, setAdding] = React.useState(false);
   const [name, setName] = React.useState("");
@@ -207,7 +366,7 @@ function Column({
     if (name.trim().length < 2) return;
     setBusy(true);
     try {
-      await createAdminCategory({ name: name.trim(), ...(parentId ? { parentId } : {}), sortOrder: items.length });
+      await createAdminCategory({ name: name.trim(), ...(parentId ? { parentId } : {}), sortOrder: items.length, scope });
       toast.success(`Added “${name.trim()}”`);
       setName("");
       setAdding(false);

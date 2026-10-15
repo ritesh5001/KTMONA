@@ -1,219 +1,89 @@
-[2026-10-15T15:08:15.427Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:08:15.521Z] [log] [HMR] connected
-[2026-10-15T15:08:15.531Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.594Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T19:27:11.680Z] [log] [HMR] connected
+[2026-10-15T19:27:11.694Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:08:15.532Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.694Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:08:15.579Z] [error] Access to fetch at 'http://localhost:5056/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:15.580Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:15.583Z] [error] Access to fetch at 'http://localhost:5056/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:15.583Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:15.605Z] [error] Access to fetch at 'http://localhost:5000/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:15.605Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:15.605Z] [error] Access to fetch at 'http://localhost:5000/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:15.605Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:25.619Z] [error] Access to fetch at 'http://localhost:5056/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:25.619Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:25.620Z] [error] Access to fetch at 'http://localhost:5056/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:25.621Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:25.621Z] [error] Access to fetch at 'http://localhost:5000/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:25.621Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:25.621Z] [error] Access to fetch at 'http://localhost:5000/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:25.621Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:29.677Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
-[2026-10-15T15:08:29.677Z] [info] [auth-api][login] request {identifier: adm***}
-[2026-10-15T15:08:29.691Z] [error] Access to fetch at 'http://localhost:5056/v1/auth/login' from origin 'http://localhost:3002' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:29.691Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:29.691Z] [error] [auth-ui][login] error TypeError: Failed to fetch
-    at loginUser (http://localhost:3002/_next/static/chunks/src_e7e02222._.js:3247:28)
-    at handleSubmit (http://localhost:3002/_next/static/chunks/_b2396cf1._.js:521:174)
-    at executeDispatch (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10314:13)
-    at runWithFiberInDEV (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
-    at processDispatchQueue (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10340:41)
-    at http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10615:13
-    at batchedUpdates$1 (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:2253:44)
-    at dispatchEventForPluginEventSystem (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10416:9)
-    at dispatchEvent (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12935:37)
-    at dispatchDiscreteEvent (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12917:64)
-[2026-10-15T15:08:33.825Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:08:33.850Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.757Z] [warning] Image with src "/ktmona-icon.png" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:08:33.851Z] [log] [HMR] connected
-[2026-10-15T15:08:33.851Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/sarees.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:08:33.875Z] [error] Access to fetch at 'http://localhost:5056/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:33.876Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:33.877Z] [error] Access to fetch at 'http://localhost:5000/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:33.877Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:33.879Z] [error] Access to fetch at 'http://localhost:5056/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:33.879Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:33.879Z] [error] Access to fetch at 'http://localhost:5000/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:33.879Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:38.886Z] [error] Access to fetch at 'http://localhost:5056/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:38.887Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:38.887Z] [error] Access to fetch at 'http://localhost:5000/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:38.887Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:43.882Z] [error] Access to fetch at 'http://localhost:5056/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:43.883Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:43.883Z] [error] Access to fetch at 'http://localhost:5000/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:43.883Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:53.893Z] [error] Access to fetch at 'http://localhost:5056/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:53.893Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:53.893Z] [error] Access to fetch at 'http://localhost:5000/v1/site/links' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:53.893Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:54.842Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
-[2026-10-15T15:08:54.843Z] [info] [auth-api][login] request {identifier: adm***}
-[2026-10-15T15:08:54.857Z] [error] Access to fetch at 'http://localhost:5056/v1/auth/login' from origin 'http://localhost:3002' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:08:54.858Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:08:54.858Z] [error] [auth-ui][login] error TypeError: Failed to fetch
-    at loginUser (http://localhost:3002/_next/static/chunks/src_e7e02222._.js:3247:28)
-    at handleSubmit (http://localhost:3002/_next/static/chunks/_b2396cf1._.js:521:174)
-    at executeDispatch (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10314:13)
-    at runWithFiberInDEV (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:965:74)
-    at processDispatchQueue (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10340:41)
-    at http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10615:13
-    at batchedUpdates$1 (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:2253:44)
-    at dispatchEventForPluginEventSystem (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:10416:9)
-    at dispatchEvent (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12935:37)
-    at dispatchDiscreteEvent (http://localhost:3002/_next/static/chunks/node_modules_next_dist_compiled_react-dom_1e674e59._.js:12917:64)
-[2026-10-15T15:09:08.900Z] [error] Access to fetch at 'http://localhost:5056/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:09:08.900Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:09:08.901Z] [error] Access to fetch at 'http://localhost:5000/v1/categories?visible=1' from origin 'http://localhost:3002' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
-[2026-10-15T15:09:08.901Z] [error] Failed to load resource: net::ERR_FAILED
-[2026-10-15T15:09:19.146Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:09:19.176Z] [log] [HMR] connected
-[2026-10-15T15:09:19.180Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/kurtis.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:09:19.181Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/top-wear.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:09:30.176Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
-[2026-10-15T15:09:30.176Z] [info] [auth-api][login] request {identifier: adm***}
-[2026-10-15T15:09:30.357Z] [info] [auth-api][login] success {role: ADMIN}
-[2026-10-15T15:09:30.357Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
-[2026-10-15T15:09:30.468Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:09:31.030Z] [log] [Fast Refresh] done in 661ms
-[2026-10-15T15:09:31.089Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
-[2026-10-15T15:09:31.212Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/categories/men.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/categories/women-western.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/categories/kids-toys.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/categories/home-kitchen.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/makeup.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/categories/jewellery-accessories.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/women-footwear.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.831Z] [warning] Image with src "http://localhost:3001/storefront/cards/audio.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.832Z] [warning] Image with src "http://localhost:3001/storefront/categories/watches.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:11.832Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:12.131Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-10-15T19:27:12.145Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-10-15T19:27:12.152Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-10-15T19:27:12.159Z] [error] Failed to load resource: the server responded with a status of 404 ()
+[2026-10-15T19:27:18.471Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T19:27:18.501Z] [log] [HMR] connected
+[2026-10-15T19:27:18.506Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:18.508Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
+[2026-10-15T19:27:24.078Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
+[2026-10-15T19:27:24.078Z] [info] [auth-api][login] request {identifier: adm***}
+[2026-10-15T19:27:24.321Z] [info] [auth-api][login] success {role: ADMIN}
+[2026-10-15T19:27:24.321Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
+[2026-10-15T19:27:24.481Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
+[2026-10-15T19:27:24.614Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
        please check the style of container, or the props width(100%) and height(100%),
        or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
        height and width.
-[2026-10-15T15:09:31.212Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+[2026-10-15T19:27:24.614Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
        please check the style of container, or the props width(100%) and height(100%),
        or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
        height and width.
-[2026-10-15T15:09:31.215Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+[2026-10-15T19:27:24.869Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
        please check the style of container, or the props width(100%) and height(100%),
        or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
        height and width.
-[2026-10-15T15:09:31.215Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
+[2026-10-15T19:27:24.869Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
        please check the style of container, or the props width(100%) and height(100%),
        or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
        height and width.
-[2026-10-15T15:09:36.379Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:09:36.443Z] [log] [Fast Refresh] done in 165ms
-[2026-10-15T15:09:36.458Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:09:36.470Z] [log] [HMR] connected
-[2026-10-15T15:09:36.485Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
+[2026-10-15T19:27:30.261Z] [log] [Fast Refresh] rebuilding
+[2026-10-15T19:27:30.417Z] [log] [Fast Refresh] done in 259ms
+[2026-10-15T19:27:30.469Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[2026-10-15T19:27:30.472Z] [log] [HMR] connected
+[2026-10-15T19:27:30.491Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
 Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.593Z] [error] Failed to load resource: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:09:36.969Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:09:36.970Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:09:36.970Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:09:36.970Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:09:37.053Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:09:49.574Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:10:02.762Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:10:02.815Z] [log] [Fast Refresh] done in 123ms
-[2026-10-15T15:10:02.849Z] [error] Failed to load resource: the server responded with a status of 404 ()
-[2026-10-15T15:10:06.770Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:07.774Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:08.775Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:09.778Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:10.783Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:15.791Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:20.797Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:25.802Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:30.807Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:35.812Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:40.818Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:10:45.823Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=sy0wLlCU-VjBRsu_u0WsJ' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:17:08.868Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:17:08.943Z] [log] [HMR] connected
-[2026-10-15T15:17:08.954Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:17:08.954Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:17:14.356Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
-[2026-10-15T15:17:14.356Z] [info] [auth-api][login] request {identifier: adm***}
-[2026-10-15T15:17:14.538Z] [info] [auth-api][login] success {role: ADMIN}
-[2026-10-15T15:17:14.538Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
-[2026-10-15T15:17:14.649Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:17:14.700Z] [log] [Fast Refresh] done in 152ms
-[2026-10-15T15:17:14.763Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
-[2026-10-15T15:17:14.868Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
-       please check the style of container, or the props width(100%) and height(100%),
-       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
-       height and width.
-[2026-10-15T15:17:14.868Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
-       please check the style of container, or the props width(100%) and height(100%),
-       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
-       height and width.
-[2026-10-15T15:17:20.540Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:17:20.867Z] [log] [Fast Refresh] done in 428ms
-[2026-10-15T15:17:20.918Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:17:20.929Z] [log] [HMR] connected
-[2026-10-15T15:17:20.950Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:18:05.913Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:18:05.940Z] [log] [HMR] connected
-[2026-10-15T15:18:05.947Z] [warning] Image with src "/ktmona-logo.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:18:05.948Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:18:11.338Z] [info] [auth-ui][login] attempting password-login {identifier: adm***, portal: main}
-[2026-10-15T15:18:11.338Z] [info] [auth-api][login] request {identifier: adm***}
-[2026-10-15T15:18:11.520Z] [info] [auth-api][login] success {role: ADMIN}
-[2026-10-15T15:18:11.520Z] [info] [auth-ui][login] password-login success {identifier: admin@test.local, role: ADMIN}
-[2026-10-15T15:18:11.591Z] [warning] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior
-[2026-10-15T15:18:11.681Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
-       please check the style of container, or the props width(100%) and height(100%),
-       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
-       height and width.
-[2026-10-15T15:18:11.681Z] [warning] The width(-1) and height(-1) of chart should be greater than 0,
-       please check the style of container, or the props width(100%) and height(100%),
-       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
-       height and width.
-[2026-10-15T15:18:17.466Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:18:17.487Z] [log] [HMR] connected
-[2026-10-15T15:18:17.491Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:18:38.267Z] [log] [Fast Refresh] rebuilding
-[2026-10-15T15:18:38.310Z] [log] [Fast Refresh] done in 77ms
-[2026-10-15T15:18:42.500Z] [info] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[2026-10-15T15:18:42.527Z] [log] [HMR] connected
-[2026-10-15T15:18:42.528Z] [warning] Image with src "/ktmona-logo-light.webp" has a "loader" property that does not implement width. Please implement it or use the "unoptimized" property instead.
-Read more: https://nextjs.org/docs/messages/next-image-missing-loader-width
-[2026-10-15T15:20:03.457Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:04.460Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:05.464Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:06.467Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:07.470Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:12.473Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:17.476Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:22.480Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:27.483Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:32.487Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:37.490Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
-[2026-10-15T15:20:42.493Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=PXfDy3YAx6sHnM-0VzVIe' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:27:50.032Z] [log] [Fast Refresh] rebuilding
+[2026-10-15T19:27:50.054Z] [log] [Fast Refresh] done in 76ms
+[2026-10-15T19:27:59.413Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:00.416Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:01.419Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:02.422Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:03.424Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:08.425Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:13.429Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED
+[2026-10-15T19:28:18.433Z] [error] WebSocket connection to 'ws://localhost:3002/_next/webpack-hmr?id=-eex1nkusPFyRCBpiUnHb' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED

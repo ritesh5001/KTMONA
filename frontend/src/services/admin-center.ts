@@ -44,6 +44,13 @@ export async function downloadAdminFile(path: string, fallbackName: string) {
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
+export interface CategoryLinkRow {
+  id: string;
+  name: string;
+  /** "Men Fashion › Mens Clothing › Tshirts" */
+  path: string;
+}
+
 export interface SocialProofInput {
   /** null = automatic (real reviews, else the default). */
   displayRating: number | null;
@@ -332,6 +339,11 @@ export const adminCenter = {
   /** Whether the seller needs verified KYC before listing products. */
   setKycRequired: (id: string, required: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc-required`, { required }),
   deleteSeller: (id: string, confirm: string) => send<{ deleted: boolean }>("DELETE", `/sellers/${id}`, { confirm }),
+
+  // Customer menu ↔ seller categories
+  categoryLinks: (id: string) => get<{ links: CategoryLinkRow[] }>(`/categories/${id}/links`),
+  setCategoryLinks: (id: string, sellerCategoryIds: string[]) => send<{ links: CategoryLinkRow[] }>("PUT", `/categories/${id}/links`, { sellerCategoryIds }),
+  autoLinkCategories: () => send<{ created: number; planned: { storefront: string; seller: string }[] }>("POST", "/categories/auto-link"),
 
   // Ratings & reviews
   reviewProducts: (search: string) => get<{ products: ReviewProductRow[] }>(`/reviews/products${qs({ search })}`),

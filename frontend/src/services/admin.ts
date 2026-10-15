@@ -252,6 +252,8 @@ export interface AdminCategory {
   seoTitle?: string | null;
   seoDescription?: string | null;
   isActive: boolean;
+  /** SELLER: where products are listed. STOREFRONT: the customer menu. */
+  scope?: "SELLER" | "STOREFRONT";
   createdAt: string;
 }
 
@@ -477,6 +479,7 @@ export interface CreateCategoryPayload {
   sortOrder?: number;
   seoTitle?: string;
   seoDescription?: string;
+  scope?: "SELLER" | "STOREFRONT";
 }
 
 export interface UpdateCategoryPayload {

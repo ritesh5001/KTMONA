@@ -182,9 +182,9 @@ export default async function ProductDetailPage({
           <div className="flex flex-col items-center justify-center gap-4 text-center">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-strong">Explore More</p>
             <div className="flex flex-wrap justify-center gap-4">
-              {product?.categoryId && (
-                <Link href={`/collections/${product.categoryId}`} className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">
-                  Shop more {product.categoryName || 'in this Category'}
+              {product?.storefrontCategory && (
+                <Link href={`/collections/${product.storefrontCategory.slug}`} className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">
+                  Shop more {product.storefrontCategory.name}
                 </Link>
               )}
               <Link href="/categories" className="text-sm font-medium text-muted-foreground hover:text-foreground underline underline-offset-4">All Categories</Link>

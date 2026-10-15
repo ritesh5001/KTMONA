@@ -154,11 +154,22 @@ export class ProductRepository {
 
         if (categoryId) {
             // A main category or group matches products listed under any of
-            // its descendants, not only products attached to it directly.
+            // its descendants. A customer-menu (STOREFRONT) category matches
+            // products of the seller categories linked to it or its descendants.
             conditions.push(`p."category_id" IN (
-                WITH RECURSIVE tree AS (
+                WITH RECURSIVE picked AS (
                     SELECT "id" FROM "categories" WHERE "id" = $${paramIndex}
                     UNION ALL
+                    SELECT ch."id" FROM "categories" ch INNER JOIN picked t ON ch."parent_id" = t."id"
+                ),
+                roots AS (
+                    SELECT "id" FROM picked
+                    UNION
+                    SELECT l."seller_category_id" FROM "category_links" l WHERE l."storefront_id" IN (SELECT "id" FROM picked)
+                ),
+                tree AS (
+                    SELECT "id" FROM roots
+                    UNION
                     SELECT ch."id" FROM "categories" ch INNER JOIN tree t ON ch."parent_id" = t."id"
                 )
                 SELECT "id" FROM tree

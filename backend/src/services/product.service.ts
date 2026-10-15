@@ -245,6 +245,36 @@ export class ProductService {
         };
     }
 
+    /**
+     * The customer-menu category a product belongs to: the menu category linked
+     * to its seller category (or the nearest ancestor that has a link), the
+     * deepest one when several match. Null when nothing is linked.
+     */
+    private async storefrontCategoryFor(categoryId: string): Promise<{ slug: string; name: string } | null> {
+        const rows = await prisma.$queryRaw<{ slug: string; name: string }[]>`
+            WITH RECURSIVE up AS (
+                SELECT "id", "parent_id", 0 AS depth FROM "categories" WHERE "id" = ${categoryId}
+                UNION ALL
+                SELECT c."id", c."parent_id", up.depth + 1 FROM "categories" c JOIN up ON c."id" = up."parent_id" WHERE up.depth < 10
+            ),
+            sf_depth AS (
+                SELECT l."storefront_id", up.depth AS seller_depth FROM up JOIN "category_links" l ON l."seller_category_id" = up."id"
+            )
+            SELECT s."slug", s."name"
+            FROM sf_depth d JOIN "categories" s ON s."id" = d."storefront_id"
+            WHERE s."is_active" = true
+            ORDER BY d.seller_depth ASC,
+                     (WITH RECURSIVE a AS (SELECT s2."parent_id" AS pid, 0 AS n FROM "categories" s2 WHERE s2."id" = s."id"
+                                           UNION ALL SELECT c."parent_id", a.n + 1 FROM "categories" c JOIN a ON c."id" = a.pid WHERE a.n < 10)
+                      SELECT COUNT(*) FROM a WHERE a.pid IS NOT NULL) DESC
+            LIMIT 1`;
+        if (rows[0]) return rows[0];
+        // No customer menu yet: the storefront still browses the seller tree.
+        const hasMenu = await prisma.category.count({ where: { scope: 'STOREFRONT' } });
+        if (hasMenu) return null;
+        return prisma.category.findUnique({ where: { id: categoryId }, select: { slug: true, name: true } });
+    }
+
     /** Admin figures win; otherwise real (visible) reviews; else null. */
     private socialProof(product: any, realAverage: number | null, realCount: number): SocialProof {
         const hasReal = realCount > 0 && realAverage != null;
@@ -503,7 +533,7 @@ export class ProductService {
             throw ApiError.notFound('Product not found');
         }
 
-        const [coupons, store, reviewAgg] = await Promise.all([
+        const [coupons, store, reviewAgg, storefrontCategory] = await Promise.all([
             this.getActiveCouponsForSellers([product.sellerId]),
             // Public store identity for the "Sold by" card (same as the store page).
             prisma.seller_profiles.findUnique({
@@ -511,12 +541,14 @@ export class ProductService {
                 select: { store_name: true, store_slug: true },
             }),
             prisma.review.aggregate({ where: { productId: id, isHidden: false }, _avg: { rating: true }, _count: { _all: true } }),
+            this.storefrontCategoryFor(product.categoryId),
         ]);
         const response: ProductDetailResponse = {
             product: {
                 ...this.toPublicProductDetail(product, coupons),
                 seller: store ? { storeName: store.store_name, storeSlug: store.store_slug } : null,
                 socialProof: this.socialProof(product, reviewAgg._avg.rating ?? null, reviewAgg._count._all),
+                storefrontCategory,
             },
         };
 

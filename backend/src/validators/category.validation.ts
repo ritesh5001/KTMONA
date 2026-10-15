@@ -9,6 +9,8 @@ export const createCategorySchema = z.object({
     sortOrder: z.number().int().min(0).optional(),
     seoTitle: z.string().max(120).optional(),
     seoDescription: z.string().max(320).optional(),
+    /** SELLER (listing tree, default) or STOREFRONT (customer menu). */
+    scope: z.enum(['SELLER', 'STOREFRONT']).optional(),
 });
 
 export const updateCategorySchema = z.object({
