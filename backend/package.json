@@ -50,7 +50,8 @@
     "verify:stress": "tsx scripts/stress-test-all-domains.ts",
     "backfill:product-slugs": "tsx scripts/backfill-product-slugs.ts",
     "seed:categories": "tsx scripts/seed-categories.ts",
-    "seed:category-descriptions": "tsx scripts/seed-category-descriptions.ts"
+    "seed:category-descriptions": "tsx scripts/seed-category-descriptions.ts",
+    "import:seller-categories": "tsx scripts/import-seller-categories-csv.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",
