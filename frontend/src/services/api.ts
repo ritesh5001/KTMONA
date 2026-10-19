@@ -124,22 +124,39 @@ function clearAuthCookies() {
 }
 
 /**
+ * Sign out a portal whose refresh token the server rejected. The seller and
+ * admin panels have no signed-out view, so send those tabs to login.
+ */
+function endDeadSession(portal: Portal) {
+  clearPortalSession(portal);
+  if (typeof window === "undefined" || portal === "user" || currentPortal() !== portal) return;
+  const loginUrl = new URL("/login", window.location.origin);
+  loginUrl.searchParams.set("returnTo", window.location.pathname + window.location.search);
+  loginUrl.searchParams.set("force", "1");
+  window.location.assign(loginUrl.toString());
+}
+
+/**
  * Attempt to refresh the access token using the stored refresh token.
  * On success, updates both cookies and returns the new access token.
  * On failure, returns null.
  */
 let _refreshPromise: Promise<string | null> | null = null;
 
+/** The server refused the refresh token itself (revoked, expired, account inactive). */
+const REFRESH_REJECTED = "rejected" as const;
+
 async function requestNewTokens(
   portal: Portal,
   refreshToken: string
-): Promise<string | null> {
+): Promise<string | null | typeof REFRESH_REJECTED> {
   const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ refreshToken }),
   });
 
+  if (response.status === 401 || response.status === 403) return REFRESH_REJECTED;
   if (!response.ok) return null;
 
   const data = await response.json().catch(() => null);
@@ -162,8 +179,8 @@ async function silentRefresh(): Promise<string | null> {
       const refreshToken = getRefreshToken(portal);
       if (!refreshToken || !API_BASE_URL) return null;
 
-      const accessToken = await requestNewTokens(portal, refreshToken);
-      if (accessToken) return accessToken;
+      let result = await requestNewTokens(portal, refreshToken);
+      if (result && result !== REFRESH_REJECTED) return result;
 
       // Refresh tokens rotate on every use, so a concurrent refresh from
       // another tab invalidates the token we just sent. If the cookie has
@@ -172,8 +189,14 @@ async function silentRefresh(): Promise<string | null> {
       await new Promise((resolve) => setTimeout(resolve, 750));
       const latestRefreshToken = getRefreshToken(portal);
       if (latestRefreshToken && latestRefreshToken !== refreshToken) {
-        return await requestNewTokens(portal, latestRefreshToken);
+        result = await requestNewTokens(portal, latestRefreshToken);
+        if (result && result !== REFRESH_REJECTED) return result;
       }
+
+      // The server rejected the refresh token we hold, so the session is dead.
+      // Without this the cookie kept looking refreshable and staff panels sat on
+      // "Access token has expired" forever.
+      if (result === REFRESH_REJECTED) endDeadSession(portal);
 
       return null;
     } catch {

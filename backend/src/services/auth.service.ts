@@ -17,7 +17,7 @@ import type { StringValue } from 'ms';
 import ms from 'ms';
 import { otpService, type OtpDelivery, type SignupOtpPayload } from './otp.service.js';
 import { sendEmail } from '../notifications/email/resend.client.js';
-import { sellerApplicationSubmittedTemplate } from '../notifications/email/templates/seller-application-submitted.js';
+import { sellerRegisteredTemplate } from '../notifications/email/templates/seller-application-submitted.js';
 
 /** "OTP sent to your email address" / mobile, plus what to verify with. */
 function otpSent(d: OtpDelivery, suffix = ''): { message: string; verifyWith: { email: string } | { phone: string } } {
@@ -164,9 +164,9 @@ export class AuthService {
      * Business Rules:
      * 1. Check if email OR phone already exists
      * 2. Hash password
-     * 3. Create user with role=SELLER, status=PENDING
-     * 4. No JWT generation, no auto-login
-     * 5. Seller cannot login until approved
+     * 3. Send signup OTP; on verification the account is created with
+     *    status=ACTIVE and the seller is signed in to the panel straight away.
+     *    Admin approval only applies to KYC, which gates product listing.
      */
     async registerSeller(data: RegisterSellerRequest): Promise<RegisterSuccessResponse> {
         const phone = data.phone ? normalizeIndianMobile(data.phone) : null;
@@ -194,7 +194,7 @@ export class AuthService {
         const delivery = await otpService.sendSignupOtp(payload);
         this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel: delivery.channel, role: 'SELLER' }, 'register_seller_otp_sent');
 
-        // 4. Return success message (no token, pending approval)
+        // 4. Return success message (tokens are issued once the OTP is verified)
         return otpSent(delivery, 'Verify to complete seller registration.');
     }
 
@@ -395,7 +395,8 @@ export class AuthService {
                 throw ApiError.conflict('Email or phone already in use');
             }
 
-            const status = payload.role === 'SELLER' ? 'PENDING' : 'ACTIVE';
+            // Sellers get the panel immediately; only their KYC needs admin approval.
+            const status = 'ACTIVE';
             const created = await this.repository.createUser({
                 email: payload.email,
                 phone: payload.phone,
@@ -415,21 +416,17 @@ export class AuthService {
 
             if (created.role === 'SELLER') {
                 this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_seller_created');
-                // "Application submitted" email, sent directly (like the OTP) so it
-                // never waits on the notification queue. Never blocks the response.
+                // "Registered — please complete KYC" email, sent directly (like the
+                // OTP) so it never waits on the notification queue. Never blocks the response.
                 if (created.email) {
-                    const { subject, html } = sellerApplicationSubmittedTemplate({ sellerEmail: created.email });
+                    const { subject, html } = sellerRegisteredTemplate({ sellerEmail: created.email });
                     void sendEmail(created.email, subject, html).catch((err) => {
-                        this.logger.warn({ userId: created.id, err: err instanceof Error ? err.message : String(err) }, 'seller_application_email_failed');
+                        this.logger.warn({ userId: created.id, err: err instanceof Error ? err.message : String(err) }, 'seller_registered_email_failed');
                     });
                 }
-                return {
-                    message: 'Your seller application has been submitted for approval. We will email you once your account is approved.',
-                    applicationSubmitted: true,
-                };
+            } else {
+                this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_user_created');
             }
-
-            this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_user_created');
 
             return this.issueTokens({
                 id: created.id,

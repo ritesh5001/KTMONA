@@ -2,24 +2,24 @@ import { EmailTemplateResult } from '../../types.js';
 import { renderBrandedEmail } from './layout.js';
 import { portalLinks } from './portal-links.js';
 
-/** Sent right after a seller verifies their email: the application is waiting for admin approval. */
-export function sellerApplicationSubmittedTemplate(data: { sellerEmail: string }): EmailTemplateResult {
+/** Sent right after a seller verifies their email: the panel is open, KYC is the next step. */
+export function sellerRegisteredTemplate(data: { sellerEmail: string }): EmailTemplateResult {
     return {
-        subject: 'Your KTMONA seller application has been submitted',
+        subject: 'You have successfully registered on KTMONA – please complete your KYC',
         html: renderBrandedEmail({
-            preheader: 'We have received your seller application and it is now waiting for approval.',
-            eyebrow: 'Seller Application',
-            title: 'Application Submitted',
+            preheader: 'Your seller account is ready. Complete your KYC to start listing products.',
+            eyebrow: 'Seller Registration',
+            title: 'Welcome to KTMONA',
             message: [
-                'Thank you for registering as a seller on KTMONA. Your email is verified and your application has been submitted for approval.',
-                'Our team will review it shortly. We will email you as soon as your seller account is approved. After that, complete your KYC from the seller panel; once KTMONA verifies it you can start listing products.',
+                'You have successfully registered on KTMONA. Your seller panel is ready and you can sign in right away.',
+                'Please complete your KYC (business, GST/PAN and bank details) from Settings in the seller panel. Once KTMONA verifies your KYC you can start listing products.',
             ],
             details: [
                 { label: 'Seller Account', value: data.sellerEmail },
-                { label: 'Status', value: 'Pending approval' },
+                { label: 'KYC Status', value: 'Pending – please complete your KYC' },
             ],
-            ctaLabel: 'Seller Login',
-            ctaUrl: portalLinks.sellerLogin,
+            ctaLabel: 'Complete KYC',
+            ctaUrl: `${portalLinks.sellerSettings}?tab=business`,
         }),
     };
 }

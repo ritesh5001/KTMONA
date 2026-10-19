@@ -21,8 +21,6 @@ import {
 } from "@/services/auth";
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
-import { CheckCircle2 } from "lucide-react";
-import Link from "next/link";
 import { buyerReturnPath } from "@/lib/login-redirect";
 
 function VerifyOtpContent() {
@@ -40,8 +38,6 @@ function VerifyOtpContent() {
   const [otp, setOtp] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [sending, setSending] = React.useState(false);
-  /** Set once a seller's application is submitted: the page shows the green confirmation. */
-  const [submitted, setSubmitted] = React.useState<string | null>(null);
   const submittedOtpRef = React.useRef<string | null>(null);
 
   // One-time-code autofill supported on mobile browsers.
@@ -64,9 +60,18 @@ function VerifyOtpContent() {
       if (result.accessToken && result.refreshToken && result.user) {
         persistAuthCookies(result.accessToken, result.refreshToken, result.user);
 
+        const role = result.user.role?.toUpperCase();
+
+        // A new seller goes straight into the panel, on the KYC tab: the panel
+        // is open immediately, only KYC needs KTMONA's approval.
+        if (isSignup && role === "SELLER") {
+          toast.success("You have successfully registered on KTMONA. Please complete your KYC.");
+          router.push("/seller/settings?tab=business");
+          return;
+        }
+
         toast.success(isEmail ? "Email verified successfully." : "Number verified successfully.");
 
-        const role = result.user.role?.toUpperCase();
         // Staff → dashboards; buyers → where they came from, else homepage.
         const staffDestination: Record<string, string> = {
           ADMIN: "/admin/dashboard",
@@ -76,9 +81,9 @@ function VerifyOtpContent() {
 
         router.push(staffDestination[role] ?? buyerReturnPath());
       } else {
-        const message = result.message ?? "Your seller application has been submitted for approval.";
-        toast.success(message);
-        setSubmitted(message);
+        // Verified but no session issued: send them to sign in.
+        toast.success(result.message ?? "Verified successfully. Please sign in.");
+        router.push("/login");
       }
     } catch (error) {
       console.error("[auth-ui][verify-otp] failed", error);
@@ -86,7 +91,7 @@ function VerifyOtpContent() {
     } finally {
       setLoading(false);
     }
-  }, [identifier, isEmail, channelLabel, otp, router]);
+  }, [identifier, isEmail, isSignup, channelLabel, otp, router]);
 
   const handleResend = async () => {
     if (!identifier) {
@@ -119,32 +124,6 @@ function VerifyOtpContent() {
     submittedOtpRef.current = otp;
     void handleVerify({ preventDefault() {} } as React.FormEvent<HTMLFormElement>);
   }, [handleVerify, loading, otp]);
-
-  if (submitted) {
-    return (
-      <div className="flex min-h-[calc(100vh-160px)] items-center justify-center bg-background px-6 py-16">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          role="status"
-          className="w-full max-w-lg rounded-2xl border border-emerald-300 bg-emerald-50 p-8 text-center shadow-sm dark:border-emerald-500/40 dark:bg-emerald-500/10"
-        >
-          <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-600" aria-hidden />
-          <h1 className="mt-4 font-serif text-3xl font-normal text-emerald-800 dark:text-emerald-300">
-            Application submitted for approval
-          </h1>
-          <p className="mt-3 text-base leading-relaxed text-emerald-900/80 dark:text-emerald-100/80">{submitted}</p>
-          <p className="mt-2 text-sm text-emerald-900/70 dark:text-emerald-100/70">
-            We have also sent a confirmation to your email. You can sign in once your account is approved.
-          </p>
-          <Button asChild className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700" size="lg">
-            <Link href="/login">Go to Seller Login</Link>
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-[calc(100vh-160px)] bg-background">
