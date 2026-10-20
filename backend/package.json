@@ -51,7 +51,8 @@
     "backfill:product-slugs": "tsx scripts/backfill-product-slugs.ts",
     "seed:categories": "tsx scripts/seed-categories.ts",
     "seed:category-descriptions": "tsx scripts/seed-category-descriptions.ts",
-    "import:seller-categories": "tsx scripts/import-seller-categories-csv.ts"
+    "import:seller-categories": "tsx scripts/import-seller-categories-csv.ts",
+    "replace:seller-categories": "tsx scripts/replace-seller-categories-csv.ts"
   },
   "prisma": {
     "schema": "prisma/schema.prisma",

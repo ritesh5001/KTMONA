@@ -4,8 +4,8 @@
  *
  * Columns: Main Category, Sub Category, Child Category, Sub Child Category,
  * Product Type / Leaf. Blank columns are skipped, so a row's path is its
- * non-blank columns in order (2 to 5 levels). "Full Path" is ignored: it is
- * blank on most rows and uses different top-level names on the rest.
+ * non-blank columns in order (3 to 5 levels). "Full Path" is ignored; it is
+ * only a readable copy of the columns.
  *
  * A category is matched to an existing seller category by name (ignoring
  * case) under the same parent, so the existing tree is reused and re-running
@@ -16,80 +16,20 @@
  *   npm run import:seller-categories -- --apply
  *   npm run import:seller-categories -- path/to/file.csv --apply
  */
-import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import csv from 'csv-parser';
 import { prisma } from '../src/config/db.js';
 import { invalidateCategoryCache } from '../src/utils/cache.util.js';
+import { DEFAULT_CSV, LEVELS, dbHost, readCategoryCsv, slugify } from './lib/seller-category-csv.js';
 
 const apply = process.argv.includes('--apply');
-const csvPath = path.resolve(
-    process.argv.slice(2).find((a) => !a.startsWith('--')) ?? '../KTMONA all Products - Sheet1.csv',
-);
-const LEVELS = ['Main Category', 'Sub Category', 'Child Category', 'Sub Child Category', 'Product Type / Leaf'];
+const csvPath = path.resolve(process.argv.slice(2).find((a) => !a.startsWith('--')) ?? DEFAULT_CSV);
 const CHUNK = 1000;
-
-function slugify(value: string): string {
-    return value
-        .toLowerCase()
-        .replace(/&/g, ' and ')
-        .replace(/'/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '');
-}
-
-interface Node {
-    key: string;
-    name: string;
-    parentKey: string | null;
-    depth: number;
-    sortOrder: number;
-}
-
-async function readTree(file: string): Promise<Node[]> {
-    const rows: Record<string, string>[] = [];
-    await new Promise<void>((resolve, reject) => {
-        fs.createReadStream(file)
-            .pipe(csv({ mapHeaders: ({ header }) => header.replace(/^﻿/, '').trim() }))
-            .on('data', (row) => rows.push(row))
-            .on('end', resolve)
-            .on('error', reject);
-    });
-    const missing = LEVELS.filter((l) => !(l in (rows[0] ?? {})));
-    if (missing.length) throw new Error(`CSV is missing columns: ${missing.join(', ')}`);
-
-    // Keyed by full path; siblings keep the order they first appear in.
-    const nodes = new Map<string, Node>();
-    const childCount = new Map<string | null, number>();
-    for (const row of rows) {
-        const parts = LEVELS.map((l) => (row[l] ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
-        let parentKey: string | null = null;
-        parts.forEach((name, i) => {
-            const key: string = parentKey === null ? name.toLowerCase() : `${parentKey}\u0000${name.toLowerCase()}`;
-            if (!nodes.has(key)) {
-                const sortOrder = (childCount.get(parentKey) ?? 0) + 1;
-                childCount.set(parentKey, sortOrder);
-                nodes.set(key, { key, name, parentKey, depth: i + 1, sortOrder });
-            }
-            parentKey = key;
-        });
-    }
-    return [...nodes.values()].sort((a, b) => a.depth - b.depth);
-}
-
-function dbHost(): string {
-    try {
-        return new URL(process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL || '').hostname;
-    } catch {
-        return 'unknown';
-    }
-}
 
 async function main() {
     console.log(`Database: ${dbHost()}`);
     console.log(`CSV: ${csvPath}`);
-    const nodes = await readTree(csvPath);
+    const nodes = await readCategoryCsv(csvPath);
 
     const existing = await prisma.category.findMany({
         select: { id: true, name: true, slug: true, parentId: true, scope: true },
