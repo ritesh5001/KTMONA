@@ -265,7 +265,9 @@ function PickupForm({ data, onSaved }: FormProps) {
     <Panel title="Pickup address">
       <p className="mb-4 text-sm text-muted-foreground">
         Couriers collect your orders from here, and returns come back here.{" "}
-        {data.shipping.mode === "SHIPROCKET" ? "Pickups are booked automatically via Shiprocket." : "You ship orders yourself and add the courier AWB in Orders."}
+        {data.shipping.mode === "SELF_SHIP"
+          ? "You ship orders yourself and add the courier AWB in Orders."
+          : `Pickups are booked automatically via ${data.shipping.mode === "SHIPMAXX" ? "ShipMaxx" : "Shiprocket"}.`}
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Contact name"><input className={inputCls} value={f.contactName} onChange={set("contactName")} /></Field>

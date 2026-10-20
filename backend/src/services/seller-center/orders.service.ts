@@ -23,14 +23,24 @@ import {
     toCsv,
 } from './common.js';
 import { renderLabels, renderManifest, type LabelData } from './labels.js';
-import {
-    bookShipment,
-    generateManifest,
-    isShiprocketShippingEnabled,
-    requestPickup,
-} from './shiprocket-shipping.client.js';
+import { bookShipment, generateManifest, requestPickup } from './shiprocket-shipping.client.js';
+import { bookShipment as bookShipmaxxShipment, cancelShipment as cancelShipmaxxShipment, ensureWarehouse } from './shipmaxx.client.js';
+import { activeCourierProvider, deliveryState, type CourierProvider } from './shipping-provider.js';
 
 const log = logger.child({ module: 'seller-orders' });
+
+/** A shipment booked with the platform's courier account. */
+interface CourierBooking {
+    mode: CourierProvider;
+    awb: string;
+    courier: string;
+    labelUrl: string | null;
+    shiprocketOrderId?: string;
+    shiprocketShipmentId?: string;
+    shipmaxxOrderId?: string;
+}
+
+type SellerProfile = NonNullable<Awaited<ReturnType<typeof prisma.seller_profiles.findUnique>>>;
 
 export const ORDER_TABS = ['on_hold', 'pending', 'ready_to_ship', 'shipped', 'delivered', 'cancelled', 'rto', 'all'] as const;
 export type OrderTab = (typeof ORDER_TABS)[number];
@@ -276,6 +286,7 @@ class SellerOrdersService {
                     carrier: shipment.carrier,
                     awb: shipment.tracking_number || null,
                     labelUrl: shipment.label_url,
+                    courierStatus: shipment.courier_status,
                     manifestId: shipment.manifest_id,
                     shippedAt: shipment.shipped_at,
                     deliveredAt: shipment.delivered_at,
@@ -295,37 +306,41 @@ class SellerOrdersService {
     /** Accept pending orders: create the shipment and generate the label. */
     async accept(sellerId: string, orderIds: string[]) {
         const profile = await prisma.seller_profiles.findUnique({ where: { user_id: sellerId } });
-        const useShiprocket = isShiprocketShippingEnabled() && Boolean(profile?.pickup_pincode);
+        const provider = profile?.pickup_pincode ? activeCourierProvider() : null;
         const results: { orderId: string; ok: boolean; error?: string }[] = [];
         const bookedShipmentIds: string[] = [];
 
         for (const orderId of orderIds) {
+            let booking: CourierBooking | null = null;
             try {
-                let carrier = 'Self Ship';
-                let awb = '';
-                let booking: Awaited<ReturnType<typeof bookShipment>> | null = null;
+                if (provider && profile) booking = await this.book(provider, sellerId, orderId, profile);
 
-                if (useShiprocket) {
-                    booking = await this.book(sellerId, orderId);
-                    carrier = booking.courier;
-                    awb = booking.awb;
-                }
-
-                const created = await shipmentService.createShipment(orderId, sellerId, { carrier, trackingNumber: awb });
+                const created = await shipmentService.createShipment(orderId, sellerId, {
+                    carrier: booking?.courier ?? 'Self Ship',
+                    trackingNumber: booking?.awb ?? '',
+                });
                 await prisma.shipments.update({
                     where: { id: created.id },
                     data: {
-                        fulfillment_mode: booking ? 'SHIPROCKET' : 'SELF_SHIP',
+                        fulfillment_mode: booking?.mode ?? 'SELF_SHIP',
                         shiprocket_order_id: booking?.shiprocketOrderId ?? null,
-                        shiprocket_shipment_id: booking?.shipmentId ?? null,
+                        shiprocket_shipment_id: booking?.shiprocketShipmentId ?? null,
+                        shipmaxx_order_id: booking?.shipmaxxOrderId ?? null,
                         label_url: booking?.labelUrl ?? null,
                         label_generated_at: new Date(),
                         updated_at: new Date(),
                     },
                 });
-                if (booking) bookedShipmentIds.push(booking.shipmentId);
+                if (booking?.shiprocketShipmentId) bookedShipmentIds.push(booking.shiprocketShipmentId);
                 results.push({ orderId, ok: true });
             } catch (err) {
+                // ShipMaxx charges the wallet when the AWB is assigned: give an
+                // AWB back if the shipment could not be saved on our side.
+                if (booking?.mode === 'SHIPMAXX') {
+                    await cancelShipmaxxShipment(booking.awb, 'Order could not be accepted').catch((cancelErr) =>
+                        log.error({ err: cancelErr, orderId, awb: booking?.awb }, 'ShipMaxx AWB left assigned after a failed accept'),
+                    );
+                }
                 results.push({ orderId, ok: false, error: err instanceof Error ? err.message : 'Failed' });
             }
         }
@@ -343,10 +358,10 @@ class SellerOrdersService {
         }
 
         await invalidateSellerPrivateCaches(sellerId);
-        return { results, mode: useShiprocket ? 'SHIPROCKET' : 'SELF_SHIP' };
+        return { results, mode: provider ?? 'SELF_SHIP' };
     }
 
-    private async book(sellerId: string, orderId: string) {
+    private async book(provider: CourierProvider, sellerId: string, orderId: string, profile: SellerProfile): Promise<CourierBooking> {
         const order = await prisma.order.findUnique({ where: { id: orderId }, include: { items: true, payment: true } });
         if (!order) throw ApiError.notFound('Order not found');
         const items = order.items.filter((i) => i.sellerId === sellerId);
@@ -356,7 +371,36 @@ class SellerOrdersService {
         });
         const vMap = new Map(variants.map((v) => [v.id, v]));
         const weightGrams = items.reduce((sum, i) => sum + (vMap.get(i.variantId)?.weightGrams ?? 500) * i.quantity, 0);
-        return bookShipment({
+        const paymentMethod = order.payment?.provider === 'COD' ? 'COD' : 'Prepaid';
+
+        if (provider === 'SHIPMAXX') {
+            const state = await deliveryState(order.userId, order.shippingPincode ?? '');
+            const booking = await bookShipmaxxShipment({
+                orderNumber: `${order.id}-${sellerCode(sellerId)}`,
+                warehouseId: await this.shipmaxxWarehouse(sellerId, profile),
+                paymentMethod: paymentMethod === 'COD' ? 'cod' : 'prepaid',
+                customer: {
+                    name: order.shippingName ?? 'Customer',
+                    phone: (order.shippingPhone ?? '').replace(/\D/g, '').slice(-10),
+                    email: order.shippingEmail,
+                    address: [order.shippingAddressLine1, order.shippingAddressLine2].filter(Boolean).join(', '),
+                    city: order.shippingCity ?? '',
+                    state,
+                    pincode: order.shippingPincode ?? '',
+                },
+                items: items.map((i) => ({
+                    name: vMap.get(i.variantId)?.product.title ?? 'Item',
+                    sku: vMap.get(i.variantId)?.sku ?? i.variantId,
+                    price: i.priceSnapshot,
+                    quantity: i.quantity,
+                })),
+                weightKg: Math.max(0.1, weightGrams / 1000),
+                dimensionsCm: { length: 30, width: 25, height: 5 },
+            });
+            return { mode: 'SHIPMAXX', awb: booking.awb, courier: booking.courier, labelUrl: booking.labelUrl, shipmaxxOrderId: booking.shipmaxxOrderId };
+        }
+
+        const booking = await bookShipment({
             orderId: `${order.id}-${sellerCode(sellerId)}`,
             orderDate: order.createdAt,
             pickupLocation: sellerCode(sellerId),
@@ -376,18 +420,47 @@ class SellerOrdersService {
                 sellingPrice: i.priceSnapshot,
                 hsn: vMap.get(i.variantId)?.product.hsnCode ?? null,
             })),
-            paymentMethod: order.payment?.provider === 'COD' ? 'COD' : 'Prepaid',
+            paymentMethod,
             subTotal: round2(items.reduce((s, i) => s + i.priceSnapshot * i.quantity, 0)),
             weightKg: Math.max(0.1, weightGrams / 1000),
             dimensionsCm: { length: 30, breadth: 25, height: 5 },
         });
+        return {
+            mode: 'SHIPROCKET',
+            awb: booking.awb,
+            courier: booking.courier,
+            labelUrl: booking.labelUrl,
+            shiprocketOrderId: booking.shiprocketOrderId,
+            shiprocketShipmentId: booking.shipmentId,
+        };
+    }
+
+    /** The seller's ShipMaxx warehouse, registering the pickup address on first use. */
+    private async shipmaxxWarehouse(sellerId: string, profile: SellerProfile): Promise<number> {
+        if (profile.shipmaxx_warehouse_id) return profile.shipmaxx_warehouse_id;
+        if (!profile.pickup_address_line1 || !profile.pickup_city || !profile.pickup_pincode) {
+            throw ApiError.badRequest('Add your pickup address in Settings before accepting orders');
+        }
+        const id = await ensureWarehouse({
+            sellerCode: sellerCode(sellerId),
+            contactName: profile.pickup_contact_name ?? profile.store_name,
+            phone: profile.pickup_phone ?? '',
+            address: [profile.pickup_address_line1, profile.pickup_address_line2].filter(Boolean).join(', '),
+            city: profile.pickup_city,
+            state: profile.pickup_state ?? '',
+            pincode: profile.pickup_pincode,
+            gstin: profile.gstin ?? profile.gst_number,
+        });
+        await prisma.seller_profiles.update({ where: { user_id: sellerId }, data: { shipmaxx_warehouse_id: id } });
+        profile.shipmaxx_warehouse_id = id;
+        return id;
     }
 
     /** Self-ship: record the courier and AWB before handing over. */
     async updateTracking(sellerId: string, orderId: string, carrier: string, awb: string) {
         const shipment = await prisma.shipments.findFirst({ where: { order_id: orderId, seller_id: sellerId } });
         if (!shipment) throw ApiError.notFound('Accept the order first');
-        if (shipment.fulfillment_mode === 'SHIPROCKET') throw ApiError.badRequest('AWB is assigned by Shiprocket for this order');
+        if (shipment.fulfillment_mode !== 'SELF_SHIP') throw ApiError.badRequest('The AWB for this order is assigned by the courier partner');
         if (shipment.status !== 'CREATED') throw ApiError.badRequest('Tracking can only be edited before the parcel is shipped');
         await prisma.shipments.update({
             where: { id: shipment.id },
@@ -433,6 +506,11 @@ class SellerOrdersService {
         if (order.status === 'CANCELLED') throw ApiError.badRequest('Order is already cancelled');
         const shipment = order.shipments.find((s) => s.seller_id === sellerId);
         if (shipment && shipment.status !== 'CREATED') throw ApiError.badRequest('Shipped orders cannot be cancelled');
+        // Release the AWB first: ShipMaxx refunds the shipping charge, and a
+        // courier that refuses (already picked up) should stop the cancellation.
+        if (shipment?.fulfillment_mode === 'SHIPMAXX' && shipment.tracking_number) {
+            await cancelShipmaxxShipment(shipment.tracking_number, reason);
+        }
 
         await prisma.sellerOrderCancellation.upsert({
             where: { orderId_sellerId: { orderId, sellerId } },

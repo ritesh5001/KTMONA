@@ -169,6 +169,14 @@ const envSchema = z.object({
     // sellers self-ship and enter the courier + AWB themselves.
     SHIPROCKET_EMAIL: z.string().optional(),
     SHIPROCKET_PASSWORD: z.string().optional(),
+    // ShipMaxx shipping API (appapi.losung360.com/external/v1). Takes over
+    // from Shiprocket for new bookings when its email, password and channel
+    // id are all set. The channel id is the "Custom" channel created under
+    // the ShipMaxx account (Channels page); every API order is filed under it.
+    SHIPMAXX_EMAIL: z.string().optional(),
+    SHIPMAXX_PASSWORD: z.string().optional(),
+    SHIPMAXX_CHANNEL_ID: z.coerce.number().int().positive().optional(),
+    SHIPMAXX_BASE_URL: z.string().url().default('https://appapi.losung360.com/external/v1'),
     // -------------------------------------------------------------------
     // Shiprocket Checkout (Fastrr)
     //

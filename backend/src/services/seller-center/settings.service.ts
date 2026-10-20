@@ -9,7 +9,9 @@ import { logger } from '../../config/logger.js';
 import { ApiError } from '../../errors/ApiError.js';
 import { invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
 import { sellerCode } from './common.js';
-import { isShiprocketShippingEnabled, upsertPickupLocation } from './shiprocket-shipping.client.js';
+import { upsertPickupLocation } from './shiprocket-shipping.client.js';
+import { ensureWarehouse } from './shipmaxx.client.js';
+import { activeCourierProvider } from './shipping-provider.js';
 import { sellerCatalogService } from './catalog.service.js';
 
 const log = logger.child({ module: 'seller-settings' });
@@ -75,7 +77,7 @@ class SellerSettingsService {
                 ifsc: b.ifsc_code,
                 isPrimary: b.is_primary,
             })),
-            shipping: { mode: isShiprocketShippingEnabled() ? 'SHIPROCKET' : 'SELF_SHIP' },
+            shipping: { mode: activeCourierProvider() ?? 'SELF_SHIP' },
         };
     }
 
@@ -164,10 +166,30 @@ class SellerSettingsService {
                 pickup_city: input.city.trim(),
                 pickup_state: input.state.trim(),
                 pickup_pincode: input.pincode.trim(),
+                // The old warehouse is for the old address; re-registered below
+                // or, failing that, on the next booking.
+                shipmaxx_warehouse_id: null,
                 updated_at: new Date(),
             },
         });
-        if (isShiprocketShippingEnabled()) {
+        const provider = activeCourierProvider();
+        if (provider === 'SHIPMAXX') {
+            try {
+                const warehouseId = await ensureWarehouse({
+                    sellerCode: sellerCode(sellerId),
+                    contactName: input.contactName.trim(),
+                    phone: input.phone.replace(/\D/g, '').slice(-10),
+                    address: [input.line1.trim(), input.line2?.trim()].filter(Boolean).join(', '),
+                    city: input.city.trim(),
+                    state: input.state.trim(),
+                    pincode: input.pincode.trim(),
+                    gstin: profile.gstin ?? profile.gst_number,
+                });
+                await prisma.seller_profiles.update({ where: { user_id: sellerId }, data: { shipmaxx_warehouse_id: warehouseId } });
+            } catch (err) {
+                log.warn({ err, sellerId }, 'Could not register pickup address with ShipMaxx');
+            }
+        } else if (provider === 'SHIPROCKET') {
             const user = await prisma.user.findUnique({ where: { id: sellerId }, select: { email: true } });
             try {
                 await upsertPickupLocation({

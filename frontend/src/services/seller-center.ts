@@ -113,10 +113,12 @@ export interface SellerOrder {
   shipment: null | {
     id: string;
     status: string;
-    mode: "SHIPROCKET" | "SELF_SHIP";
+    mode: "SHIPROCKET" | "SHIPMAXX" | "SELF_SHIP";
     carrier: string;
     awb: string | null;
     labelUrl: string | null;
+    /** Latest status text from the courier (ShipMaxx shipments). */
+    courierStatus: string | null;
     manifestId: string | null;
     shippedAt: string | null;
     deliveredAt: string | null;
@@ -404,7 +406,7 @@ export interface SellerSettings {
   signatureUrl?: string | null;
   pickup: null | { contactName: string | null; phone: string | null; line1: string | null; line2: string | null; city: string | null; state: string | null; pincode: string | null };
   bankAccounts: { id: string; bankName: string; holderName: string; accountNumberMasked: string; ifsc: string; isPrimary: boolean }[];
-  shipping: { mode: "SHIPROCKET" | "SELF_SHIP" };
+  shipping: { mode: "SHIPROCKET" | "SHIPMAXX" | "SELF_SHIP" };
 }
 
 export interface SaleEvent {

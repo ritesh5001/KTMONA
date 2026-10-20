@@ -730,7 +730,8 @@ function OrderDrawer({ orderId, onClose }: { orderId: string | null; onClose: ()
               <div className="rounded-xl border border-border-soft p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Shipment</p>
                 <p className="mt-1">{data.shipment.carrier} {data.shipment.awb ? `· AWB ${data.shipment.awb}` : ""}</p>
-                <p className="text-xs text-muted-foreground">{data.shipment.mode === "SHIPROCKET" ? "Booked via Shiprocket" : "Self-ship"}{data.shipment.manifestId ? ` · Manifest ${data.shipment.manifestId}` : ""}</p>
+                <p className="text-xs text-muted-foreground">{data.shipment.mode === "SELF_SHIP" ? "Self-ship" : `Booked via ${data.shipment.mode === "SHIPMAXX" ? "ShipMaxx" : "Shiprocket"}`}{data.shipment.manifestId ? ` · Manifest ${data.shipment.manifestId}` : ""}</p>
+                {data.shipment.courierStatus ? <p className="text-xs text-muted-foreground">Courier status: {data.shipment.courierStatus}</p> : null}
                 {data.shipment.rtoReason ? <p className="mt-1 text-xs text-red-600">RTO: {data.shipment.rtoReason}</p> : null}
               </div>
             ) : null}

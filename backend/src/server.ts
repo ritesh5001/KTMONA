@@ -1,5 +1,6 @@
 import { createApp } from './app.js';
 import { sellerPackagingService } from './services/seller-center/packaging.service.js';
+import { syncShipmaxxTracking } from './services/seller-center/shipmaxx-tracking.service.js';
 import { env } from './config/env.js';
 import { prisma, disconnectDatabase } from './config/db.js';
 import { closeQueueResources } from './notifications/notification.queue.js';
@@ -380,6 +381,13 @@ async function bootstrap(): Promise<void> {
                 await sellerPackagingService.retryMissingLabels();
             } catch (err) {
                 logger.warn({ err }, 'Label retry sweep error');
+            }
+
+            // ShipMaxx has no webhooks: poll tracking for shipments in transit.
+            try {
+                await syncShipmaxxTracking();
+            } catch (err) {
+                logger.warn({ err }, 'ShipMaxx tracking sweep error');
             }
         };
 

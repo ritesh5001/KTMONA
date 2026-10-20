@@ -870,48 +870,50 @@ model seller_bank_accounts {
 }
 
 model seller_profiles {
-  user_id              String                 @id
-  store_name           String
-  store_slug           String                 @unique
-  business_type        BusinessType
-  gst_number           String?
-  gstin                String?
-  state                String                 @default("")
-  pan_number           String?
+  user_id               String                 @id
+  store_name            String
+  store_slug            String                 @unique
+  business_type         BusinessType
+  gst_number            String?
+  gstin                 String?
+  state                 String                 @default("")
+  pan_number            String?
   /// false = non-GST seller (sells with an enrolment ID instead of a GSTIN).
-  gst_registered       Boolean                @default(true)
-  enrolment_id         String?
-  store_description    String?
-  store_logo           String?
-  support_email        String?
-  support_phone        String?
-  pickup_contact_name  String?
-  pickup_phone         String?
-  pickup_address_line1 String?
-  pickup_address_line2 String?
-  pickup_city          String?
-  pickup_state         String?
-  pickup_pincode       String?
+  gst_registered        Boolean                @default(true)
+  enrolment_id          String?
+  store_description     String?
+  store_logo            String?
+  support_email         String?
+  support_phone         String?
+  pickup_contact_name   String?
+  pickup_phone          String?
+  pickup_address_line1  String?
+  pickup_address_line2  String?
+  pickup_city           String?
+  pickup_state          String?
+  pickup_pincode        String?
+  /// ShipMaxx warehouse registered for the current pickup address.
+  shipmaxx_warehouse_id Int?
   /// Holiday mode: every live listing is paused until the seller turns it off.
-  vacation_mode        Boolean                @default(false)
-  kyc_rejection_reason String?
-  kyc_verified_at      DateTime?
+  vacation_mode         Boolean                @default(false)
+  kyc_rejection_reason  String?
+  kyc_verified_at       DateTime?
   /// Admin froze payouts (e.g. under investigation). Settlements still accrue.
-  payout_hold          Boolean                @default(false)
-  payout_hold_reason   String?
+  payout_hold           Boolean                @default(false)
+  payout_hold_reason    String?
   /// Why the seller account was suspended / reactivated (shown to the seller).
-  status_reason        String?
+  status_reason         String?
   /// Temporary suspension: the account reactivates automatically after this.
-  suspended_until      DateTime?              @db.Timestamp(6)
-  kyc_status           KycStatus              @default(PENDING)
+  suspended_until       DateTime?              @db.Timestamp(6)
+  kyc_status            KycStatus              @default(PENDING)
   /// Admin can let a seller list products before KYC is verified (false = exempt).
-  kyc_required         Boolean                @default(true)
+  kyc_required          Boolean                @default(true)
   /// Seller's signature image, printed as "Authorised Signatory" on their invoices.
-  signature_url        String?
-  created_at           DateTime               @default(now())
-  updated_at           DateTime
-  seller_bank_accounts seller_bank_accounts[]
-  users                User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  signature_url         String?
+  created_at            DateTime               @default(now())
+  updated_at            DateTime
+  seller_bank_accounts  seller_bank_accounts[]
+  users                 User                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([kyc_status])
 }
@@ -936,11 +938,16 @@ model shipments {
   status                 ShipmentStatus    @default(CREATED)
   shipped_at             DateTime?
   delivered_at           DateTime?
-  /// SHIPROCKET = AWB, label and pickup booked through the platform's
-  /// Shiprocket account; SELF_SHIP = seller enters courier + AWB.
+  /// SHIPROCKET / SHIPMAXX = AWB, label and pickup booked through the
+  /// platform's courier account; SELF_SHIP = seller enters courier + AWB.
   fulfillment_mode       FulfillmentMode   @default(SELF_SHIP)
   shiprocket_order_id    String?
   shiprocket_shipment_id String?
+  /// ShipMaxx's numeric order id (the AWB is tracking_number).
+  shipmaxx_order_id      String?
+  /// Last status text reported by the courier, and when it was polled.
+  courier_status         String?
+  tracking_synced_at     DateTime?
   label_url              String?
   label_generated_at     DateTime?
   manifest_id            String?
@@ -964,6 +971,7 @@ model shipments {
   @@index([order_id])
   @@index([seller_id])
   @@index([status])
+  @@index([fulfillment_mode, status, tracking_synced_at])
 }
 
 model user_addresses {
@@ -1567,6 +1575,7 @@ model SupportMessage {
 
 enum FulfillmentMode {
   SHIPROCKET
+  SHIPMAXX
   SELF_SHIP
 }
 
@@ -2008,26 +2017,26 @@ model RefundPayoutDetail {
 /// A seller's request to add, rename or remove a category. Nothing changes in
 /// the shared category tree until an admin approves it.
 model CategoryRequest {
-  id          String    @id @default(cuid())
-  sellerId    String    @map("seller_id")
+  id               String    @id @default(cuid())
+  sellerId         String    @map("seller_id")
   /// ADD | EDIT | DELETE
-  type        String
+  type             String
   /// EDIT / DELETE: the category concerned.
-  categoryId  String?   @map("category_id")
+  categoryId       String?   @map("category_id")
   /// ADD: where the new category goes (null = top level).
-  parentId    String?   @map("parent_id")
-  name        String?
-  description String?
-  reason      String
+  parentId         String?   @map("parent_id")
+  name             String?
+  description      String?
+  reason           String
   /// PENDING | APPROVED | REJECTED
-  status      String    @default("PENDING")
-  adminNote   String?   @map("admin_note")
-  reviewedBy  String?   @map("reviewed_by")
-  reviewedAt  DateTime? @map("reviewed_at")
+  status           String    @default("PENDING")
+  adminNote        String?   @map("admin_note")
+  reviewedBy       String?   @map("reviewed_by")
+  reviewedAt       DateTime? @map("reviewed_at")
   /// ADD: the category created on approval.
-  resultCategoryId String? @map("result_category_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  resultCategoryId String?   @map("result_category_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
   @@index([status, createdAt])
   @@index([sellerId, createdAt])
