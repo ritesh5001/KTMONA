@@ -64,7 +64,7 @@ const card = "rounded-2xl border border-border bg-card shadow-sm";
 
 function CardTitle({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
     return (
-        <h2 className="flex items-center gap-2.5 text-lg font-semibold text-ink dark:text-foreground">
+        <h2 className="flex items-center gap-2.5 text-lg font-semibold text-ink">
             <Icon className="h-5 w-5 shrink-0 text-brand" aria-hidden />
             {children}
         </h2>
@@ -75,7 +75,7 @@ function CardTitle({ icon: Icon, children }: { icon: React.ElementType; children
 function HeroIllustration() {
     return (
         <div className="relative mx-auto h-48 w-full max-w-md sm:h-56" aria-hidden>
-            <div className="absolute inset-x-6 bottom-0 top-6 rounded-full bg-[#DCE7FB]/70 blur-2xl dark:bg-white/5" />
+            <div className="absolute inset-x-6 bottom-0 top-6 rounded-full bg-[#DCE7FB]/70 blur-2xl" />
             <svg viewBox="0 0 320 220" className="absolute inset-0 h-full w-full">
                 {/* leaves */}
                 <path d="M40 200c-6-40 10-70 34-86-4 30-12 60-34 86z" fill="#9DB8F2" opacity=".7" />
@@ -102,13 +102,13 @@ function HeroIllustration() {
                 {/* heart */}
                 <path d="M270 70c-6-6-14 2-6 8l6 6 6-6c8-6 0-14-6-8z" fill="#FF8A00" />
             </svg>
-            <div className="absolute right-0 top-0 flex items-center gap-2 text-sm font-medium text-ink dark:text-foreground">
+            <div className="absolute right-0 top-0 flex items-center gap-2 text-sm font-medium text-ink">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand text-white shadow-md">
                     <User className="h-5 w-5" />
                 </span>
                 <span className="hidden sm:inline">Customers</span>
             </div>
-            <div className="absolute right-0 top-[40%] flex items-center gap-2 text-sm font-medium text-ink dark:text-foreground">
+            <div className="absolute right-0 top-[40%] flex items-center gap-2 text-sm font-medium text-ink">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2F6BF0] text-white shadow-md">
                     <Store className="h-5 w-5" />
                 </span>
@@ -125,14 +125,14 @@ export default async function AboutPage() {
     return (
         <div className="min-h-screen bg-background font-sans text-foreground">
             {/* Hero */}
-            <header className="overflow-hidden border-b border-border bg-gradient-to-r from-[#F3F7FE] via-[#EEF3FC] to-[#E6EEFB] dark:from-background dark:via-mist dark:to-mist">
+            <header className="overflow-hidden border-b border-border bg-gradient-to-r from-[#F3F7FE] via-[#EEF3FC] to-[#E6EEFB]">
                 <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1.2fr_1fr] md:py-14">
                     <div>
                         <p className="mb-3 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.2em] text-brand-strong">
                             <span className="h-px w-8 bg-brand-strong" aria-hidden />
                             About KTMONA
                         </p>
-                        <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl dark:text-foreground">
+                        <h1 className="text-4xl font-bold tracking-tight text-ink sm:text-5xl">
                             Shopping that builds <span className="text-brand">trust.</span>
                         </h1>
                         <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground">
@@ -168,7 +168,7 @@ export default async function AboutPage() {
                         <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
                             <p>
                                 &ldquo;Trust Every Click.&rdquo; KTMONA stands for{" "}
-                                <strong className="text-ink dark:text-foreground">&ldquo;Knowledge, Trust &amp; More Online Network Access.&rdquo;</strong>{" "}
+                                <strong className="text-ink">&ldquo;Knowledge, Trust &amp; More Online Network Access.&rdquo;</strong>{" "}
                                 We&apos;re building a multi-vendor marketplace where customers can discover everyday products from independent sellers across India, while sellers get a simple way to grow their businesses.
                             </p>
                             <p>
@@ -187,8 +187,8 @@ export default async function AboutPage() {
                                             <p className="text-xs font-semibold uppercase tracking-[0.15em] text-brand-strong">
                                                 {founders.length === 1 ? "Meet Our Founder" : "Meet Our Founders"}
                                             </p>
-                                            <h3 className="mt-2 text-xl font-bold text-ink dark:text-foreground">{f.name}</h3>
-                                            {f.title ? <p className="text-sm text-ink/80 dark:text-foreground/80">{f.title}</p> : null}
+                                            <h3 className="mt-2 text-xl font-bold text-ink">{f.name}</h3>
+                                            {f.title ? <p className="text-sm text-ink/80">{f.title}</p> : null}
                                             {f.quote ? (
                                                 <p className="mt-3 border-t border-border pt-3 text-sm italic leading-relaxed text-muted-foreground">
                                                     &ldquo;{f.quote}&rdquo;
@@ -221,11 +221,11 @@ export default async function AboutPage() {
                             <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-2">
                                 {REASONS.map(({ icon: Icon, title, body }) => (
                                     <li key={title} className="flex items-center gap-3">
-                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mist text-ink dark:text-foreground">
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-mist text-ink">
                                             <Icon className="h-[18px] w-[18px]" aria-hidden />
                                         </span>
                                         <span className="min-w-0">
-                                            <span className="block text-sm font-semibold text-ink dark:text-foreground">{title}</span>
+                                            <span className="block text-sm font-semibold text-ink">{title}</span>
                                             <span className="block text-xs text-muted-foreground">{body}</span>
                                         </span>
                                     </li>
@@ -240,25 +240,25 @@ export default async function AboutPage() {
                             <MapPin className="h-5 w-5" aria-hidden />
                         </span>
                         <div>
-                            <h2 className="text-lg font-semibold text-ink dark:text-foreground">Head Office</h2>
+                            <h2 className="text-lg font-semibold text-ink">Head Office</h2>
                             <p className="text-sm text-muted-foreground">{COMPANY_ADDRESS}</p>
                         </div>
                     </section>
 
                     {/* Support */}
                     <section className="flex flex-col gap-4 rounded-2xl border border-border bg-mist p-5 sm:flex-row sm:items-center sm:p-6">
-                        <MessageCircleMore className="h-10 w-10 shrink-0 text-navy dark:text-foreground" aria-hidden />
+                        <MessageCircleMore className="h-10 w-10 shrink-0 text-navy" aria-hidden />
                         <div className="min-w-0 sm:border-l sm:border-border sm:pl-6">
-                            <h2 className="text-lg font-semibold text-ink dark:text-foreground">Need further assistance?</h2>
+                            <h2 className="text-lg font-semibold text-ink">Need further assistance?</h2>
                             <p className="mt-1 text-sm text-muted-foreground">
                                 If you have any questions, please contact our support team at
                             </p>
                             <div className="mt-3 flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-8">
-                                <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex items-center gap-2 break-all text-ink hover:text-brand-strong dark:text-foreground">
+                                <a href={`mailto:${SUPPORT_EMAIL}`} className="inline-flex items-center gap-2 break-all text-ink hover:text-brand-strong">
                                     <Mail className="h-4 w-4 shrink-0" aria-hidden />
                                     <strong>Email:</strong> <span className="text-brand-strong">{SUPPORT_EMAIL}</span>
                                 </a>
-                                <a href={`tel:${SUPPORT_PHONE_DIAL}`} className="inline-flex items-center gap-2 text-ink hover:text-brand-strong dark:text-foreground">
+                                <a href={`tel:${SUPPORT_PHONE_DIAL}`} className="inline-flex items-center gap-2 text-ink hover:text-brand-strong">
                                     <Phone className="h-4 w-4 shrink-0" aria-hidden />
                                     <strong>Phone:</strong> {SUPPORT_PHONE_DISPLAY}
                                 </a>

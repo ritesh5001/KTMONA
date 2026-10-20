@@ -80,7 +80,7 @@ export default function PaymentsPage() {
       />
       {sErr && !s ? <ErrorNote message={errorMessage(sErr)} onRetry={() => sMutate()} /> : null}
       {s?.payoutHold ? (
-        <div className="rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+        <div className="rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-700">
           <b>Your payouts are on hold.</b> {s.payoutHold.reason ?? ""} Earnings keep adding up and will be paid once KTMONA releases the hold. Contact Seller Support for help.
         </div>
       ) : null}
@@ -150,9 +150,9 @@ export default function PaymentsPage() {
       </Panel>
 
       <section className="grid gap-5 lg:grid-cols-[1fr_1fr_1fr]">
-        <Panel title="Compensation & Recoveries" action={<button type="button" className="text-xs font-semibold text-ink hover:underline dark:text-brand" onClick={() => { setView("ledger"); setPage(1); }}>View Details</button>}>
+        <Panel title="Compensation & Recoveries" action={<button type="button" className="text-xs font-semibold text-ink hover:underline" onClick={() => { setView("ledger"); setPage(1); }}>View Details</button>}>
           <dl className="space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-muted-foreground">Compensations</dt><dd className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">{inr2.format(d?.compensation.compensation ?? 0)}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Compensations</dt><dd className="font-semibold tabular-nums text-emerald-700">{inr2.format(d?.compensation.compensation ?? 0)}</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Recoveries</dt><dd className="font-semibold tabular-nums text-red-600">{inr2.format(d?.compensation.recoveries ?? 0)}</dd></div>
             <div className="flex justify-between border-t border-border-soft pt-2"><dt className="font-semibold">Total</dt><dd className="font-semibold tabular-nums">{inr2.format(d?.compensation.total ?? 0)}</dd></div>
           </dl>

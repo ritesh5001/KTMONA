@@ -94,7 +94,7 @@ export default function ImageBulkUploadPage() {
             )}
           >
             <button type="button" onClick={() => inputRef.current?.click()} className="flex flex-col items-center gap-2">
-              <PlusCircle className="h-8 w-8 text-ink dark:text-brand" />
+              <PlusCircle className="h-8 w-8 text-ink" />
               <span className="text-base font-semibold">Add Images</span>
               <span className="text-xs text-muted-foreground">You can drop images here (front image of each product, up to {MAX_IMAGES})</span>
             </button>
@@ -136,7 +136,7 @@ export default function ImageBulkUploadPage() {
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 Next: fill the downloaded sheet (title, sizes, prices, stock) and upload it from{" "}
-                <Link href={categoryId ? `/seller/catalog-uploads/bulk` : "/seller/catalog-uploads/bulk"} className="font-semibold text-ink hover:underline dark:text-brand">
+                <Link href={categoryId ? `/seller/catalog-uploads/bulk` : "/seller/catalog-uploads/bulk"} className="font-semibold text-ink hover:underline">
                   Add Catalog in Bulk
                 </Link>
                 .

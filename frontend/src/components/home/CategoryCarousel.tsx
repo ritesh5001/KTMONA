@@ -29,19 +29,19 @@ export function CategoryCarousel({ initialCategories }: { initialCategories?: Ca
   const categories = (initialCategories ?? []).filter((category) => category.isActive);
 
   return (
-    <section id="categories" className="border-t border-border-soft bg-mist dark:bg-card">
+    <section id="categories" className="border-t border-border-soft bg-mist">
       <div className="mx-auto max-w-460 px-3 py-6 sm:px-6 sm:py-8 lg:px-10">
         <div className="mb-6 text-center">
-          <p className="mb-4 text-[11px] font-medium uppercase tracking-[0.34em] text-brand-strong dark:text-brand-strong">
+          <p className="mb-4 text-[11px] font-medium uppercase tracking-[0.34em] text-brand-strong">
             Shop by Category
           </p>
-          <h2 className="font-serif text-3xl font-light tracking-[0.02em] text-foreground dark:text-foreground sm:text-4xl">
+          <h2 className="font-serif text-3xl font-light tracking-[0.02em] text-foreground sm:text-4xl">
             Curated Collections
           </h2>
         </div>
 
         {categories.length === 0 ? (
-          <div className="rounded border border-border-soft bg-white/70 px-6 py-10 text-center text-sm text-muted-foreground dark:border-border dark:bg-navy/20 dark:text-muted-foreground">
+          <div className="rounded border border-border-soft bg-white/70 px-6 py-10 text-center text-sm text-muted-foreground">
             Categories will be available soon.
           </div>
         ) : (
@@ -65,7 +65,7 @@ export function CategoryCarousel({ initialCategories }: { initialCategories?: Ca
                       }}
                     >
                       <div
-                        className="relative h-full w-full overflow-hidden bg-mist dark:bg-navy/20"
+                        className="relative h-full w-full overflow-hidden bg-mist"
                         style={{ borderRadius: ARCH_RADIUS }}
                       >
                         <Image
@@ -89,7 +89,7 @@ export function CategoryCarousel({ initialCategories }: { initialCategories?: Ca
                         />
 
                         <div className="absolute inset-x-0 bottom-0 flex items-end justify-center px-3 pb-4 pt-16 sm:px-5 sm:pb-5 lg:pb-7">
-                          <h3 className="text-center font-serif text-sm font-normal uppercase tracking-widest leading-snug text-white dark:text-paper drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)] sm:text-xl lg:text-2xl">
+                          <h3 className="text-center font-serif text-sm font-normal uppercase tracking-widest leading-snug text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)] sm:text-xl lg:text-2xl">
                             {category.name}
                           </h3>
                         </div>
@@ -105,7 +105,7 @@ export function CategoryCarousel({ initialCategories }: { initialCategories?: Ca
         <div className="mt-6 text-center">
           <Link
             href="/categories"
-            className="inline-flex items-center gap-2 border-b border-transparent pb-1 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground dark:text-muted-foreground transition-colors duration-300 hover:border-brand dark:hover:border-brand hover:text-foreground dark:hover:text-foreground"
+            className="inline-flex items-center gap-2 border-b border-transparent pb-1 text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground transition-colors duration-300 hover:border-brand hover:text-foreground"
           >
             View All Categories
             <span className="text-brand-strong">→</span>

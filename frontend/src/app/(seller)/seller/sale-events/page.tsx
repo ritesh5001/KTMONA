@@ -58,7 +58,7 @@ export default function SellerSaleEventsPage() {
                 {e.categories.length ? <p className="text-xs text-muted-foreground">Categories: {e.categories.map((c) => c.name).join(", ")}</p> : null}
                 {e.participation ? (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3">
-                    <span className="font-medium text-emerald-700 dark:text-emerald-300">You joined with {e.participation.products} product(s) at {e.participation.discountPercent}% off</span>
+                    <span className="font-medium text-emerald-700">You joined with {e.participation.products} product(s) at {e.participation.discountPercent}% off</span>
                     {e.phase !== "ENDED" ? <Btn size="sm" variant="outline" loading={busy === e.id} onClick={() => leave(e)}>Leave sale</Btn> : null}
                   </div>
                 ) : e.canJoin ? (

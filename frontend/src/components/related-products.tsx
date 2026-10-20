@@ -201,9 +201,9 @@ export function RelatedProducts({ productId, categoryId }: RelatedProductsProps)
               key={i}
               className="animate-pulse space-y-3 border border-border-soft p-4"
             >
-              <div className="aspect-3/4 bg-mist dark:bg-navy/20" />
-              <div className="h-4 bg-mist dark:bg-navy/20 rounded w-3/4" />
-              <div className="h-3 bg-mist dark:bg-navy/20 rounded w-1/2" />
+              <div className="aspect-3/4 bg-mist" />
+              <div className="h-4 bg-mist rounded w-3/4" />
+              <div className="h-3 bg-mist rounded w-1/2" />
             </div>
           ))}
         </div>

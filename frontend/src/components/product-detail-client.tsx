@@ -673,7 +673,7 @@ export default function ProductDetailClient({
                      ${!option.inStock
                       ? "cursor-not-allowed border border-border-soft/60 text-muted-foreground/50 line-through"
                       : selectedVariantId === option.variant.id
-                        ? "border border-brand bg-mist text-ink dark:bg-navy/30 dark:text-paper"
+                        ? "border border-brand bg-mist text-ink"
                         : "border border-border-soft text-muted-foreground hover:border-brand/50 hover:text-foreground"
                     }`}
                 >
@@ -767,7 +767,7 @@ export default function ProductDetailClient({
               </button>
             </div>
             {deliveryMessage && (
-              <p className="text-xs font-medium text-green-600 dark:text-green-500 px-1 animate-in fade-in slide-in-from-top-1">
+              <p className="text-xs font-medium text-green-600 px-1 animate-in fade-in slide-in-from-top-1">
                 {deliveryMessage}
               </p>
             )}
@@ -775,15 +775,15 @@ export default function ProductDetailClient({
         </div>
 
         {/* 7b. Delivery estimate + offers */}
-        <div className="border border-border-soft bg-mist/40 dark:bg-navy/10 p-4 space-y-3">
+        <div className="border border-border-soft bg-mist/40 p-4 space-y-3">
           <div className="flex items-center gap-3 text-[13px]">
-            <Truck className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" strokeWidth={1.6} />
+            <Truck className="h-4 w-4 shrink-0 text-emerald-700" strokeWidth={1.6} />
             <span className="text-foreground">
               Get it by <strong className="font-semibold">{deliveryEstimate}</strong>
             </span>
           </div>
           <div className="flex items-center gap-3 text-[13px]">
-            <svg className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg className="h-4 w-4 shrink-0 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
               <line x1="7" y1="7" x2="7.01" y2="7" />
             </svg>

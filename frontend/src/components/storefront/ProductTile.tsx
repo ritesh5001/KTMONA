@@ -60,7 +60,7 @@ export function ProductTile({ product, freeDelivery }: { product: ProductTileDat
           <p className="text-sm text-muted-foreground">Price on request</p>
         )}
         {freeDelivery ? (
-          <span className="inline-block rounded-full bg-mist px-2 py-0.5 text-[11px] font-medium text-muted-foreground dark:bg-navy/40">Free Delivery</span>
+          <span className="inline-block rounded-full bg-mist px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Free Delivery</span>
         ) : null}
         <div className="flex h-5 items-center gap-1.5">
           {rating ? (

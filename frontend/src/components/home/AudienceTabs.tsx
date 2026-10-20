@@ -26,7 +26,7 @@ export function AudienceTabs({ value, onChange, className }: AudienceTabsProps) 
             onClick={() => onChange(opt)}
             className={`h-9 px-4 text-[11px] font-medium uppercase tracking-[0.2em] transition-colors ${
               active
-                ? "bg-ink text-paper dark:bg-brand dark:text-ink"
+                ? "bg-ink text-paper"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >

@@ -15,9 +15,9 @@ type Draft = { prepaid: string; wdrp: string };
 function Pair({ left, right }: { left: number; right: number }) {
   return (
     <span className="inline-flex items-center gap-2 text-xs">
-      <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-semibold tabular-nums text-red-700 dark:text-red-300">{left}%</span>
+      <span className="rounded bg-red-500/10 px-1.5 py-0.5 font-semibold tabular-nums text-red-700">{left}%</span>
       <span className="text-muted-foreground">vs</span>
-      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">{right}%</span>
+      <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 font-semibold tabular-nums text-emerald-700">{right}%</span>
     </span>
   );
 }

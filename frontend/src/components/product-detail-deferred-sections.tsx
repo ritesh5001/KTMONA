@@ -28,9 +28,9 @@ const RelatedProducts = dynamic(
         <div className="grid grid-cols-2 gap-6 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <div key={index} className="animate-pulse space-y-3 border border-border-soft p-4">
-              <div className="aspect-3/4 bg-mist dark:bg-navy/20" />
-              <div className="h-4 w-3/4 rounded bg-mist dark:bg-navy/20" />
-              <div className="h-3 w-1/2 rounded bg-mist dark:bg-navy/20" />
+              <div className="aspect-3/4 bg-mist" />
+              <div className="h-4 w-3/4 rounded bg-mist" />
+              <div className="h-3 w-1/2 rounded bg-mist" />
             </div>
           ))}
         </div>

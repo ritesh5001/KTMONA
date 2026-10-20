@@ -138,7 +138,7 @@ function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: {
           {p.flags.length ? (
             <div className="flex flex-wrap gap-2">
               {p.flags.map((f) => (
-                <span key={f.text} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium", f.level === "error" ? "bg-red-500/10 text-red-700 dark:text-red-300" : "bg-brand/10 text-brand-strong")}>
+                <span key={f.text} className={cn("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium", f.level === "error" ? "bg-red-500/10 text-red-700" : "bg-brand/10 text-brand-strong")}>
                   {f.level === "error" ? <AlertCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
                   {f.text}
                 </span>

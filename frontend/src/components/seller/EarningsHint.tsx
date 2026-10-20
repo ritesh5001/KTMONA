@@ -23,7 +23,7 @@ export function EarningsHint({ price }: { price: string | number | null | undefi
   const net = Math.max(0, value - commission - terms.platformFee);
   return (
     <p className="mt-1 text-xs text-muted-foreground">
-      You will earn <span className="font-semibold text-emerald-700 dark:text-emerald-400">{inr.format(net)}</span>
+      You will earn <span className="font-semibold text-emerald-700">{inr.format(net)}</span>
       <span> after {terms.commissionPct}% commission{terms.platformFee ? ` + ${inr.format(terms.platformFee)} fee` : ""}</span>
     </p>
   );

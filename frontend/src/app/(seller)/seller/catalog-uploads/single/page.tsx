@@ -283,7 +283,7 @@ function AddSingleCatalogPageContent() {
           <ol className="flex items-center gap-4 text-sm">
             {["Select Category", "Add Product Details"].map((label, i) => (
               <li key={label} className={cn("flex items-center gap-2", step === i + 1 ? "font-semibold text-foreground" : "text-muted-foreground")}>
-                <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", step > i + 1 ? "bg-emerald-600 text-white" : step === i + 1 ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "bg-mist")}>
+                <span className={cn("flex h-6 w-6 items-center justify-center rounded-full text-xs", step > i + 1 ? "bg-emerald-600 text-white" : step === i + 1 ? "bg-ink text-paper" : "bg-mist")}>
                   {step > i + 1 ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
                 </span>
                 {label}
@@ -317,7 +317,7 @@ function AddSingleCatalogPageContent() {
                       Continue with {products.length} product(s)
                     </Btn>
                   ) : null}
-                  <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+                  <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Follow guidelines to reduce quality check failure
                   </div>
                   <div className="text-xs">
@@ -514,13 +514,13 @@ function AddSingleCatalogPageContent() {
                               <td className="px-3 py-2 font-semibold">{s.size}</td>
                               <td className="px-2 py-2">
                                 {cell("price")}
-                                {net != null ? <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-400">You earn {inr2.format(net)}</p> : null}
+                                {net != null ? <p className="mt-1 text-[11px] text-emerald-700">You earn {inr2.format(net)}</p> : null}
                               </td>
                               <td className="px-2 py-2">{cell("wdrp")}</td>
                               <td className="px-2 py-2">{cell("prepaid")}</td>
                               <td className="px-2 py-2">
                                 {cell("mrp")}
-                                {discount && !errors.mrp ? <p className="mt-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">{discount}</p> : null}
+                                {discount && !errors.mrp ? <p className="mt-1 text-[11px] font-medium text-emerald-700">{discount}</p> : null}
                               </td>
                               <td className="px-2 py-2">{cell("stock", false)}</td>
                               <td className="px-2 py-2">{cell("sku", false)}</td>
@@ -582,7 +582,7 @@ function AddSingleCatalogPageContent() {
             </div>
 
             <aside className="space-y-4">
-              <div className="flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+              <div className="flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-800">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> Follow guidelines to reduce quality check failure
               </div>
               <div className="rounded-2xl border border-border-soft bg-card p-4">

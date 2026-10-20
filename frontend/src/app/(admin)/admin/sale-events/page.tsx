@@ -156,7 +156,7 @@ function CampaignModal({ campaign, onClose, onSaved }: { campaign: PlatformCampa
             {categoryIds.length ? (
               <div className="mb-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
                 {categoryIds.map((id) => (
-                  <button key={id} type="button" onClick={() => setCategoryIds((p) => p.filter((x) => x !== id))} title="Remove" className="rounded-full border border-ink bg-ink px-3 py-1 text-xs font-medium text-paper dark:border-brand dark:bg-brand dark:text-ink">
+                  <button key={id} type="button" onClick={() => setCategoryIds((p) => p.filter((x) => x !== id))} title="Remove" className="rounded-full border border-ink bg-ink px-3 py-1 text-xs font-medium text-paper">
                     {names[id] ?? "Category"} ✕
                   </button>
                 ))}

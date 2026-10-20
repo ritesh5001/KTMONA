@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-@custom-variant dark (&:where(.dark, .dark *));
 
 /* =========================================================================
    KTMONA Design System — "Trust Every Click"
@@ -136,58 +135,6 @@
 }
 
 /* =========================================================================
-   Dark Theme - Deep navy
-   ========================================================================= */
-
-.dark {
-  --background: #070F26;
-  --foreground: #E8EDF8;
-
-  --card: #0E1A3A;
-  --card-foreground: #E8EDF8;
-
-  --popover: #0E1A3A;
-  --popover-foreground: #E8EDF8;
-
-  --primary: #FF9A1F;
-  --primary-foreground: #0C1B42;
-
-  --secondary: #16244A;
-  --secondary-foreground: #E8EDF8;
-
-  --muted: #16244A;
-  --muted-foreground: #9AA6C4;
-
-  --accent: #16244A;
-  --accent-foreground: #E8EDF8;
-
-  --mist: #16244A;
-  --brand-strong: #FF9A1F;
-
-  --destructive: #F87171;
-
-  --border: rgba(232, 237, 248, 0.1);
-  --border-strong: rgba(232, 237, 248, 0.22);
-  --input: rgba(232, 237, 248, 0.15);
-  --ring: #FF9A1F;
-
-  --chart-1: #FF9A1F;
-  --chart-2: #60A5FA;
-  --chart-3: #C3CCE3;
-  --chart-4: #FFB547;
-  --chart-5: #64748B;
-
-  --sidebar: #050C20;
-  --sidebar-foreground: #C3CCE3;
-  --sidebar-primary: #FF9A1F;
-  --sidebar-primary-foreground: #0C1B42;
-  --sidebar-accent: rgba(255, 255, 255, 0.06);
-  --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --sidebar-ring: #FF9A1F;
-}
-
-/* =========================================================================
    Base Styles
    ========================================================================= */
 
@@ -209,11 +156,6 @@ body {
 ::selection {
   background: rgba(255, 138, 0, 0.25);
   color: #0C1B42;
-}
-
-.dark ::selection {
-  background: rgba(255, 154, 31, 0.35);
-  color: #E8EDF8;
 }
 
 /* Logo gradient: yellow-orange → orange → deep orange */
@@ -359,11 +301,6 @@ body {
               0 4px 12px rgba(12, 27, 66, 0.04);
 }
 
-.dark .card-premium {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2),
-              0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
 /* Focus ring - brand orange */
 .focus-premium:focus-visible {
   outline: none;
@@ -394,10 +331,6 @@ body {
 
   .ktm-panel :where([class~="border"][class*="bg-card"]) {
     box-shadow: 0 1px 2px rgba(12, 27, 66, 0.04), 0 4px 16px rgba(12, 27, 66, 0.04);
-  }
-
-  .dark .ktm-panel :where([class~="border"][class*="bg-card"]) {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   .ktm-panel :where(table) {

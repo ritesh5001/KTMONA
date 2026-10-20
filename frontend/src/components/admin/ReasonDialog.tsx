@@ -13,7 +13,7 @@ export function ReasonDialog({ open, title, label, presets, confirm, busy, onClo
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {presets.map((p) => (
-            <button key={p} type="button" onClick={() => setReason(p)} className={cn("rounded-full border px-3 py-1 text-xs font-medium", reason === p ? "border-ink bg-ink text-paper dark:border-brand dark:bg-brand dark:text-ink" : "border-border-soft hover:bg-mist")}>{p}</button>
+            <button key={p} type="button" onClick={() => setReason(p)} className={cn("rounded-full border px-3 py-1 text-xs font-medium", reason === p ? "border-ink bg-ink text-paper" : "border-border-soft hover:bg-mist")}>{p}</button>
           ))}
         </div>
         <Field label={label}><textarea rows={3} className={`${inputCls} h-auto py-2`} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>

@@ -101,7 +101,7 @@ export default function InventoryPage() {
               </button>
             ))}
           </div>
-          <button type="button" onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink hover:underline dark:text-brand">
+          <button type="button" onClick={() => setBulkOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink hover:underline">
             <Boxes className="h-4 w-4" /> Bulk Stock Update
           </button>
         </div>
@@ -311,7 +311,7 @@ function CatalogSkus({ catalog, lowThreshold, status, onChanged }: { catalog: In
                             type="button"
                             aria-label="Save stock"
                             onClick={() => saveStock([{ variantId: v.variantId, stock: Math.max(0, Math.floor(Number(value))) }], v.variantId)}
-                            className="rounded-md bg-ink p-1 text-paper dark:bg-brand dark:text-ink"
+                            className="rounded-md bg-ink p-1 text-paper"
                           >
                             <Check className="h-3.5 w-3.5" />
                           </button>

@@ -193,7 +193,7 @@ export default function SellerCatalogPage() {
                         {p.priceMin != null && p.status !== "UNDER_REVIEW" ? (p.priceMin === p.priceMax ? inr.format(p.priceMin) : `${inr.format(p.priceMin)} – ${inr.format(p.priceMax ?? p.priceMin)}`) : "—"}
                       </td>
                       <td className="px-3 py-4 tabular-nums">
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">{inr.format(p.youEarnMin)}</span>
+                        <span className="font-semibold text-emerald-700">{inr.format(p.youEarnMin)}</span>
                         <p className="text-xs text-muted-foreground">on {inr.format(p.sellerPriceMin)}</p>
                       </td>
                       <td className="px-3 py-4">

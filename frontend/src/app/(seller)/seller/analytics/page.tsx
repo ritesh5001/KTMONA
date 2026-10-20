@@ -20,12 +20,12 @@ import {
 
 const RevenueChart = dynamic(() => import("./_components/RevenueChart"), {
   ssr: false,
-  loading: () => <div className="h-72 sm:h-80 animate-pulse rounded bg-border-soft dark:bg-border" />,
+  loading: () => <div className="h-72 sm:h-80 animate-pulse rounded bg-border-soft" />,
 });
 
 const RefundBarChart = dynamic(() => import("./_components/RefundBarChart"), {
   ssr: false,
-  loading: () => <div className="h-64 animate-pulse rounded bg-border-soft dark:bg-border" />,
+  loading: () => <div className="h-64 animate-pulse rounded bg-border-soft" />,
 });
 import {
   Card,
@@ -71,10 +71,10 @@ const EASE = [0.25, 0.1, 0.25, 1] as const;
 /** Icon chip colours for the KPI cards. */
 const STAT_TONES = {
   orange: "bg-brand/12 text-brand-strong",
-  navy: "bg-ink/8 text-ink dark:bg-white/10 dark:text-white",
-  blue: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  red: "bg-red-500/10 text-red-700 dark:text-red-300",
+  navy: "bg-ink/8 text-ink",
+  blue: "bg-blue-500/10 text-blue-700",
+  green: "bg-emerald-500/10 text-emerald-700",
+  red: "bg-red-500/10 text-red-700",
 } as const;
 
 const SKELETON_BAR_HEIGHTS = [42, 68, 51, 84, 37, 73, 58, 91, 46, 79, 62, 88] as const;
@@ -84,7 +84,7 @@ const SKELETON_BAR_HEIGHTS = [42, 68, 51, 84, 37, 73, 58, 91, 46, 79, 62, 88] as
 function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div
-      className={`animate-pulse rounded bg-border-soft dark:bg-border ${className}`}
+      className={`animate-pulse rounded bg-border-soft ${className}`}
       style={style}
     />
   );
@@ -134,7 +134,7 @@ function TableSkeleton() {
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="h-12 w-12 rounded-full bg-border-soft dark:bg-border flex items-center justify-center mb-4">
+      <div className="h-12 w-12 rounded-full bg-border-soft flex items-center justify-center mb-4">
         <svg
           className="h-6 w-6 text-muted-foreground"
           fill="none"
@@ -156,8 +156,8 @@ function EmptyState({ message }: { message: string }) {
 
 function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/30 rounded-md p-4 flex items-center justify-between">
-      <p className="text-sm text-red-700 dark:text-red-300">{message}</p>
+    <div className="border border-red-200 bg-red-50 rounded-md p-4 flex items-center justify-between">
+      <p className="text-sm text-red-700">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry}>
           Retry
@@ -359,7 +359,7 @@ export default function SellerAnalyticsPage() {
                     onClick={() => setChartInterval(iv)}
                     className={`rounded-sm px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide transition-all duration-300 ${
                       chartInterval === iv
-                        ? "bg-ink text-paper dark:bg-brand dark:text-ink"
+                        ? "bg-ink text-paper"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -452,7 +452,7 @@ export default function SellerAnalyticsPage() {
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
                               transition={{ delay: i * 0.03, duration: 0.3 }}
-                              className="border-b border-border-soft last:border-0 hover:bg-mist/40 dark:hover:bg-navy/10 transition-colors"
+                              className="border-b border-border-soft last:border-0 hover:bg-mist/40 transition-colors"
                             >
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-3">
@@ -463,7 +463,7 @@ export default function SellerAnalyticsPage() {
                                       className="h-9 w-9 rounded object-cover bg-border-soft"
                                     />
                                   ) : (
-                                    <div className="h-9 w-9 rounded bg-border-soft dark:bg-border flex items-center justify-center text-[10px] text-muted-foreground">
+                                    <div className="h-9 w-9 rounded bg-border-soft flex items-center justify-center text-[10px] text-muted-foreground">
                                       N/A
                                     </div>
                                   )}
@@ -549,7 +549,7 @@ export default function SellerAnalyticsPage() {
                     <div
                       className={`rounded-md border p-3 text-center ${
                         inventory.lowStockProducts > 0
-                          ? "border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30"
+                          ? "border-amber-300 bg-amber-50"
                           : "border-border-soft"
                       }`}
                     >
@@ -563,7 +563,7 @@ export default function SellerAnalyticsPage() {
                     <div
                       className={`rounded-md border p-3 text-center ${
                         inventory.outOfStockProducts > 0
-                          ? "border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/30"
+                          ? "border-red-300 bg-red-50"
                           : "border-border-soft"
                       }`}
                     >
@@ -586,7 +586,7 @@ export default function SellerAnalyticsPage() {
                         {inventory.fastMovingProducts.map((p) => (
                           <div
                             key={p.productId}
-                            className="flex items-center gap-3 rounded border border-border-soft px-3 py-2 hover:bg-mist/40 dark:hover:bg-navy/10 transition-colors"
+                            className="flex items-center gap-3 rounded border border-border-soft px-3 py-2 hover:bg-mist/40 transition-colors"
                           >
                             {p.image ? (
                               <img

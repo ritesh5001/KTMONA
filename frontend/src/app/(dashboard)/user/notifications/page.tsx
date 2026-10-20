@@ -148,7 +148,7 @@ export default function NotificationsPage() {
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-20 animate-pulse rounded-sm bg-mist/60 dark:bg-navy/20"
+              className="h-20 animate-pulse rounded-sm bg-mist/60"
             />
           ))}
         </div>

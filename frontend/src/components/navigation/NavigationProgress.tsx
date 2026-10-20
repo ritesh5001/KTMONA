@@ -210,7 +210,7 @@ export function NavigationProgress() {
               <p className="truncate text-sm text-foreground">{message}</p>
             </div>
           </div>
-          <div className="mt-3 h-1 w-full overflow-hidden bg-mist dark:bg-navy/25">
+          <div className="mt-3 h-1 w-full overflow-hidden bg-mist">
             <div className="h-full w-1/2 animate-pulse bg-brand/70" />
           </div>
         </div>

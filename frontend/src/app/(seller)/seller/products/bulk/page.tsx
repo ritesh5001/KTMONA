@@ -154,7 +154,7 @@ function BulkUploadPageContent() {
                   {report.errors.map((e, i) => (
                     <tr key={i} className="border-t border-border-soft">
                       <td className="px-4 py-2 font-semibold tabular-nums">{e.row}</td>
-                      <td className="px-4 py-2 text-red-700 dark:text-red-300">{e.message}</td>
+                      <td className="px-4 py-2 text-red-700">{e.message}</td>
                     </tr>
                   ))}
                 </tbody>

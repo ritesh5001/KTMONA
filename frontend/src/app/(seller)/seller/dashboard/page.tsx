@@ -84,10 +84,10 @@ export default function SellerHomePage() {
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
           <Megaphone className="h-4 w-4 shrink-0 text-amber-600" />
           <p className="min-w-0 flex-1 text-foreground">
-            <span className="font-semibold text-amber-700 dark:text-amber-300">{policy.title}:</span> {policy.body}
+            <span className="font-semibold text-amber-700">{policy.title}:</span> {policy.body}
           </p>
           {policy.linkUrl ? (
-            <a href={policy.linkUrl} className="text-sm font-semibold text-ink underline-offset-2 hover:underline dark:text-brand">
+            <a href={policy.linkUrl} className="text-sm font-semibold text-ink underline-offset-2 hover:underline">
               {policy.linkLabel ?? "Know more"}
             </a>
           ) : null}
@@ -181,7 +181,7 @@ export default function SellerHomePage() {
                   .filter((s) => !s.done)
                   .map((s) => (
                     <li key={s.key}>
-                      <Link href={s.href} className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink hover:bg-mist dark:text-brand">
+                      <Link href={s.href} className="flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink hover:bg-mist">
                         <KeyRound className="h-4 w-4" /> {s.label}
                         <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
                       </Link>

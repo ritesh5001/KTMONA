@@ -56,7 +56,7 @@ export default function SettingsPage() {
               }}
               className={cn(
                 "flex h-11 shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors",
-                tab === t.key ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "text-foreground hover:bg-mist"
+                tab === t.key ? "bg-ink text-paper" : "text-foreground hover:bg-mist"
               )}
             >
               <t.icon className="h-4 w-4" />

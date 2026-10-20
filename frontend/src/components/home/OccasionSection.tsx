@@ -17,8 +17,8 @@ function OccasionCard({ occasion, mode = "carousel" }: { occasion: Occasion; mod
       <div
         className={
           isGrid
-            ? "relative aspect-4/5 w-full overflow-hidden border border-border-soft bg-card transition-all duration-300 group-hover:border-brand dark:border-border dark:bg-navy/20 dark:group-hover:border-brand"
-            : "relative aspect-3/4 w-full overflow-hidden border border-border-soft bg-card transition-all duration-300 group-hover:border-brand dark:border-border dark:bg-navy/20 dark:group-hover:border-brand"
+            ? "relative aspect-4/5 w-full overflow-hidden border border-border-soft bg-card transition-all duration-300 group-hover:border-brand"
+            : "relative aspect-3/4 w-full overflow-hidden border border-border-soft bg-card transition-all duration-300 group-hover:border-brand"
         }
       >
         {isGrid ? (
@@ -48,8 +48,8 @@ function OccasionCard({ occasion, mode = "carousel" }: { occasion: Occasion; mod
                 style={{ objectPosition: "center 20%" }}
               />
             </div>
-            <div className="flex h-[24%] items-center justify-center border-t border-border-soft bg-mist px-1 dark:border-border dark:bg-navy/50">
-              <span className="truncate text-[9px] font-medium uppercase tracking-[0.11em] text-ink dark:text-paper sm:text-[10px]">
+            <div className="flex h-[24%] items-center justify-center border-t border-border-soft bg-mist px-1">
+              <span className="truncate text-[9px] font-medium uppercase tracking-[0.11em] text-ink sm:text-[10px]">
                 {occasion.name}
               </span>
             </div>
@@ -57,7 +57,7 @@ function OccasionCard({ occasion, mode = "carousel" }: { occasion: Occasion; mod
         )}
       </div>
       {isGrid && (
-        <h3 className="mt-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-ink dark:text-paper">
+        <h3 className="mt-2 text-center text-[11px] font-medium uppercase tracking-[0.12em] text-ink">
           {occasion.name}
         </h3>
       )}
@@ -73,7 +73,7 @@ export function OccasionSection({ initialOccasions }: { initialOccasions?: Occas
   }
 
   return (
-    <section className="border-t border-border-soft bg-mist dark:bg-card">
+    <section className="border-t border-border-soft bg-mist">
       <div className="mx-auto max-w-360 px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="mx-auto max-w-330 overflow-x-auto lg:hidden" style={{ WebkitOverflowScrolling: "touch" }}>
           <div className="flex gap-2 px-1 py-1 md:gap-3">

@@ -72,7 +72,7 @@ export function MobileCategoryDrawer({
                     <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
                   </button>
                   {isOpen ? (
-                    <ul className="bg-mist/50 pb-2 dark:bg-card/50">
+                    <ul className="bg-mist/50 pb-2">
                       <li>
                         <Link href={categoryHref(main.slug)} className="block px-6 py-2.5 text-sm font-semibold text-brand-strong">
                           View all {main.name}

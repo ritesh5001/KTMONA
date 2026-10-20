@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 /**
@@ -19,28 +18,10 @@ import { Toaster as Sonner, type ToasterProps } from "sonner";
  * - No bounce, no spring
  */
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [theme, setTheme] = React.useState<ToasterProps["theme"]>("light");
-
-  React.useEffect(() => {
-    const updateTheme = () => {
-      setTheme(
-        document.documentElement.classList.contains("dark") ? "dark" : "light"
-      );
-    };
-
-    updateTheme();
-    const observer = new MutationObserver(updateTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <Sonner
-      theme={theme}
+      theme="light"
       position="top-center"
       closeButton
       gap={12}
@@ -49,23 +30,23 @@ const Toaster = ({ ...props }: ToasterProps) => {
         duration: 3000,
         classNames: {
           toast:
-            "border border-border-soft bg-paper text-ink shadow-[0_4px_24px_rgba(12,27,66,0.08)] rounded-xl dark:border-border-strong dark:bg-navy dark:text-paper",
+            "border border-border-soft bg-paper text-ink shadow-[0_4px_24px_rgba(12,27,66,0.08)] rounded-xl",
           title: "text-sm font-medium tracking-tight",
-          description: "text-xs text-navy-soft dark:text-mist/80",
+          description: "text-xs text-navy-soft",
           actionButton:
-            "bg-ink text-paper text-xs font-medium uppercase tracking-wider px-4 py-2 rounded-md hover:bg-navy transition-colors dark:bg-brand dark:text-ink",
+            "bg-ink text-paper text-xs font-medium uppercase tracking-wider px-4 py-2 rounded-md hover:bg-navy transition-colors",
           cancelButton:
             "text-xs text-muted-foreground hover:text-foreground",
           closeButton:
-            "border-0 bg-transparent text-navy-soft/60 hover:text-ink dark:text-mist/40 dark:hover:text-paper",
+            "border-0 bg-transparent text-navy-soft/60 hover:text-ink",
           success:
-            "border-l-2 border-l-[#7B9971] bg-paper dark:bg-navy dark:border-l-[#8BAA7F]",
+            "border-l-2 border-l-[#7B9971] bg-paper",
           error:
-            "border-l-2 border-l-[#A67575] bg-paper dark:bg-navy dark:border-l-[#B88888]",
+            "border-l-2 border-l-[#A67575] bg-paper",
           warning:
-            "border-l-2 border-l-[#FF8A00] bg-paper dark:bg-navy dark:border-l-brand",
+            "border-l-2 border-l-[#FF8A00] bg-paper",
           info:
-            "border-l-2 border-l-[#8B9CB8] bg-paper dark:bg-navy dark:border-l-[#9EACC4]",
+            "border-l-2 border-l-[#8B9CB8] bg-paper",
         },
       }}
       {...props}

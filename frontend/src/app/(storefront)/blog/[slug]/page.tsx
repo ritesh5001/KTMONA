@@ -95,7 +95,7 @@ export default async function BlogPostPage({ params }: Props) {
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
             {/* Blog Header */}
-            <header className="border-b border-border-soft bg-mist/30 dark:bg-card/30 pt-32 pb-16 px-6">
+            <header className="border-b border-border-soft bg-mist/30 pt-32 pb-16 px-6">
                 <div className="mx-auto max-w-3xl text-center">
                     <p className="text-xs font-medium uppercase tracking-[0.2em] text-brand-strong mb-6">
                         KTMONA Journal • {new Date(post.date).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
@@ -112,14 +112,14 @@ export default async function BlogPostPage({ params }: Props) {
             {/* Blog Content */}
             <div className="mx-auto max-w-3xl px-6 py-16">
                 <div
-                    className="prose prose-stone dark:prose-invert max-w-none prose-headings:font-serif prose-headings:font-light prose-h2:text-3xl prose-h2:mt-12 prose-headings:text-foreground prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:text-[17px] prose-a:text-brand-strong hover:prose-a:text-brand-strong/80 transition-colors"
+                    className="prose prose-stone max-w-none prose-headings:font-serif prose-headings:font-light prose-h2:text-3xl prose-h2:mt-12 prose-headings:text-foreground prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:text-[17px] prose-a:text-brand-strong hover:prose-a:text-brand-strong/80 transition-colors"
                     dangerouslySetInnerHTML={{ __html: post.content }}
                 />
 
                 <div className="mt-16 pt-8 border-t border-border-soft flex items-center justify-between">
                     <Link
                         href="/blog"
-                        className="text-xs font-medium uppercase tracking-[0.15em] text-ink dark:text-paper hover:text-brand-strong transition-colors"
+                        className="text-xs font-medium uppercase tracking-[0.15em] text-ink hover:text-brand-strong transition-colors"
                     >
                         ← Back to Journal
                     </Link>

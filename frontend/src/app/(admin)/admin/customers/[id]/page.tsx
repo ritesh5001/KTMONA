@@ -58,7 +58,7 @@ export default function AdminCustomerDetailPage() {
       />
 
       {c.status === "SUSPENDED" ? (
-        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300">
+        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           Suspended{c.suspendedAt ? ` on ${fmtDate(c.suspendedAt)}` : ""}{c.statusReason ? `: ${c.statusReason}` : ""}. The customer is signed out and cannot log in or place orders.
         </div>

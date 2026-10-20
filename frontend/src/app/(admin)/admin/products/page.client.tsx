@@ -1114,7 +1114,7 @@ export default function AdminProductsClient({
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 + index * 0.02, duration: 0.3 }}
-                      className="hover:bg-mist/30 dark:hover:bg-navy/10 transition-colors duration-200"
+                      className="hover:bg-mist/30 transition-colors duration-200"
                     >
                       {viewMode === "active" ? (
                         <td className="p-6">
@@ -1130,7 +1130,7 @@ export default function AdminProductsClient({
                       <td className="p-6 font-medium text-foreground">
                         {product.title}
                         {product.codDisabled ? (
-                          <span className="ml-2 inline-flex whitespace-nowrap rounded-md bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                          <span className="ml-2 inline-flex whitespace-nowrap rounded-md bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-700">
                             COD off
                           </span>
                         ) : null}

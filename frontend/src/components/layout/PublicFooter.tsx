@@ -39,7 +39,7 @@ const accordionSections = [
 
 export function PublicFooter() {
   return (
-    <footer className="relative overflow-hidden border-t border-border-soft bg-mist text-foreground font-sans dark:bg-ink">
+    <footer className="relative overflow-hidden border-t border-border-soft bg-mist text-foreground font-sans">
       <div className="mx-auto w-full max-w-6xl px-6 pt-14">
         <div className="grid gap-6 pb-10 md:gap-8 md:grid-cols-2 lg:grid-cols-[1.6fr_1fr_1fr]">
           <div className="min-w-0 pr-0 lg:pr-6">
@@ -119,7 +119,7 @@ export function PublicFooter() {
         </div>
       </div>
 
-      <div className="mt-6 bg-ink py-5 text-paper dark:bg-[#050C20]">
+      <div className="mt-6 bg-ink py-5 text-paper">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-5 px-6 max-sm:flex-col-reverse max-sm:text-center">
           <p className="text-xs tracking-wide text-paper/80">
             © {new Date().getFullYear()} KTMONA. Trust Every Click. Crafted by NextGen Fusion.

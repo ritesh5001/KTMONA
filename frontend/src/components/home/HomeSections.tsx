@@ -13,7 +13,7 @@ export function TrustStrip() {
     { icon: BadgeCheck, label: "Verified Sellers" },
   ];
   return (
-    <div className="bg-mist/70 px-4 py-3 dark:bg-card/60">
+    <div className="bg-mist/70 px-4 py-3">
       <div className="mx-auto flex max-w-3xl items-center justify-center divide-x divide-border-soft rounded-lg border border-border-soft bg-background py-2.5">
         {items.map(({ icon: Icon, label }) => (
           <p key={label} className="flex flex-1 items-center justify-center gap-2 px-2 text-xs font-medium text-foreground/80 sm:text-sm">

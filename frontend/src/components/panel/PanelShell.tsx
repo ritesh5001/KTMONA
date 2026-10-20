@@ -9,7 +9,6 @@ import { Bell, ChevronDown, Headset, LogOut, Menu, Search, X } from "lucide-reac
 import { cn } from "@/lib/utils";
 import { getSessionUser } from "@/lib/session";
 import { signOut } from "@/services/auth";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 export interface PanelNavChild {
   href: string;
@@ -354,7 +353,6 @@ export function PanelShell({
                   {link.label}
                 </a>
               ))}
-              <ThemeToggle className="rounded-lg" />
               <Link
                 href={notificationsHref}
                 className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg text-foreground transition-colors hover:bg-mist"
@@ -376,7 +374,7 @@ export function PanelShell({
                   aria-expanded={accountOpen}
                   aria-haspopup="menu"
                 >
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-paper dark:bg-brand dark:text-ink">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink text-sm font-semibold text-paper">
                     {initial}
                   </span>
                   <span className="hidden text-left sm:block">

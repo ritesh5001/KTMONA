@@ -71,7 +71,7 @@ export function MotionCard({
     >
       <article className="group overflow-hidden rounded-none border border-border-soft bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
         {/* Image with parallax */}
-        <div className={`relative ${aspectClass} w-full overflow-hidden bg-mist dark:bg-navy/20`}>
+        <div className={`relative ${aspectClass} w-full overflow-hidden bg-mist`}>
           <motion.div
             className="absolute inset-0"
             style={ctxScrollX ? { x: imageX } : undefined}

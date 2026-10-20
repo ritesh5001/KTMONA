@@ -46,7 +46,7 @@ export function AccountNav() {
             className={cn(
               "inline-flex h-10 shrink-0 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors",
               isActive(href)
-                ? "border-ink bg-ink text-paper dark:border-brand dark:bg-brand dark:text-ink"
+                ? "border-ink bg-ink text-paper"
                 : "border-border-soft bg-card text-foreground hover:bg-mist"
             )}
           >

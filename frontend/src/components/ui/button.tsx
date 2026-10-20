@@ -13,13 +13,13 @@ export type ButtonSize = "sm" | "md" | "lg";
  */
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-ink text-paper hover:bg-navy dark:bg-brand dark:text-ink dark:hover:bg-brand-muted",
+    "bg-ink text-paper hover:bg-navy",
   secondary:
-    "bg-mist text-ink hover:bg-border-soft dark:bg-navy dark:text-paper dark:hover:bg-navy-soft",
+    "bg-mist text-ink hover:bg-border-soft",
   ghost:
-    "bg-transparent text-ink hover:bg-mist dark:text-paper dark:hover:bg-navy/50",
+    "bg-transparent text-ink hover:bg-mist",
   outline:
-    "border border-border-strong bg-transparent text-ink hover:bg-mist dark:border-border dark:text-paper dark:hover:bg-navy/30",
+    "border border-border-strong bg-transparent text-ink hover:bg-mist",
 };
 
 const sizeClasses: Record<ButtonSize, string> = {

@@ -21,7 +21,7 @@ export function NewArrivalsSection({
   const products = audience === "MENS" ? mensProducts : kidsProducts;
 
   return (
-    <section id="new" className="border-t border-border-soft bg-mist/50 dark:bg-card/50">
+    <section id="new" className="border-t border-border-soft bg-mist/50">
       <div className="mx-auto max-w-460 px-3 py-6 sm:px-6 sm:py-8 lg:px-10">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
           <div className="space-y-6 px-0 sm:px-2">
@@ -43,7 +43,7 @@ export function NewArrivalsSection({
             <div className="pt-4">
               <Link
                 href="/marketplace"
-                className="inline-flex h-12 items-center justify-center bg-ink px-8 text-xs font-medium uppercase tracking-[0.15em] text-paper transition-all duration-400 hover:bg-navy dark:bg-brand dark:text-ink dark:hover:bg-brand-muted"
+                className="inline-flex h-12 items-center justify-center bg-ink px-8 text-xs font-medium uppercase tracking-[0.15em] text-paper transition-all duration-400 hover:bg-navy"
               >
                 Discover New Arrivals
               </Link>

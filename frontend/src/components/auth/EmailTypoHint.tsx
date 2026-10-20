@@ -11,7 +11,7 @@ export function EmailTypoHint({ email, onFix }: { email: string; onFix: (fixed: 
   const suggestion = suggestEmailFix(email);
   if (!suggestion) return null;
   return (
-    <p className="text-xs text-amber-700 dark:text-amber-400">
+    <p className="text-xs text-amber-700">
       Did you mean{" "}
       <button type="button" className="font-semibold underline underline-offset-2" onClick={() => onFix(suggestion)}>
         {suggestion}

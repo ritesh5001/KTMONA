@@ -269,7 +269,7 @@ function CatalogUploadsPageContent() {
             </ul>
             {view.errors.length ? (
               <div className="rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm">
-                <p className="font-semibold text-red-700 dark:text-red-300">Rows with errors</p>
+                <p className="font-semibold text-red-700">Rows with errors</p>
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">
                   {view.errors.map((e, i) => (
                     <li key={i}>Row {e.row}: {e.message}</li>

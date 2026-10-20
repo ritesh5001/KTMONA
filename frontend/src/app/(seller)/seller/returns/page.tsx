@@ -142,7 +142,7 @@ function OverviewView() {
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
         <ShieldCheck className="h-4 w-4 text-amber-600" />
         <span className="flex-1">Add a Wrong/Defective Returns Price and a prepaid discount to cut unwanted returns and RTO.</span>
-        <Link href="/seller/pricing/reduce-rto" className="font-semibold text-ink hover:underline dark:text-brand">Reduce RTO &amp; Returns</Link>
+        <Link href="/seller/pricing/reduce-rto" className="font-semibold text-ink hover:underline">Reduce RTO &amp; Returns</Link>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -217,7 +217,7 @@ function ReturnsView({ onClaim }: { onClaim: (t: ClaimTarget) => void }) {
             key={t.key}
             type="button"
             onClick={() => { setTab(t.key); setPage(1); }}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${tab === t.key ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "bg-mist text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${tab === t.key ? "bg-ink text-paper" : "bg-mist text-muted-foreground hover:text-foreground"}`}
           >
             {t.label} {data?.counts[t.key] !== undefined ? `(${data.counts[t.key]})` : ""}
           </button>
@@ -303,7 +303,7 @@ function RtoView({ onClaim }: { onClaim: (t: ClaimTarget) => void }) {
             key={k}
             type="button"
             onClick={() => { setStatus(k); setPage(1); }}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${status === k ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "bg-mist text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${status === k ? "bg-ink text-paper" : "bg-mist text-muted-foreground hover:text-foreground"}`}
           >
             {k === "all" ? "All" : k === "in_transit" ? "In transit" : "Received"} {data ? `(${data.counts[k]})` : ""}
           </button>
@@ -374,7 +374,7 @@ function ClaimsView() {
             key={k}
             type="button"
             onClick={() => { setStatus(k); setPage(1); }}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${status === k ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "bg-mist text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${status === k ? "bg-ink text-paper" : "bg-mist text-muted-foreground hover:text-foreground"}`}
           >
             {k.replace("_", " ").replace(/^\w/, (c) => c.toUpperCase())} {data?.counts[k] !== undefined ? `(${data.counts[k]})` : ""}
           </button>

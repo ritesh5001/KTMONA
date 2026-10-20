@@ -213,7 +213,7 @@ export default function AdminBestsellersPage() {
                   {availableProducts.map((product) => (
                     <tr
                       key={product.id}
-                      className="hover:bg-mist/30 dark:hover:bg-navy/10 transition-colors duration-200"
+                      className="hover:bg-mist/30 transition-colors duration-200"
                     >
                       <td className="p-6 font-medium text-foreground">
                         {product.title}
@@ -298,7 +298,7 @@ export default function AdminBestsellersPage() {
                   {bestsellers.map((item) => (
                     <tr
                       key={item.id}
-                      className="hover:bg-mist/30 dark:hover:bg-navy/10 transition-colors duration-200"
+                      className="hover:bg-mist/30 transition-colors duration-200"
                     >
                       <td className="p-6 font-medium text-foreground">
                         {item.title}

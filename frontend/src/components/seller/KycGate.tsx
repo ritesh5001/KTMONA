@@ -27,8 +27,8 @@ export function KycGate({ children, mode = "block" }: { children?: React.ReactNo
         : { title: "Complete your KYC to start selling", body: "Add your business, GST/PAN and bank details in Settings. You can list products once KTMONA has verified your KYC.", cta: "Complete KYC" };
 
   const notice = (
-    <div role="alert" className="flex flex-col gap-4 rounded-2xl border border-amber-300/70 bg-amber-50 p-5 sm:flex-row sm:items-center dark:border-amber-500/30 dark:bg-amber-500/10">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+    <div role="alert" className="flex flex-col gap-4 rounded-2xl border border-amber-300/70 bg-amber-50 p-5 sm:flex-row sm:items-center">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
         <ShieldAlert className="h-6 w-6" />
       </span>
       <div className="min-w-0 flex-1">

@@ -9,8 +9,8 @@ function Rate({ value, tone }: { value: number; tone: "bad" | "good" }) {
     <span
       className={
         tone === "bad"
-          ? "rounded-md bg-red-500/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-red-700 dark:text-red-300"
-          : "rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300"
+          ? "rounded-md bg-red-500/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-red-700"
+          : "rounded-md bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold tabular-nums text-emerald-700"
       }
     >
       {value}%
@@ -45,7 +45,7 @@ export function RtoCard({ rates, compact }: { rates: RtoRates | undefined; compa
       </div>
       <Link
         href="/seller/pricing/reduce-rto"
-        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-ink text-sm font-semibold text-paper transition-colors hover:bg-navy dark:bg-brand dark:text-ink"
+        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-lg bg-ink text-sm font-semibold text-paper transition-colors hover:bg-navy"
       >
         Reduce RTO &amp; Returns
       </Link>

@@ -279,7 +279,7 @@ function FilterPanel({
                 aria-pressed={priceKey === p.key}
                 className={cn(
                   "rounded-full border px-3 py-1 text-xs font-medium",
-                  priceKey === p.key ? "border-ink bg-ink text-paper dark:border-brand dark:bg-brand dark:text-ink" : "border-border-soft hover:bg-mist",
+                  priceKey === p.key ? "border-ink bg-ink text-paper" : "border-border-soft hover:bg-mist",
                 )}
               >
                 {p.label}

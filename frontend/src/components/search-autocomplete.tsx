@@ -122,7 +122,7 @@ export function SearchAutocomplete({
             <li key={item.id}>
               <button
                 type="button"
-                className="w-full px-4 py-2.5 text-left text-sm hover:bg-mist dark:hover:bg-navy/20 transition-colors flex items-center justify-between gap-2"
+                className="w-full px-4 py-2.5 text-left text-sm hover:bg-mist transition-colors flex items-center justify-between gap-2"
                 onClick={() => handleSuggestionClick(item)}
               >
                 <span className="text-foreground truncate">{item.title}</span>

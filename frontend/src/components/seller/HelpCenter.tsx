@@ -146,7 +146,7 @@ export function HelpCenter() {
               </ul>
               <div className="mt-5 border-t border-border-soft pt-4 text-xs text-muted-foreground">
                 Looking for an old conversation?{" "}
-                <Link href="/seller/support?tab=tickets" className="font-semibold text-ink hover:underline dark:text-brand">
+                <Link href="/seller/support?tab=tickets" className="font-semibold text-ink hover:underline">
                   My Tickets
                 </Link>
               </div>

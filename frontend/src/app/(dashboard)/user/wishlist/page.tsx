@@ -118,7 +118,7 @@ export default function UserWishlistPage() {
                 {/* Image */}
                 <Link
                   href={`/product/${item.productId}`}
-                  className="relative block aspect-3/4 overflow-hidden bg-mist dark:bg-navy/20"
+                  className="relative block aspect-3/4 overflow-hidden bg-mist"
                 >
                   <Image
                     src={
@@ -172,7 +172,7 @@ export default function UserWishlistPage() {
                   )}
                   <Link
                     href={`/product/${item.productId}`}
-                    className="mt-3 inline-flex h-10 items-center justify-center border border-border-soft px-6 text-[10px] font-medium uppercase tracking-[0.15em] text-foreground transition-all duration-300 hover:bg-mist dark:hover:bg-navy/30"
+                    className="mt-3 inline-flex h-10 items-center justify-center border border-border-soft px-6 text-[10px] font-medium uppercase tracking-[0.15em] text-foreground transition-all duration-300 hover:bg-mist"
                   >
                     View Product
                   </Link>

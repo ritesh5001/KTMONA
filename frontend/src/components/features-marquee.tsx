@@ -53,7 +53,7 @@ export function FeaturesMarquee() {
                             key={index}
                             className="mx-6 flex min-w-27.5 flex-col items-center justify-center text-center sm:mx-12 sm:min-w-30"
                         >
-                            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-mist text-ink shadow-sm transition-transform duration-300 hover:scale-110 dark:bg-navy/20 dark:text-brand-strong sm:mb-3 sm:h-12 sm:w-12">
+                            <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-mist text-ink shadow-sm transition-transform duration-300 hover:scale-110 sm:mb-3 sm:h-12 sm:w-12">
                                 <Icon className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.5} />
                             </div>
                             <p className="whitespace-nowrap text-[13px] font-semibold text-foreground sm:text-sm">

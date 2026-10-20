@@ -204,7 +204,7 @@ export default function AdminModerationPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-160px)] bg-background dark:bg-card">
+    <div className="min-h-[calc(100vh-160px)] bg-background">
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -284,7 +284,7 @@ export default function AdminModerationPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.08 + index * 0.03, duration: 0.3 }}
-                        className="hover:bg-mist/30 dark:hover:bg-navy/10"
+                        className="hover:bg-mist/30"
                       >
                         <td className="p-5">
                           <div className="space-y-1">

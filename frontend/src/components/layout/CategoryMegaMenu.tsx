@@ -107,7 +107,7 @@ function MegaPanel({ main, onNavigate }: { main: CategoryNode; onNavigate: () =>
     <div className="mx-auto max-h-[70vh] max-w-[1440px] overflow-y-auto px-4 xl:px-8">
       <div className="flex">
         {chunkColumns(main.children).map((column, ci) => (
-          <div key={ci} className={cn("min-w-[200px] flex-1 space-y-5 px-5 py-5", ci % 2 === 1 && "bg-mist/60 dark:bg-card/60")}>
+          <div key={ci} className={cn("min-w-[200px] flex-1 space-y-5 px-5 py-5", ci % 2 === 1 && "bg-mist/60")}>
             {column.map((group) => (
               <div key={group.id}>
                 <Link

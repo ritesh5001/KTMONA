@@ -56,11 +56,11 @@ export function Panel({ children, className, title, action, padded = true }: { c
 
 const TONES = {
   orange: "bg-brand/12 text-brand-strong",
-  navy: "bg-ink/8 text-ink dark:bg-white/10 dark:text-white",
-  blue: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  red: "bg-red-500/10 text-red-700 dark:text-red-300",
-  amber: "bg-amber-500/12 text-amber-700 dark:text-amber-300",
+  navy: "bg-ink/8 text-ink",
+  blue: "bg-blue-500/10 text-blue-700",
+  green: "bg-emerald-500/10 text-emerald-700",
+  red: "bg-red-500/10 text-red-700",
+  amber: "bg-amber-500/12 text-amber-700",
 } as const;
 export type Tone = keyof typeof TONES;
 
@@ -108,7 +108,7 @@ export function Change({ value, suffix = "vs. previous period" }: { value: numbe
   const up = value >= 0;
   return (
     <p className="mt-1 text-xs">
-      <span className={cn("font-semibold", up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+      <span className={cn("font-semibold", up ? "text-emerald-600" : "text-red-600")}>
         {up ? "↑" : "↓"} {Math.abs(value)}%
       </span>{" "}
       <span className="text-muted-foreground">{suffix}</span>
@@ -157,12 +157,12 @@ export function Tabs<T extends string>({
 }
 
 const BADGE: Record<string, string> = {
-  green: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  blue: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  green: "bg-emerald-500/10 text-emerald-700",
+  blue: "bg-blue-500/10 text-blue-700",
   orange: "bg-brand/12 text-brand-strong",
-  red: "bg-red-500/10 text-red-700 dark:text-red-300",
+  red: "bg-red-500/10 text-red-700",
   gray: "bg-mist text-muted-foreground",
-  navy: "bg-ink text-paper dark:bg-white/15",
+  navy: "bg-ink text-paper",
 };
 
 export function Badge({ tone = "gray", children, className }: { tone?: keyof typeof BADGE; children: React.ReactNode; className?: string }) {
@@ -235,11 +235,11 @@ export function Btn({
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "brand" | "outline" | "ghost" | "danger"; size?: "sm" | "md"; loading?: boolean }) {
   const variants = {
-    primary: "bg-ink text-paper hover:bg-navy dark:bg-brand dark:text-ink dark:hover:bg-brand-light",
+    primary: "bg-ink text-paper hover:bg-navy",
     brand: "bg-brand text-ink hover:bg-brand-light",
     outline: "border border-border-strong bg-card text-foreground hover:bg-mist",
     ghost: "text-foreground hover:bg-mist",
-    danger: "border border-red-500/30 bg-card text-red-700 hover:bg-red-500/10 dark:text-red-300",
+    danger: "border border-red-500/30 bg-card text-red-700 hover:bg-red-500/10",
   };
   return (
     <button
@@ -322,7 +322,7 @@ export function Loading({ rows = 4 }: { rows?: number }) {
 
 export function ErrorNote({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-red-500/25 bg-red-500/5 px-4 py-3 text-sm text-red-700">
       <span>{message}</span>
       {onRetry ? (
         <Btn size="sm" variant="outline" onClick={onRetry}>

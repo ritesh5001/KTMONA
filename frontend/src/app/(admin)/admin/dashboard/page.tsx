@@ -61,7 +61,7 @@ export default function AdminDashboardPage() {
                 <li key={a.key}>
                   <Link href={a.href} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-mist/50">
                     <span className="flex-1 text-sm font-medium">{a.label}</span>
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums", a.count > 0 ? (a.key === "sla" ? "bg-red-500/10 text-red-700 dark:text-red-300" : "bg-brand text-ink") : "bg-mist text-muted-foreground")}>
+                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums", a.count > 0 ? (a.key === "sla" ? "bg-red-500/10 text-red-700" : "bg-brand text-ink") : "bg-mist text-muted-foreground")}>
                       {a.count}
                     </span>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />

@@ -13,7 +13,7 @@ const allAnnouncements = [...announcements, ...announcements, ...announcements, 
 
 export function AnnouncementBar() {
     return (
-        <div className="relative z-40 w-full overflow-hidden border-b border-border-soft bg-mist py-2 dark:bg-card">
+        <div className="relative z-40 w-full overflow-hidden border-b border-border-soft bg-mist py-2">
             <div className="flex w-max animate-announcement-scroll items-center gap-8 whitespace-nowrap">
                 {allAnnouncements.map((item, index) => (
                     <div key={index} className="flex items-center gap-2">

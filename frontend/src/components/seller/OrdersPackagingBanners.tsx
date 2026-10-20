@@ -24,8 +24,8 @@ export function OrdersPackagingBanners() {
   return (
     <div className="space-y-3">
       {pending > 0 ? (
-        <div className="flex items-center gap-4 rounded-2xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300">
+        <div className="flex items-center gap-4 rounded-2xl border border-amber-300/60 bg-amber-50 p-4">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
             <Package className="h-7 w-7" />
           </span>
           <div className="min-w-0">

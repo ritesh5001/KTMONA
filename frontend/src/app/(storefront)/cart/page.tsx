@@ -180,7 +180,7 @@ export default function CartPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.5 }}
-                className="py-20 text-center space-y-6 border border-border-soft bg-mist/50 dark:bg-card/50"
+                className="py-20 text-center space-y-6 border border-border-soft bg-mist/50"
               >
                 <div className="space-y-4">
                   <p className="font-serif text-2xl font-light text-foreground">
@@ -193,7 +193,7 @@ export default function CartPage() {
                 </div>
                 <Link
                   href="/marketplace"
-                  className="inline-flex h-12 items-center justify-center bg-ink px-8 text-xs font-medium uppercase tracking-[0.15em] text-paper transition-all duration-400 hover:bg-navy dark:bg-brand dark:text-ink dark:hover:bg-brand-muted"
+                  className="inline-flex h-12 items-center justify-center bg-ink px-8 text-xs font-medium uppercase tracking-[0.15em] text-paper transition-all duration-400 hover:bg-navy"
                 >
                   Explore Collection
                 </Link>
@@ -218,7 +218,7 @@ export default function CartPage() {
                   >
                     <div className="flex gap-6">
                       {/* Product Image - Gallery Frame */}
-                      <div className="w-24 h-28 sm:w-32 sm:h-36 shrink-0 bg-mist dark:bg-navy/20 p-2 border border-border-soft">
+                      <div className="w-24 h-28 sm:w-32 sm:h-36 shrink-0 bg-mist p-2 border border-border-soft">
                         <div className="w-full h-full bg-card flex items-center justify-center">
                           <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">
                             Image

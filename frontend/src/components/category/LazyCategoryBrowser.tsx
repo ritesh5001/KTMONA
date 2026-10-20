@@ -52,7 +52,7 @@ function Column({
                 onClick={() => onOpen(cat)}
                 className={cn(
                   "flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm",
-                  active ? "bg-ink font-semibold text-paper dark:bg-brand dark:text-ink" : "hover:bg-mist",
+                  active ? "bg-ink font-semibold text-paper" : "hover:bg-mist",
                   cat.isActive === false && "opacity-60"
                 )}
               >

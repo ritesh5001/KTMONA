@@ -364,8 +364,8 @@ export default function SupportChat({
                                     onClick={() => setActiveId(ticket.id)}
                                     className={`flex w-full flex-col gap-1.5 border-b border-border-soft p-4 text-left transition-colors ${
                                         ticket.id === activeId
-                                            ? "bg-mist/50 dark:bg-navy/10"
-                                            : "hover:bg-mist/30 dark:hover:bg-navy/5"
+                                            ? "bg-mist/50"
+                                            : "hover:bg-mist/30"
                                     }`}
                                 >
                                     <div className="flex items-start justify-between gap-2">
@@ -484,7 +484,7 @@ export default function SupportChat({
                                                     className={`max-w-[80%] space-y-1 border px-3 py-2 ${
                                                         isMine
                                                             ? "border-brand/30 bg-brand/5"
-                                                            : "border-border-soft bg-mist/30 dark:bg-navy/10"
+                                                            : "border-border-soft bg-mist/30"
                                                     }`}
                                                 >
                                                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground">

@@ -179,7 +179,7 @@ function VerifyOtpContent() {
                 <div className="space-y-5">
                   <div
                     role="status"
-                    className="flex gap-3 rounded-xl border border-emerald-600/30 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-200"
+                    className="flex gap-3 rounded-xl border border-emerald-600/30 bg-emerald-50 p-4 text-emerald-800"
                   >
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
                     <p className="text-sm font-medium leading-relaxed">{sellerRegistered}</p>

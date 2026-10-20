@@ -79,10 +79,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0C1B42" },
-    { media: "(prefers-color-scheme: dark)", color: "#070F26" },
-  ],
+  themeColor: "#0C1B42",
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -91,27 +89,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="scroll-smooth" suppressHydrationWarning>
+    <html lang="en" className="scroll-smooth">
       <head>
         {/* Preconnect to critical external origins to cut DNS/TLS latency */}
         <link rel="preconnect" href="https://ik.imagekit.io" />
         {API_ORIGIN && <link rel="preconnect" href={API_ORIGIN} />}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(() => {
-  try {
-    const key = 'ktmona-theme';
-    const stored = localStorage.getItem(key);
-    const isDark = stored === 'dark';
-    if (!stored) {
-      localStorage.setItem(key, 'light');
-    }
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  } catch (_) {}
-})();`,
-          }}
-        />
       </head>
       <body
         className="min-h-screen bg-background text-foreground antialiased"

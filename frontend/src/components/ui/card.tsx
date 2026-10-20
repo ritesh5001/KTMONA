@@ -18,12 +18,9 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
         "rounded-xl border border-border-soft bg-card",
         // Premium shadow - very subtle
         "shadow-[0_1px_3px_rgba(12,27,66,0.04),0_4px_12px_rgba(12,27,66,0.02)]",
-        // Dark mode shadow
-        "dark:shadow-[0_1px_3px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.15)]",
         // Hover lift - subtle 2-3px
         "transition-all duration-400 ease-out",
         "hover:-translate-y-0.5 hover:shadow-[0_2px_8px_rgba(12,27,66,0.06),0_8px_24px_rgba(12,27,66,0.04)]",
-        "dark:hover:shadow-[0_2px_8px_rgba(0,0,0,0.25),0_8px_24px_rgba(0,0,0,0.2)]",
         className
       )}
       {...props}

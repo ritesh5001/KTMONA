@@ -201,7 +201,7 @@ export default function CategoryBuilderPage() {
                   role="tab"
                   aria-selected={scope === key}
                   onClick={() => switchScope(key)}
-                  className={cn("rounded-lg px-4 py-2 text-sm font-medium transition", scope === key ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "text-muted-foreground hover:bg-mist")}
+                  className={cn("rounded-lg px-4 py-2 text-sm font-medium transition", scope === key ? "bg-ink text-paper" : "text-muted-foreground hover:bg-mist")}
                 >
                   {label}
                 </button>
@@ -519,7 +519,7 @@ function Column({
                 onKeyDown={(e) => { if (e.key === "Enter") onSelect(c.id); }}
                 className={cn(
                   "group flex cursor-pointer items-center gap-1 px-3 py-2 text-sm",
-                  on ? "bg-ink text-paper dark:bg-brand dark:text-ink" : "hover:bg-mist",
+                  on ? "bg-ink text-paper" : "hover:bg-mist",
                   !c.isActive && "opacity-60"
                 )}
               >

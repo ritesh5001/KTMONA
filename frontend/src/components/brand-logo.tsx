@@ -5,9 +5,9 @@ const LOGO_WIDTH = 720;
 const LOGO_HEIGHT = 141;
 
 /**
- * KTMONA wordmark. Renders the navy-text logo on light surfaces and the
- * white-text logo in dark mode (or always, with `variant="light"` for navy
- * backgrounds). Size it with a height class, e.g. `className="h-8"`.
+ * KTMONA wordmark: the navy-text logo, or the white-text logo with
+ * `variant="light"` for navy backgrounds. Size it with a height class,
+ * e.g. `className="h-8"`.
  */
 export function BrandLogo({
   className,
@@ -34,24 +34,13 @@ export function BrandLogo({
   }
 
   return (
-    <>
-      <Image
-        src="/ktmona-logo.webp"
-        alt="KTMONA"
-        width={LOGO_WIDTH}
-        height={LOGO_HEIGHT}
-        className={cn(sizing, "dark:hidden")}
-        priority={priority}
-      />
-      <Image
-        src="/ktmona-logo-light.webp"
-        alt=""
-        aria-hidden
-        width={LOGO_WIDTH}
-        height={LOGO_HEIGHT}
-        className={cn(sizing, "hidden dark:block")}
-        priority={priority}
-      />
-    </>
+    <Image
+      src="/ktmona-logo.webp"
+      alt="KTMONA"
+      width={LOGO_WIDTH}
+      height={LOGO_HEIGHT}
+      className={sizing}
+      priority={priority}
+    />
   );
 }

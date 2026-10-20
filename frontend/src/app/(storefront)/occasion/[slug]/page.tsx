@@ -119,7 +119,7 @@ export default async function OccasionPage({ params }: Props) {
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd) }} />
 
-            <section className="border-b border-border-soft bg-mist/30 dark:bg-card/30">
+            <section className="border-b border-border-soft bg-mist/30">
                 <div className="mx-auto max-w-6xl px-6 py-20 text-center">
                     <p className="text-xs font-medium uppercase tracking-[0.3em] text-brand-strong mb-4">
                         Curated For
@@ -141,7 +141,7 @@ export default async function OccasionPage({ params }: Props) {
                     </p>
                     <Link
                         href="/marketplace"
-                        className="text-xs font-medium uppercase tracking-[0.15em] text-ink dark:text-paper hover:text-brand-strong transition-colors"
+                        className="text-xs font-medium uppercase tracking-[0.15em] text-ink hover:text-brand-strong transition-colors"
                     >
                         ← View All Occasions
                     </Link>

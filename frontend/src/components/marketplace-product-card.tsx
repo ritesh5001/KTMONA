@@ -215,7 +215,7 @@ export function MarketplaceProductCard({ product }: { product: MarketplaceCardPr
       className="block overflow-hidden rounded-xl border border-border-soft/80 bg-card/95 shadow-[0_6px_24px_rgba(17,12,8,0.08)] sm:rounded-2xl"
     >
       <Link href={`/product/${product.id}`} prefetch className="block">
-        <div className="relative overflow-hidden bg-mist dark:bg-navy/20 aspect-3/4">
+        <div className="relative overflow-hidden bg-mist aspect-3/4">
           <Image
             src={imageSrc}
             alt={product.title}
@@ -282,16 +282,16 @@ export function MarketplaceProductCard({ product }: { product: MarketplaceCardPr
                 </span>
               )}
               {hasDiscount && (
-                <span className="text-[0.75rem] font-semibold text-amber-700 dark:text-amber-400">
+                <span className="text-[0.75rem] font-semibold text-amber-700">
                   ({discountPercentage}% OFF)
                 </span>
               )}
             </div>
 
             {typeof couponPrice === "number" && couponPrice < displayPrice && (
-              <div className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.06em]" suppressHydrationWarning>
+              <div className="inline-flex w-fit items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.05em] text-emerald-800 sm:px-2.5 sm:py-1 sm:text-[10px] sm:tracking-[0.06em]" suppressHydrationWarning>
                 <span suppressHydrationWarning>Get it for {currency.format(couponPrice)}</span>
-                <span className="text-emerald-700/85 dark:text-emerald-300/85">with coupon</span>
+                <span className="text-emerald-700/85">with coupon</span>
               </div>
             )}
 

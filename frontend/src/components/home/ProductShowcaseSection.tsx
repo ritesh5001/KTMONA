@@ -21,7 +21,7 @@ export function ProductShowcaseSection({
   const products = pickShowcaseProducts(audience === "MENS" ? initialProducts : kidsProducts);
 
   return (
-    <section id="product-showcase" className="border-t border-border-soft bg-mist/50 dark:bg-card/50">
+    <section id="product-showcase" className="border-t border-border-soft bg-mist/50">
       <div className="mx-auto max-w-460 px-3 py-6 sm:px-6 sm:py-8 lg:px-10">
         <div className="mb-6 text-center">
           <p className="mb-2 text-xs font-medium uppercase tracking-[0.3em] text-brand-strong">Our Picks</p>

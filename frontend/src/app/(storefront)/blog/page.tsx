@@ -21,7 +21,7 @@ export default function BlogIndexPage() {
     return (
         <div className="bg-background min-h-screen">
             {/* Header */}
-            <section className="border-b border-border-soft bg-mist/30 dark:bg-card/30">
+            <section className="border-b border-border-soft bg-mist/30">
                 <div className="mx-auto max-w-6xl px-6 py-24 text-center">
                     <p className="text-xs font-medium uppercase tracking-[0.3em] text-brand-strong mb-4">
                         Editorial
@@ -43,7 +43,7 @@ export default function BlogIndexPage() {
                         <article key={post.slug} className="group cursor-pointer">
                             <Link href={`/blog/${post.slug}`} className="block">
                                 <div className="aspect-[16/10] bg-muted/20 overflow-hidden mb-6 border border-border-soft">
-                                    <div className="w-full h-full bg-mist dark:bg-navy/20 flex items-center justify-center text-muted-foreground/50 transition-transform duration-700 group-hover:scale-105">
+                                    <div className="w-full h-full bg-mist flex items-center justify-center text-muted-foreground/50 transition-transform duration-700 group-hover:scale-105">
                                         {/* Placeholder for blog image */}
                                         <span className="font-serif italic text-xl">Image: {post.slug}</span>
                                     </div>

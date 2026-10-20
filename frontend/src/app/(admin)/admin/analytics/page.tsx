@@ -293,7 +293,7 @@ export default function AdminAnalyticsPage() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             transition={{ delay: 0.2 + index * 0.02, duration: 0.3 }}
-                            className="hover:bg-mist/30 dark:hover:bg-navy/10 transition-colors duration-200"
+                            className="hover:bg-mist/30 transition-colors duration-200"
                           >
                             <td className="p-6">
                               <p className="font-medium text-foreground truncate max-w-[200px]">

@@ -2,7 +2,7 @@ function SkeletonBlock({ className = "" }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
-      className={`animate-pulse rounded-sm bg-border-soft/80 dark:bg-border/70 ${className}`}
+      className={`animate-pulse rounded-sm bg-border-soft/80 ${className}`}
     />
   );
 }

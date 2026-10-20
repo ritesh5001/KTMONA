@@ -59,7 +59,7 @@ export default function AdminSellerDetailPage() {
       />
 
       {s.statusReason && s.status === "SUSPENDED" ? (
-        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700 dark:text-red-300"><AlertTriangle className="h-4 w-4" />Suspended: {s.statusReason}. All listings are hidden.{s.suspendedUntil ? ` Lifts automatically on ${fmtDate(s.suspendedUntil, true)}.` : " Stays until you reactivate."}</div>
+        <div className="flex gap-2 rounded-xl border border-red-500/25 bg-red-500/5 p-3 text-sm text-red-700"><AlertTriangle className="h-4 w-4" />Suspended: {s.statusReason}. All listings are hidden.{s.suspendedUntil ? ` Lifts automatically on ${fmtDate(s.suspendedUntil, true)}.` : " Stays until you reactivate."}</div>
       ) : null}
       {s.payoutHold ? (
         <div className="flex gap-2 rounded-xl border border-brand/30 bg-brand/8 p-3 text-sm text-brand-strong"><PauseCircle className="h-4 w-4" />Payouts on hold: {s.payoutHoldReason}</div>

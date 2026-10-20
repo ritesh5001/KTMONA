@@ -47,12 +47,12 @@ function notificationIcon(type: string) {
 function NotificationSkeleton() {
   return (
     <div className="flex gap-4 border-b border-border-soft px-6 py-5">
-      <div className="h-8 w-8 animate-pulse bg-border-soft dark:bg-border" />
+      <div className="h-8 w-8 animate-pulse bg-border-soft" />
       <div className="flex-1 space-y-2">
-        <div className="h-3.5 w-48 animate-pulse bg-border-soft dark:bg-border" />
-        <div className="h-3 w-72 animate-pulse bg-border-soft dark:bg-border" />
+        <div className="h-3.5 w-48 animate-pulse bg-border-soft" />
+        <div className="h-3 w-72 animate-pulse bg-border-soft" />
       </div>
-      <div className="h-3 w-12 animate-pulse bg-border-soft dark:bg-border" />
+      <div className="h-3 w-12 animate-pulse bg-border-soft" />
     </div>
   );
 }
@@ -196,7 +196,7 @@ export default function SellerNotificationsPage() {
               onClick={() => setFilter(f)}
               className={`px-4 py-2 text-[11px] font-medium uppercase tracking-wide transition-all duration-300 ${
                 filter === f
-                  ? "bg-ink text-paper dark:bg-brand dark:text-ink"
+                  ? "bg-ink text-paper"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -235,7 +235,7 @@ export default function SellerNotificationsPage() {
                   }}
                   className={`flex gap-4 border-b border-border-soft px-6 py-5 transition-colors ${
                     n.isRead
-                      ? "hover:bg-mist/30 dark:hover:bg-navy/10"
+                      ? "hover:bg-mist/30"
                       : "bg-brand/3 hover:bg-brand/6"
                   }`}
                 >

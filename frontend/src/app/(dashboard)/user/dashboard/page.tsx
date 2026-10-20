@@ -203,7 +203,7 @@ export default function UserDashboardPage() {
                 <motion.div
                   whileHover={{ x: 4 }}
                   transition={{ duration: 0.3, ease: "easeOut" }}
-                  className="flex items-center justify-between py-3 px-4 border border-border-soft text-sm text-foreground transition-all duration-300 hover:border-brand/50 hover:bg-mist/50 dark:hover:bg-navy/20"
+                  className="flex items-center justify-between py-3 px-4 border border-border-soft text-sm text-foreground transition-all duration-300 hover:border-brand/50 hover:bg-mist/50"
                 >
                   <span>Track Order</span>
                   <span className="text-muted-foreground">→</span>
@@ -212,7 +212,7 @@ export default function UserDashboardPage() {
               <motion.div
                 whileHover={{ x: 4 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="flex items-center justify-between py-3 px-4 border border-border-soft text-sm text-foreground cursor-pointer transition-all duration-300 hover:border-brand/50 hover:bg-mist/50 dark:hover:bg-navy/20"
+                className="flex items-center justify-between py-3 px-4 border border-border-soft text-sm text-foreground cursor-pointer transition-all duration-300 hover:border-brand/50 hover:bg-mist/50"
               >
                 <span>Request Support</span>
                 <span className="text-muted-foreground">→</span>

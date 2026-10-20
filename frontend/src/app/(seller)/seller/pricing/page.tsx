@@ -143,7 +143,7 @@ function Calculator_() {
             <div className="flex flex-wrap gap-4 text-sm">
               <span className="text-muted-foreground">Commission ({data.commissionPct}%): <b className="text-red-600">−{inr2.format(data.commission)}</b></span>
               {data.platformFee ? <span className="text-muted-foreground">Fee: <b className="text-red-600">−{inr2.format(data.platformFee)}</b></span> : null}
-              <span>You will earn <b className="text-lg text-emerald-700 dark:text-emerald-400">{inr2.format(data.net)}</b></span>
+              <span>You will earn <b className="text-lg text-emerald-700">{inr2.format(data.net)}</b></span>
             </div>
           ) : null}
         </div>
@@ -153,7 +153,7 @@ function Calculator_() {
 }
 
 const INSIGHT: Record<PricingProduct["insight"], { label: string; cls: string }> = {
-  BEST_PRICE: { label: "Best Price", cls: "text-emerald-700 dark:text-emerald-400" },
+  BEST_PRICE: { label: "Best Price", cls: "text-emerald-700" },
   LOSING_ORDERS: { label: "Losing Orders", cls: "text-red-600" },
   LOSING_VIEWS: { label: "Losing Views", cls: "text-amber-600" },
 };
@@ -307,7 +307,7 @@ function PriceModal({ variant, original, onClose, onSaved }: { variant: PricingV
         </Field>
         {calc ? (
           <div className="rounded-xl bg-mist p-3 text-sm">
-            You will earn <b className="text-emerald-700 dark:text-emerald-400">{inr2.format(calc.net)}</b> per unit after {calc.commissionPct}% commission.
+            You will earn <b className="text-emerald-700">{inr2.format(calc.net)}</b> per unit after {calc.commissionPct}% commission.
           </div>
         ) : null}
         <p className={cn("text-xs", increase ? "text-brand-strong" : "text-muted-foreground")}>

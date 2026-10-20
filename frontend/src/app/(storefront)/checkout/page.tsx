@@ -749,14 +749,14 @@ function NativeCheckout() {
                 </div>
                 {/* Discount row — only after checkout response */}
                 {taxSummary && taxSummary.discountAmount > 0 && (
-                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center justify-between text-emerald-600">
                     <span>Discount</span>
                     <span>−{currency.format(taxSummary.discountAmount)}</span>
                   </div>
                 )}
                 {/* Coupon preview badge (before checkout) */}
                 {!taxSummary && appliedCoupon && (
-                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                  <div className="flex items-center justify-between text-emerald-600">
                     <span>Coupon ({appliedCoupon.code})</span>
                     <span className="text-xs">
                       {appliedCoupon.type === "PERCENT"

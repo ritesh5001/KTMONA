@@ -123,7 +123,7 @@ function Health() {
             : "Late dispatch currently lowers your score but has no charge. Keep dispatching on time."}
         </p>
         {data.penalties.length === 0 ? (
-          <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">No penalties. 🎉</p>
+          <p className="text-sm font-medium text-emerald-700">No penalties. 🎉</p>
         ) : (
           <ul className="divide-y divide-border-soft text-sm">
             {data.penalties.map((p) => (

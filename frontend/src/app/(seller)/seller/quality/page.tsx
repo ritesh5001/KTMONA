@@ -9,10 +9,10 @@ import { Btn, Empty, ErrorNote, Loading, PageHeader, PageShell, Panel, SearchBox
 import { cn } from "@/lib/utils";
 
 const BAND_STYLE: Record<QualityBand, { bar: string; text: string }> = {
-  GREEN: { bar: "bg-emerald-200 dark:bg-emerald-900/50", text: "text-emerald-700 dark:text-emerald-300" },
-  YELLOW: { bar: "bg-amber-200 dark:bg-amber-900/50", text: "text-amber-700 dark:text-amber-300" },
-  RED: { bar: "bg-red-200 dark:bg-red-900/50", text: "text-red-700 dark:text-red-300" },
-  BLOCKED: { bar: "bg-red-300 dark:bg-red-900/70", text: "text-red-800 dark:text-red-200" },
+  GREEN: { bar: "bg-emerald-200", text: "text-emerald-700" },
+  YELLOW: { bar: "bg-amber-200", text: "text-amber-700" },
+  RED: { bar: "bg-red-200", text: "text-red-700" },
+  BLOCKED: { bar: "bg-red-300", text: "text-red-800" },
 };
 
 type Tab = "blocking_soon" | "action_pending" | "fixed";
@@ -114,7 +114,7 @@ export default function QualityPage() {
                 onChange={setTab}
                 counts={data.counts}
               />
-              <Link href="/seller/inventory?status=blocked" className="mb-3 shrink-0 text-xs font-semibold text-ink hover:underline dark:text-brand">
+              <Link href="/seller/inventory?status=blocked" className="mb-3 shrink-0 text-xs font-semibold text-ink hover:underline">
                 View Blocked Products
               </Link>
             </div>
