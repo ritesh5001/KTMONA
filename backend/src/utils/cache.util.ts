@@ -13,6 +13,8 @@ export const CACHE_KEYS = {
     CATEGORIES_LIST: 'categories:list',
     /** Storefront list: only categories with live products, newest stock first. */
     CATEGORIES_VISIBLE: 'categories:visible',
+    /** One level of the seller tree (or a search / id look-up), see CategoryService.browse. */
+    CATEGORIES_BROWSE: (scope: string, kind: string, key: string) => `categories:browse:${scope}:${kind}:${key}`,
     PRODUCTS_LIST: 'products:list',
     PRODUCTS_LIST_FILTERED: (page: number, limit: number, categoryId?: string, search?: string, occasion?: string, extra?: string) =>
         `products:list:${page}:${limit}:${categoryId ?? '_'}:${search ?? '_'}:${occasion ?? '_'}${extra ? `:${extra}` : ''}`,
@@ -175,5 +177,9 @@ export async function invalidateSellerPrivateCaches(sellerId: string): Promise<v
  * Invalidate category cache
  */
 export async function invalidateCategoryCache(): Promise<void> {
-    await Promise.all([invalidateCache(CACHE_KEYS.CATEGORIES_LIST), invalidateCache(CACHE_KEYS.CATEGORIES_VISIBLE)]);
+    await Promise.all([
+        invalidateCache(CACHE_KEYS.CATEGORIES_LIST),
+        invalidateCache(CACHE_KEYS.CATEGORIES_VISIBLE),
+        invalidateCacheByPattern('categories:browse:*'),
+    ]);
 }

@@ -54,6 +54,19 @@ export class CategoryService {
     ): Promise<{ categories: Array<CategoryListResponse['categories'][number] & { childCount: number; path?: string[]; pathIds?: string[] }> }> {
         const includeInactive = Boolean(opts.includeInactive);
         const scope = opts.scope;
+        // Shoppers and sellers read the same levels over and over; cache each
+        // one (small entries). The admin panel always reads fresh.
+        const cacheKey = includeInactive
+            ? null
+            : query.q?.trim()
+              ? CACHE_KEYS.CATEGORIES_BROWSE(scope ?? 'ALL', 'q', query.q.trim().toLowerCase().slice(0, 80))
+              : query.ids
+                ? null
+                : CACHE_KEYS.CATEGORIES_BROWSE(scope ?? 'ALL', 'children', query.parentId || 'root');
+        if (cacheKey) {
+            const cached = await getFromCache<Awaited<ReturnType<CategoryService['browse']>>>(cacheKey);
+            if (cached) return cached;
+        }
         let rows: CategoryListResponse['categories'];
         let withPath = false;
 
@@ -69,39 +82,19 @@ export class CategoryService {
             rows = await this.repository.findChildren(parentId, { ...(scope ? { scope } : {}), includeInactive });
         }
 
-        const counts = await this.repository.countChildren(rows.map((c) => c.id), includeInactive);
-        const paths = withPath ? await this.pathsFor(rows) : null;
-        return {
+        const [counts, paths] = await Promise.all([
+            this.repository.countChildren(rows.map((c) => c.id), includeInactive),
+            withPath ? this.repository.pathsFor(rows.map((c) => c.id)) : Promise.resolve(null),
+        ]);
+        const result = {
             categories: rows.map((c) => ({
                 ...c,
                 childCount: counts.get(c.id) ?? 0,
                 ...(paths ? { path: paths.get(c.id)?.names ?? [c.name], pathIds: paths.get(c.id)?.ids ?? [c.id] } : {}),
             })),
         };
-    }
-
-    /** "Main > Sub > … > Name" for each category, found by walking up (at most 8 levels). */
-    private async pathsFor(rows: Array<{ id: string; name: string; parentId: string | null }>): Promise<Map<string, { names: string[]; ids: string[] }>> {
-        const known = new Map<string, { id: string; name: string; parentId: string | null }>(rows.map((r) => [r.id, r]));
-        let missing = [...new Set(rows.map((r) => r.parentId).filter((id): id is string => Boolean(id) && !known.has(id as string)))];
-        for (let depth = 0; depth < 8 && missing.length > 0; depth++) {
-            const found = await this.repository.findByIds(missing);
-            for (const c of found) known.set(c.id, c);
-            missing = [...new Set(found.map((c) => c.parentId).filter((id): id is string => Boolean(id) && !known.has(id as string)))];
-        }
-        const out = new Map<string, { names: string[]; ids: string[] }>();
-        for (const r of rows) {
-            const names: string[] = [];
-            const ids: string[] = [];
-            let cur: { id: string; name: string; parentId: string | null } | undefined = r;
-            for (let i = 0; cur && i < 10; i++) {
-                names.unshift(cur.name);
-                ids.unshift(cur.id);
-                cur = cur.parentId ? known.get(cur.parentId) : undefined;
-            }
-            out.set(r.id, { names, ids });
-        }
-        return out;
+        if (cacheKey) await setCache(cacheKey, result, 600);
+        return result;
     }
 
     /** Above this many categories the "everything" lists stop at the top two levels. */
@@ -146,7 +139,6 @@ export class CategoryService {
         const cached = await getFromCache<CategoryListResponse>(CACHE_KEYS.CATEGORIES_VISIBLE);
         if (cached) return cached;
 
-        const all = await this.repository.findAllActive();
         // Same rule as the storefront product list (productRepository.findPublished).
         const rows = await prisma.$queryRaw<{ categoryId: string; count: bigint; latest: Date; image: string | null }[]>`
             SELECT p."category_id" AS "categoryId", COUNT(*) AS "count", MAX(p."created_at") AS "latest",
@@ -160,6 +152,15 @@ export class CategoryService {
                   WHERE pv."product_id" = p."id" AND pv."status" = 'APPROVED'
               )
             GROUP BY p."category_id"`;
+
+        // Only the categories that hold products (and the ones above them) can
+        // be shown, plus the customer menu. Loading just those keeps this fast
+        // however large the seller tree grows.
+        const [sellerChain, storefrontAll] = await Promise.all([
+            this.repository.findActiveWithAncestors(rows.map((r) => r.categoryId)),
+            this.repository.findAllActive('STOREFRONT'),
+        ]);
+        const all = [...storefrontAll, ...sellerChain.filter((c) => c.scope !== 'STOREFRONT')];
 
         type Stat = { count: number; latest: number; image: string | null; imageAt: number };
         const byId = new Map(all.map((c) => [c.id, c]));

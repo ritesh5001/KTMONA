@@ -38,13 +38,14 @@ function deleteMemory(keys: string[]): void {
 }
 
 export async function getCache<T = unknown>(key: string): Promise<T | null> {
-    try {
-        const value = await redis.get<T>(key);
-        if (value !== null) {
-            return value;
-        }
-    } catch {
-        // Ignore Redis errors and fallback to memory cache.
+    // Redis is shared by every server and script; this memory copy is not.
+    // When Redis answers, trust it: a miss there means the key was cleared
+    // (possibly by another process), so the local copy is stale too. The
+    // memory copy is only a fallback for when Redis is unreachable.
+    const shared = await redis.tryGet<T>(key);
+    if (shared.ok) {
+        if (shared.value === null) memoryCache.delete(key);
+        return shared.value;
     }
 
     try {

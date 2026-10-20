@@ -181,6 +181,9 @@ model Category {
   @@index([sortOrder])
   @@index([isActive])
   @@index([scope])
+  /// Trigram index for name search ("contains", case-insensitive) across the
+  /// tens of thousands of seller categories. Needs the pg_trgm extension.
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "categories_name_trgm_idx", type: Gin)
   @@map("categories")
 }
 

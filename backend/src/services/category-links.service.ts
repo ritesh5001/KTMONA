@@ -14,6 +14,7 @@ import { ApiError } from '../errors/ApiError.js';
 import { invalidateCategoryCache, invalidateProductCaches } from '../utils/cache.util.js';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS } from '../live/cache-tags.js';
+import { categoryRepository } from '../repositories/category.repository.js';
 
 export const categoryLinksSchema = z.object({ sellerCategoryIds: z.array(z.string().min(1)).max(200) });
 
@@ -96,27 +97,27 @@ async function refresh() {
 
 class CategoryLinksService {
     async get(storefrontId: string) {
-        const { byId } = await loadAll();
-        const cat = byId.get(storefrontId);
+        const cat = await prisma.category.findUnique({ where: { id: storefrontId }, select: { scope: true } });
         if (!cat) throw ApiError.notFound('Category not found');
         if (cat.scope !== 'STOREFRONT') throw ApiError.badRequest('Only customer-menu categories have links');
-        const links = await prisma.categoryLink.findMany({ where: { storefrontId }, select: { sellerCategoryId: true } });
+        const links = await prisma.categoryLink.findMany({
+            where: { storefrontId },
+            select: { sellerCategory: { select: { id: true, name: true } } },
+        });
+        const paths = await categoryRepository.pathsFor(links.map((l) => l.sellerCategory.id));
         return {
             links: links
-                .map((l) => byId.get(l.sellerCategoryId))
-                .filter((c): c is Cat => !!c)
-                .map((c) => ({ id: c.id, name: c.name, path: pathLabel(c.id, byId) }))
+                .map(({ sellerCategory: c }) => ({ id: c.id, name: c.name, path: paths.get(c.id)?.names.join(' › ') ?? c.name }))
                 .sort((a, b) => a.path.localeCompare(b.path)),
         };
     }
 
     async set(storefrontId: string, sellerCategoryIds: string[]) {
-        const { byId } = await loadAll();
-        const cat = byId.get(storefrontId);
+        const cat = await prisma.category.findUnique({ where: { id: storefrontId }, select: { scope: true } });
         if (!cat || cat.scope !== 'STOREFRONT') throw ApiError.badRequest('Pick a customer-menu category');
         const ids = [...new Set(sellerCategoryIds)];
-        const bad = ids.find((id) => byId.get(id)?.scope !== 'SELLER');
-        if (bad) throw ApiError.badRequest('Links must point to seller categories');
+        const sellers = await prisma.category.count({ where: { id: { in: ids }, scope: 'SELLER' } });
+        if (sellers !== ids.length) throw ApiError.badRequest('Links must point to seller categories');
         await prisma.$transaction([
             prisma.categoryLink.deleteMany({ where: { storefrontId } }),
             prisma.categoryLink.createMany({ data: ids.map((sellerCategoryId) => ({ storefrontId, sellerCategoryId })), skipDuplicates: true }),

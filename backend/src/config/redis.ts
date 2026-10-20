@@ -82,6 +82,26 @@ export const redis = {
         }
     },
 
+    /**
+     * Like get(), but tells a miss (`ok: true, value: null`) apart from Redis
+     * being unreachable (`ok: false`), so callers know whether a local copy
+     * may be used instead.
+     */
+    async tryGet<T = unknown>(key: string): Promise<{ ok: boolean; value: T | null }> {
+        try {
+            if (!(await ensureConnected())) return { ok: false, value: null };
+            const raw = await redisClient.get(key);
+            if (raw == null) return { ok: true, value: null };
+            try {
+                return { ok: true, value: JSON.parse(raw) as T };
+            } catch {
+                return { ok: true, value: raw as unknown as T };
+            }
+        } catch {
+            return { ok: false, value: null };
+        }
+    },
+
     async set(key: string, value: unknown, options?: { ex?: number }): Promise<'OK' | null> {
         const serialized = typeof value === 'string' ? value : JSON.stringify(value);
         if (options?.ex) {

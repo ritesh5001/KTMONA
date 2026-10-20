@@ -220,7 +220,10 @@ export class ShiprocketCatalogService {
     }
 
     async listCollections(query: Omit<CatalogPageQuery, 'collectionId'>) {
-        const where = { isActive: true };
+        // A collection lists the products filed directly under one category,
+        // so only categories that hold sellable products are worth sending.
+        // The seller tree has tens of thousands of (mostly empty) categories.
+        const where = { isActive: true, products: { some: SELLABLE_PRODUCT } };
 
         const [total, rows] = await Promise.all([
             prisma.category.count({ where }),

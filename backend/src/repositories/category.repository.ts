@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import type { CategoryEntity } from '../types/product.types.js';
 
@@ -22,6 +23,58 @@ export class CategoryRepository {
             },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
         }) as unknown as CategoryEntity[];
+    }
+
+    /**
+     * The chain from the main category down to each given category, in one
+     * query: `names` and `ids` start at the top and end at the category.
+     */
+    async pathsFor(ids: string[]): Promise<Map<string, { names: string[]; ids: string[] }>> {
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (unique.length === 0) return new Map();
+        const rows = await prisma.$queryRaw<{ start: string; id: string; name: string; depth: number }[]>`
+            WITH RECURSIVE up AS (
+                SELECT c."id" AS "start", c."id", c."name", c."parent_id", 0 AS "depth"
+                FROM "categories" c WHERE c."id" IN (${Prisma.join(unique)})
+                UNION ALL
+                SELECT up."start", p."id", p."name", p."parent_id", up."depth" + 1
+                FROM "categories" p JOIN up ON p."id" = up."parent_id"
+                WHERE up."depth" < 12
+            )
+            SELECT "start", "id", "name", "depth" FROM up`;
+        const grouped = new Map<string, { id: string; name: string; depth: number }[]>();
+        for (const r of rows) {
+            if (!grouped.has(r.start)) grouped.set(r.start, []);
+            grouped.get(r.start)!.push({ id: r.id, name: r.name, depth: Number(r.depth) });
+        }
+        const out = new Map<string, { names: string[]; ids: string[] }>();
+        for (const [start, chain] of grouped) {
+            chain.sort((a, b) => b.depth - a.depth);
+            out.set(start, { names: chain.map((c) => c.name), ids: chain.map((c) => c.id) });
+        }
+        return out;
+    }
+
+    /**
+     * Active categories among `ids` plus their active ancestors (stopping at
+     * a hidden one), in one query. Used to build the storefront menu from the
+     * categories that actually hold products, without loading the whole tree.
+     */
+    async findActiveWithAncestors(ids: string[]): Promise<CategoryEntity[]> {
+        const unique = [...new Set(ids)].filter(Boolean);
+        if (unique.length === 0) return [];
+        const rows = await prisma.$queryRaw<{ id: string }[]>`
+            WITH RECURSIVE up AS (
+                SELECT c."id", c."parent_id", 0 AS "depth" FROM "categories" c
+                WHERE c."id" IN (${Prisma.join(unique)}) AND c."is_active" = true
+                UNION
+                SELECT p."id", p."parent_id", up."depth" + 1 FROM "categories" p
+                JOIN up ON p."id" = up."parent_id"
+                WHERE p."is_active" = true AND up."depth" < 12
+            )
+            SELECT DISTINCT "id" FROM up`;
+        if (rows.length === 0) return [];
+        return prisma.category.findMany({ where: { id: { in: rows.map((r) => r.id) } } }) as unknown as CategoryEntity[];
     }
 
     /** How many children each of these categories has. */

@@ -5,6 +5,7 @@
  * Nothing in the shared category tree changes until an admin approves.
  */
 
+import { categoryRepository } from '../repositories/category.repository.js';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../config/db.js';
@@ -50,21 +51,8 @@ const STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
 
 /** "Women › Ethnic Wear › Sarees" for every category id given. */
 async function categoryPaths(ids: string[]): Promise<Map<string, string>> {
-    const all = await prisma.category.findMany({ select: { id: true, name: true, parentId: true } });
-    const byId = new Map(all.map((c) => [c.id, c]));
-    const out = new Map<string, string>();
-    for (const id of new Set(ids)) {
-        const parts: string[] = [];
-        let cur = byId.get(id);
-        let guard = 0;
-        while (cur && guard < 10) {
-            parts.unshift(cur.name);
-            cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-            guard += 1;
-        }
-        if (parts.length) out.set(id, parts.join(' › '));
-    }
-    return out;
+    const paths = await categoryRepository.pathsFor(ids);
+    return new Map([...paths].map(([id, p]) => [id, p.names.join(' › ')]));
 }
 
 type Row = Prisma.CategoryRequestGetPayload<Record<string, never>>;
