@@ -329,6 +329,8 @@ export interface PaginatedResponse<T> {
 export interface CategoryListResponse {
     /** `productCount` is set on the storefront (`?visible=1`) list only. */
     categories: (CategoryEntity & { productCount?: number; previewImage?: string | null })[];
+    /** The tree was too big to send whole: only the top two levels are included. Browse the rest with `?parentId=`. */
+    truncated?: boolean;
 }
 
 /**

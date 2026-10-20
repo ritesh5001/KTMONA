@@ -7,6 +7,77 @@ import type { CategoryEntity } from '../types/product.types.js';
  */
 export class CategoryRepository {
     /**
+     * Direct children of one category (`null` = top level), in menu order.
+     * `includeInactive` is for the admin panel.
+     */
+    async findChildren(
+        parentId: string | null,
+        opts: { scope?: 'SELLER' | 'STOREFRONT'; includeInactive?: boolean } = {},
+    ): Promise<CategoryEntity[]> {
+        return prisma.category.findMany({
+            where: {
+                parentId,
+                ...(opts.includeInactive ? {} : { isActive: true }),
+                ...(opts.scope ? { scope: opts.scope } : {}),
+            },
+            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        }) as unknown as CategoryEntity[];
+    }
+
+    /** How many children each of these categories has. */
+    async countChildren(ids: string[], includeInactive: boolean): Promise<Map<string, number>> {
+        if (ids.length === 0) return new Map();
+        const rows = await prisma.category.groupBy({
+            by: ['parentId'],
+            where: { parentId: { in: ids }, ...(includeInactive ? {} : { isActive: true }) },
+            _count: { _all: true },
+        });
+        return new Map(rows.map((r) => [r.parentId as string, r._count._all]));
+    }
+
+    /** Name search, best matches first (shorter names first). */
+    async searchByName(
+        q: string,
+        opts: { scope?: 'SELLER' | 'STOREFRONT'; includeInactive?: boolean; limit: number },
+    ): Promise<CategoryEntity[]> {
+        const rows = (await prisma.category.findMany({
+            where: {
+                name: { contains: q, mode: 'insensitive' },
+                ...(opts.includeInactive ? {} : { isActive: true }),
+                ...(opts.scope ? { scope: opts.scope } : {}),
+            },
+            take: opts.limit * 3,
+        })) as unknown as CategoryEntity[];
+        const lower = q.toLowerCase();
+        return rows
+            .sort((a, b) => Number(b.name.toLowerCase().startsWith(lower)) - Number(a.name.toLowerCase().startsWith(lower)) || a.name.length - b.name.length)
+            .slice(0, opts.limit);
+    }
+
+    async findByIds(ids: string[]): Promise<CategoryEntity[]> {
+        if (ids.length === 0) return [];
+        return prisma.category.findMany({ where: { id: { in: ids } } }) as unknown as CategoryEntity[];
+    }
+
+    async countAll(opts: { scope?: 'SELLER' | 'STOREFRONT'; includeInactive?: boolean } = {}): Promise<number> {
+        return prisma.category.count({
+            where: { ...(opts.includeInactive ? {} : { isActive: true }), ...(opts.scope ? { scope: opts.scope } : {}) },
+        });
+    }
+
+    /** Top two levels only (main categories and their direct sub-categories). */
+    async findTopLevels(opts: { scope?: 'SELLER' | 'STOREFRONT'; includeInactive?: boolean } = {}): Promise<CategoryEntity[]> {
+        return prisma.category.findMany({
+            where: {
+                OR: [{ parentId: null }, { parent: { parentId: null } }],
+                ...(opts.includeInactive ? {} : { isActive: true }),
+                ...(opts.scope ? { scope: opts.scope } : {}),
+            },
+            orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+        }) as unknown as CategoryEntity[];
+    }
+
+    /**
      * Find all categories (active + inactive)
      */
     async findAll(): Promise<CategoryEntity[]> {

@@ -7,14 +7,14 @@ import { ArrowDown, ArrowUp, Check, ChevronRight, ImagePlus, Link2, Pencil, Plus
 import {
   createAdminCategory,
   deleteAdminCategory,
-  getAdminCategories,
   updateAdminCategory,
   type AdminCategory,
 } from "@/services/admin";
 import { categoryFieldsApi, type CategoryField, type CategoryFieldType } from "@/services/platform";
 import { attributesFor } from "@/components/seller/catalog-attributes";
-import { Badge, Btn, ErrorNote, Loading, PageHeader, PageShell, SearchBox, errorMessage, inputCls } from "@/components/seller/kit";
+import { Badge, Btn, ErrorNote, Loading, PageHeader, PageShell, SearchBox, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
+import { browseCategories, type CategoryBrief } from "@/services/catalog";
 import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 import { adminCenter, type CategoryLinkRow } from "@/services/admin-center";
 
@@ -25,12 +25,20 @@ import { adminCenter, type CategoryLinkRow } from "@/services/admin-center";
  * products in the selected category, including which ones are required (*).
  */
 export default function CategoryBuilderPage() {
-  const { data, error, isLoading, mutate } = useSWR("admin-category-builder", () => getAdminCategories());
   /** Seller tree (where products are listed) or the customer menu. */
   const [scope, setScope] = React.useState<"SELLER" | "STOREFRONT">("SELLER");
-  const everything = React.useMemo(() => data?.categories ?? [], [data]);
-  const all = React.useMemo(() => everything.filter((c) => (c.scope ?? "SELLER") === scope), [everything, scope]);
-  const sellerCategories = React.useMemo(() => everything.filter((c) => (c.scope ?? "SELLER") === "SELLER"), [everything]);
+  // The tree is far too big to load whole: each column is fetched when it is
+  // opened, and kept here.
+  const [loaded, setLoaded] = React.useState<Map<string, AdminCategory>>(new Map());
+  const [counts, setCounts] = React.useState<Record<string, number>>({});
+  const [fetched, setFetched] = React.useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = React.useState<string | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [path, setPath] = React.useState<string[]>([]);
+  const [search, setSearch] = React.useState("");
+  const [linking, setLinking] = React.useState(false);
+
+  const all = React.useMemo(() => [...loaded.values()], [loaded]);
   const childrenOf = React.useCallback(
     (parentId: string | null) =>
       all
@@ -38,15 +46,81 @@ export default function CategoryBuilderPage() {
         .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || a.name.localeCompare(b.name)),
     [all]
   );
-  const byId = React.useMemo(() => new Map(all.map((c) => [c.id, c])), [all]);
-  const [path, setPath] = React.useState<string[]>([]);
-  const [search, setSearch] = React.useState("");
-  const [linking, setLinking] = React.useState(false);
+  const byId = loaded;
+
+  const merge = React.useCallback((list: CategoryBrief[]) => {
+    setLoaded((prev) => {
+      const next = new Map(prev);
+      for (const c of list) next.set(c.id, c as unknown as AdminCategory);
+      return next;
+    });
+    setCounts((prev) => ({ ...prev, ...Object.fromEntries(list.map((c) => [c.id, c.childCount])) }));
+  }, []);
+
+  /** Fetch one column (the top level when `parentId` is null). */
+  const loadColumn = React.useCallback(
+    async (parentId: string | null, opts: { force?: boolean; scope?: "SELLER" | "STOREFRONT" } = {}) => {
+      const sc = opts.scope ?? scope;
+      const key = `${sc}:${parentId ?? "root"}`;
+      if (!opts.force && fetched.has(key)) return;
+      const res = await browseCategories({ parentId: parentId ?? "root" }, { admin: true, scope: sc });
+      merge(res.categories);
+      setFetched((prev) => new Set(prev).add(key));
+    },
+    [scope, fetched, merge]
+  );
+
+  // First load, and again whenever the tree is switched.
+  React.useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
+    browseCategories({ parentId: "root" }, { admin: true, scope })
+      .then((res) => {
+        if (!active) return;
+        merge(res.categories);
+        setFetched(new Set([`${scope}:root`]));
+      })
+      .catch((err) => active && setLoadError(errorMessage(err)))
+      .finally(() => active && setIsLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [scope, merge]);
+
   const switchScope = (next: "SELLER" | "STOREFRONT") => {
+    setLoaded(new Map());
+    setCounts({});
+    setFetched(new Set());
     setScope(next);
     setPath([]);
     setSearch("");
   };
+
+  /** After an add / rename / delete: reload the columns that are open. */
+  const mutate = async () => {
+    try {
+      const fresh = new Map<string, AdminCategory>();
+      const freshCounts: Record<string, number> = {};
+      const keys = new Set<string>();
+      for (const parent of [null, ...path]) {
+        const res = await browseCategories({ parentId: parent ?? "root" }, { admin: true, scope });
+        for (const c of res.categories) {
+          fresh.set(c.id, c as unknown as AdminCategory);
+          freshCounts[c.id] = c.childCount;
+        }
+        keys.add(`${scope}:${parent ?? "root"}`);
+      }
+      setLoaded(fresh);
+      setCounts(freshCounts);
+      setFetched(keys);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  const error = loadError ? new Error(loadError) : null;
+  const data = isLoading && loaded.size === 0 ? undefined : { categories: all };
+
   const autoLink = async () => {
     setLinking(true);
     try {
@@ -61,8 +135,8 @@ export default function CategoryBuilderPage() {
 
   // Drop selections that no longer exist (after a delete).
   React.useEffect(() => {
-    if (path.some((id) => !byId.has(id))) setPath((p) => p.slice(0, p.findIndex((id) => !byId.has(id))));
-  }, [byId, path]);
+    if (!isLoading && path.some((id) => !byId.has(id))) setPath((p) => p.slice(0, p.findIndex((id) => !byId.has(id))));
+  }, [byId, path, isLoading]);
 
   const selectedId = path[path.length - 1] ?? null;
   const columns: { parentId: string | null; items: AdminCategory[] }[] = [
@@ -70,8 +144,28 @@ export default function CategoryBuilderPage() {
     ...path.map((id) => ({ parentId: id, items: childrenOf(id) })),
   ];
 
-  const q = search.trim().toLowerCase();
-  const results = q ? all.filter((c) => c.name.toLowerCase().includes(q)).slice(0, 30) : [];
+  const q = useDebounced(search.trim());
+  const found = useSWR(q.length >= 2 ? ["builder-search", scope, q] : null, () => browseCategories({ q }, { admin: true, scope }), { revalidateOnFocus: false });
+  const results = found.data?.categories.slice(0, 30) ?? [];
+  /** Open the columns down to a search result. */
+  const openResult = async (c: CategoryBrief) => {
+    const ids = c.pathIds ?? [c.id];
+    try {
+      await Promise.all([null, ...ids].map((parent) => loadColumn(parent)));
+      setPath(ids);
+      setSearch("");
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  const selectCategory = async (id: string, depth: number) => {
+    try {
+      await loadColumn(id);
+      setPath([...path.slice(0, depth), id]);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
   const pathTo = (id: string): string[] => {
     const out: string[] = [];
     let cur = byId.get(id);
@@ -130,8 +224,8 @@ export default function CategoryBuilderPage() {
               <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-border-soft bg-card shadow-lg">
                 {results.map((c) => (
                   <li key={c.id}>
-                    <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-mist" onClick={() => { setPath(pathTo(c.id)); setSearch(""); }}>
-                      {label(c.id)}
+                    <button type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-mist" onClick={() => void openResult(c)}>
+                      {c.path?.join(" › ") ?? c.name}
                     </button>
                   </li>
                 ))}
@@ -146,8 +240,8 @@ export default function CategoryBuilderPage() {
                 parentId={col.parentId}
                 items={col.items}
                 selected={path[depth] ?? null}
-                onSelect={(id) => setPath([...path.slice(0, depth), id])}
-                hasChildren={(id) => childrenOf(id).length > 0}
+                onSelect={(id) => void selectCategory(id, depth)}
+                hasChildren={(id) => (counts[id] ?? 0) > 0}
                 onChanged={() => mutate()}
                 scope={scope}
               />
@@ -159,7 +253,7 @@ export default function CategoryBuilderPage() {
           ) : null}
 
           {selectedId && scope === "STOREFRONT" ? (
-            <LinksEditor key={`links-${selectedId}`} categoryId={selectedId} pathLabel={label(selectedId)} sellerCategories={sellerCategories} />
+            <LinksEditor key={`links-${selectedId}`} categoryId={selectedId} pathLabel={label(selectedId)} />
           ) : selectedId ? <FieldsEditor key={selectedId} categoryId={selectedId} pathLabel={label(selectedId)} pathNames={pathTo(selectedId).map((x) => byId.get(x)?.name ?? "")} /> : (
             <p className="text-sm text-muted-foreground">{scope === "STOREFRONT" ? "Select a menu category to choose which seller categories it shows products from." : "Select a category to edit its product-detail fields."}</p>
           )}
@@ -171,21 +265,11 @@ export default function CategoryBuilderPage() {
 
 /* ── Customer-menu category → seller categories ─────────────────────────── */
 
-function sellerPath(id: string, byId: Map<string, AdminCategory>): string {
-  const out: string[] = [];
-  let cur = byId.get(id);
-  for (let g = 0; cur && g < 10; g += 1) {
-    out.unshift(cur.name);
-    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
-  }
-  return out.join(" › ");
-}
-
 /**
  * Which seller categories a customer-menu category shows products from. A
  * linked seller category includes everything below it.
  */
-function LinksEditor({ categoryId, pathLabel, sellerCategories }: { categoryId: string; pathLabel: string; sellerCategories: AdminCategory[] }) {
+function LinksEditor({ categoryId, pathLabel }: { categoryId: string; pathLabel: string }) {
   const { data, error, isLoading, mutate } = useSWR(["category-links", categoryId], () => adminCenter.categoryLinks(categoryId));
   const [links, setLinks] = React.useState<CategoryLinkRow[] | null>(null);
   const [query, setQuery] = React.useState("");
@@ -194,15 +278,12 @@ function LinksEditor({ categoryId, pathLabel, sellerCategories }: { categoryId: 
     if (data) setLinks(data.links);
   }, [data]);
 
-  const byId = React.useMemo(() => new Map(sellerCategories.map((c) => [c.id, c])), [sellerCategories]);
-  const q = query.trim().toLowerCase();
-  const results = q
-    ? sellerCategories
-        .filter((c) => !links?.some((l) => l.id === c.id))
-        .map((c) => ({ id: c.id, name: c.name, path: sellerPath(c.id, byId) }))
-        .filter((c) => c.path.toLowerCase().includes(q))
-        .slice(0, 12)
-    : [];
+  const q = useDebounced(query.trim());
+  const sellerMatches = useSWR(q.length >= 2 ? ["links-seller-search", q] : null, () => browseCategories({ q }, { admin: true, scope: "SELLER" }), { revalidateOnFocus: false });
+  const results = (sellerMatches.data?.categories ?? [])
+    .filter((c) => !links?.some((l) => l.id === c.id))
+    .map((c) => ({ id: c.id, name: c.name, path: c.path?.join(" › ") ?? c.name }))
+    .slice(0, 12);
   const dirty = !!links && !!data && (links.length !== data.links.length || links.some((l) => !data.links.some((d) => d.id === l.id)));
 
   const save = async () => {

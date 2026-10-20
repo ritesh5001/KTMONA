@@ -9,7 +9,7 @@ import { AlertTriangle, FileStack, ImageIcon, Lightbulb, Trash2 } from "lucide-r
 import { fmtDate } from "@/services/seller-center";
 import { supplier, type CatalogUploadRow, type QcStatus, type QcTab } from "@/services/seller-supplier";
 import { Badge, Btn, Empty, ErrorNote, Loading, Modal, Pager, SearchBox, Tabs, errorMessage, useDebounced } from "@/components/seller/kit";
-import { useCategoryTree } from "@/components/seller/CategoryColumns";
+import { useCategoryPath } from "@/components/seller/CategoryColumns";
 import { cn } from "@/lib/utils";
 import { KycGate } from "@/components/seller/KycGate";
 
@@ -42,7 +42,7 @@ function CatalogUploadsPageContent() {
   const q = useDebounced(search);
   const [categoryId, setCategoryId] = React.useState("");
   const [view, setView] = React.useState<CatalogUploadRow | null>(null);
-  const { byId } = useCategoryTree();
+  const { category: pickedCategory } = useCategoryPath(categoryId || null);
 
   const { data: overview } = useSWR("seller-uploads-overview", () => supplier.uploadsOverview());
   const { data, error, isLoading, mutate } = useSWR(["seller-uploads", mode, tab, page, q, categoryId], () => supplier.uploads({ mode, tab, page, search: q, categoryId }), {
@@ -59,9 +59,9 @@ function CatalogUploadsPageContent() {
   const categories = React.useMemo(() => {
     const map = new Map<string, string>();
     data?.uploads.forEach((u) => map.set(u.category.id, u.category.name));
-    if (categoryId && !map.has(categoryId)) map.set(categoryId, byId.get(categoryId)?.node.name ?? "Category");
+    if (categoryId && !map.has(categoryId)) map.set(categoryId, pickedCategory?.name ?? "Category");
     return [...map.entries()];
-  }, [data, categoryId, byId]);
+  }, [data, categoryId, pickedCategory]);
 
   const removeDraft = async (id: string) => {
     try {

@@ -5,17 +5,17 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { ChevronRight, FolderPlus, FolderTree, Pencil, Plus, Trash2 } from "lucide-react";
-import { getCategories } from "@/services/catalog";
-import { buildCategoryTree, type CategoryNode } from "@/lib/category-tree";
+import { browseCategories, type CategoryBrief } from "@/services/catalog";
 import { fmtDate } from "@/services/seller-center";
 import { categoryRequestsApi, type CategoryRequest, type CategoryRequestInput } from "@/services/platform";
-import { Badge, Btn, Empty, Field, Loading, Modal, PageHeader, PageShell, SearchBox, Tabs, errorMessage, inputCls } from "@/components/seller/kit";
+import { Badge, Btn, Empty, Field, Loading, Modal, PageHeader, PageShell, SearchBox, Tabs, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 
+type CategoryRef = { id: string; name: string };
 type Draft =
-  | { type: "ADD"; parent: CategoryNode | null }
-  | { type: "EDIT"; category: CategoryNode }
-  | { type: "DELETE"; category: CategoryNode };
+  | { type: "ADD"; parent: CategoryRef | null }
+  | { type: "EDIT"; category: CategoryRef }
+  | { type: "DELETE"; category: CategoryRef };
 
 const STATUS_TONE = { PENDING: "orange", APPROVED: "green", REJECTED: "gray" } as const;
 const TYPE_LABEL = { ADD: "New category", EDIT: "Rename / edit", DELETE: "Remove" } as const;
@@ -34,9 +34,7 @@ export default function SellerCategoryRequestsPage() {
 
 function SellerCategoryRequestsContent() {
   const [tab, setTab] = React.useState<"browse" | "requests">("browse");
-  const cats = useSWR("seller-category-tree", getCategories);
   const reqs = useSWR("seller-category-requests", categoryRequestsApi.mine);
-  const tree = React.useMemo(() => buildCategoryTree(cats.data?.categories), [cats.data]);
   const [draft, setDraft] = React.useState<Draft | null>(null);
   // Opened from Add Catalog's "Can't find your category?" link.
   const params = useSearchParams();
@@ -65,7 +63,7 @@ function SellerCategoryRequestsContent() {
           />
         </div>
         {tab === "browse" ? (
-          cats.isLoading && !cats.data ? <Loading /> : <CategoryBrowser tree={tree} onDraft={setDraft} />
+          <CategoryBrowser onDraft={setDraft} />
         ) : (
           <MyRequests data={reqs.data?.requests} loading={reqs.isLoading} onChange={() => reqs.mutate()} />
         )}
@@ -82,40 +80,69 @@ function SellerCategoryRequestsContent() {
   );
 }
 
-function CategoryBrowser({ tree, onDraft }: { tree: CategoryNode[]; onDraft: (d: Draft) => void }) {
+function CategoryBrowser({ onDraft }: { onDraft: (d: Draft) => void }) {
   const [search, setSearch] = React.useState("");
-  const [open, setOpen] = React.useState<Set<string>>(new Set());
-  const q = search.trim().toLowerCase();
-
-  const matches = (n: CategoryNode): boolean => !q || n.name.toLowerCase().includes(q) || n.children.some(matches);
-  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-
-  const renderNode = (n: CategoryNode): React.ReactNode => {
-    if (!matches(n)) return null;
-    const expanded = q ? true : open.has(n.id);
-    return (
-      <li key={n.id}>
-        <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-mist" style={{ paddingLeft: 8 + n.depth * 20 }}>
-          <button type="button" onClick={() => toggle(n.id)} className={cn("flex h-6 w-6 items-center justify-center rounded", !n.children.length && "invisible")} aria-label={expanded ? "Collapse" : "Expand"}>
-            <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
-          </button>
-          <span className="flex-1 truncate text-sm">{n.name}{n.children.length ? <span className="ml-1 text-xs text-muted-foreground">({n.children.length})</span> : null}</span>
-          <span className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
-            <button type="button" title="Request sub-category" onClick={() => onDraft({ type: "ADD", parent: n })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"><FolderPlus className="h-4 w-4" /></button>
-            <button type="button" title="Request rename / edit" onClick={() => onDraft({ type: "EDIT", category: n })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"><Pencil className="h-4 w-4" /></button>
-            <button type="button" title="Request removal" onClick={() => onDraft({ type: "DELETE", category: n })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
-          </span>
-        </div>
-        {expanded && n.children.length ? <ul>{n.children.map(renderNode)}</ul> : null}
-      </li>
-    );
-  };
+  const q = useDebounced(search.trim());
+  const found = useSWR(q.length >= 2 ? ["category-request-search", q] : null, () => browseCategories({ q }), { revalidateOnFocus: false });
 
   return (
     <div className="p-4">
       <div className="mb-3 sm:w-80"><SearchBox value={search} onChange={setSearch} placeholder="Search categories" /></div>
-      {tree.length === 0 ? <Empty icon={FolderTree} title="No categories yet" /> : <ul>{tree.map(renderNode)}</ul>}
+      {q.length >= 2 ? (
+        found.isLoading ? <Loading rows={3} /> : (found.data?.categories ?? []).length === 0 ? (
+          <Empty icon={FolderTree} title="No category found" text={`Nothing matches "${q}".`} />
+        ) : (
+          <ul>
+            {(found.data?.categories ?? []).map((c) => (
+              <CategoryRow key={c.id} cat={c} depth={0} expanded={false} showPath onToggle={() => undefined} onDraft={onDraft} />
+            ))}
+          </ul>
+        )
+      ) : (
+        <Branch parentId={null} depth={0} onDraft={onDraft} />
+      )}
       <p className="mt-3 text-xs text-muted-foreground">Hover a category for actions: add a sub-category, rename it, or ask for it to be removed.</p>
+    </div>
+  );
+}
+
+/** The children of one category, fetched when it is opened. */
+function Branch({ parentId, depth, onDraft }: { parentId: string | null; depth: number; onDraft: (d: Draft) => void }) {
+  const { data, error, isLoading } = useSWR(["category-request-children", parentId ?? "root"], () => browseCategories({ parentId: parentId ?? "root" }), { revalidateOnFocus: false });
+  const [open, setOpen] = React.useState<Set<string>>(new Set());
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  if (isLoading) return <p className="px-2 py-1.5 text-xs text-muted-foreground" style={{ paddingLeft: 8 + depth * 20 }}>Loading…</p>;
+  if (error) return <p className="px-2 py-1.5 text-xs text-red-600" style={{ paddingLeft: 8 + depth * 20 }}>Could not load categories.</p>;
+  const list = data?.categories ?? [];
+  if (list.length === 0) return depth === 0 ? <Empty icon={FolderTree} title="No categories yet" /> : null;
+  return (
+    <ul>
+      {list.map((c) => (
+        <li key={c.id}>
+          <CategoryRow cat={c} depth={depth} expanded={open.has(c.id)} onToggle={() => toggle(c.id)} onDraft={onDraft} />
+          {open.has(c.id) && c.childCount > 0 ? <Branch parentId={c.id} depth={depth + 1} onDraft={onDraft} /> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function CategoryRow({ cat, depth, expanded, showPath, onToggle, onDraft }: { cat: CategoryBrief; depth: number; expanded: boolean; showPath?: boolean; onToggle: () => void; onDraft: (d: Draft) => void }) {
+  const ref = { id: cat.id, name: cat.name };
+  return (
+    <div className="group flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-mist" style={{ paddingLeft: 8 + depth * 20 }}>
+      <button type="button" onClick={onToggle} className={cn("flex h-6 w-6 items-center justify-center rounded", (cat.childCount === 0 || showPath) && "invisible")} aria-label={expanded ? "Collapse" : "Expand"}>
+        <ChevronRight className={cn("h-4 w-4 transition-transform", expanded && "rotate-90")} />
+      </button>
+      <span className="min-w-0 flex-1 truncate text-sm">
+        {cat.name}{cat.childCount ? <span className="ml-1 text-xs text-muted-foreground">({cat.childCount})</span> : null}
+        {showPath && cat.path && cat.path.length > 1 ? <span className="block text-xs text-muted-foreground">in {cat.path.slice(0, -1).join(" / ")}</span> : null}
+      </span>
+      <span className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100">
+        <button type="button" title="Request sub-category" onClick={() => onDraft({ type: "ADD", parent: ref })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"><FolderPlus className="h-4 w-4" /></button>
+        <button type="button" title="Request rename / edit" onClick={() => onDraft({ type: "EDIT", category: ref })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+        <button type="button" title="Request removal" onClick={() => onDraft({ type: "DELETE", category: ref })} className="rounded p-1.5 text-muted-foreground hover:bg-card hover:text-red-600"><Trash2 className="h-4 w-4" /></button>
+      </span>
     </div>
   );
 }

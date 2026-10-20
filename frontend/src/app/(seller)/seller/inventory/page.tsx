@@ -9,7 +9,7 @@ import { Boxes, Check, Download, MoreVertical, Pencil, PlusCircle, Upload } from
 import { sellerCenter, inr } from "@/services/seller-center";
 import { supplier, type InventoryCatalog, type InventoryStatus, type InventoryStock } from "@/services/seller-supplier";
 import { Btn, Empty, ErrorNote, Loading, Modal, SearchBox, StatusBadge, Tabs, Thumb, errorMessage, useDebounced } from "@/components/seller/kit";
-import { useCategoryTree } from "@/components/seller/CategoryColumns";
+import { useCategoryPath } from "@/components/seller/CategoryColumns";
 import { cn } from "@/lib/utils";
 
 const STATUS_TABS: { key: InventoryStatus; label: string }[] = [
@@ -38,7 +38,7 @@ export default function InventoryPage() {
   const [sort, setSort] = React.useState("orders");
   const [selectedKey, setSelectedKey] = React.useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = React.useState(false);
-  const { byId } = useCategoryTree();
+  const { category: pickedCategory } = useCategoryPath(categoryId || null);
 
   const { data, error, isLoading, mutate } = useSWR(["seller-inventory-catalogs", status, stock, q, categoryId, sort], () =>
     supplier.inventoryCatalogs({ status, stock, search: q, categoryId, sort }), { keepPreviousData: true }
@@ -49,9 +49,9 @@ export default function InventoryPage() {
   const usedCategories = React.useMemo(() => {
     const ids = new Map<string, string>();
     catalogs.forEach((c) => ids.set(c.category.id, c.category.name));
-    if (categoryId && !ids.has(categoryId)) ids.set(categoryId, byId.get(categoryId)?.node.name ?? "Category");
+    if (categoryId && !ids.has(categoryId)) ids.set(categoryId, pickedCategory?.name ?? "Category");
     return [...ids.entries()];
-  }, [catalogs, categoryId, byId]);
+  }, [catalogs, categoryId, pickedCategory]);
 
   const refresh = () => Promise.all([mutate(), globalMutate((k) => Array.isArray(k) && k[0] === "seller-home")]);
 

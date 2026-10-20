@@ -10,7 +10,7 @@ import { sellerCenter, inr2 } from "@/services/seller-center";
 import { supplier, type CatalogProductInput } from "@/services/seller-supplier";
 import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 import { Btn, Field, errorMessage, inputCls } from "@/components/seller/kit";
-import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/components/seller/CategoryColumns";
+import { CategoryColumns, categoryPathLabel, useCategoryPath } from "@/components/seller/CategoryColumns";
 import { IMAGE_SLOTS, LEGAL_FIELDS, NOT_ALLOWED_IMAGES, attributesFor, sizePresetsFor, type AttributeDef } from "@/components/seller/catalog-attributes";
 import { cn } from "@/lib/utils";
 import { categoryFieldsApi } from "@/services/platform";
@@ -129,7 +129,6 @@ function AddSingleCatalogPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const draftParam = params.get("draft");
-  const { byId } = useCategoryTree();
   const [step, setStep] = React.useState<1 | 2>(1);
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [draftId, setDraftId] = React.useState<string | null>(draftParam);
@@ -164,7 +163,7 @@ function AddSingleCatalogPageContent() {
       .catch((err) => toast.error(errorMessage(err, "Could not open the draft")));
   }, [draftParam]);
 
-  const path = categoryId ? (byId.get(categoryId)?.path ?? []) : [];
+  const { path } = useCategoryPath(categoryId);
   const pathNames = path.map((n) => n.name);
   /** Example set by KTMONA for this category (or its nearest parent). */
   const exampleImage = [...path].reverse().find((n) => n.image)?.image ?? null;

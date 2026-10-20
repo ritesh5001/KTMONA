@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createAdminCategory,
   deleteAdminCategory,
-  getAdminCategories,
   updateAdminCategory,
   toggleAdminCategory,
   type AdminCategory,
@@ -19,9 +18,13 @@ import {
   type UpdateCategoryPayload,
 } from "@/services/admin";
 import { toast } from "sonner";
-import { Loader2, X } from "lucide-react";
+import { ChevronRight, Loader2, X } from "lucide-react";
+import useSWR from "swr";
+import { browseCategories, type CategoryBrief } from "@/services/catalog";
+import { CategoryField } from "@/components/category/CategoryField";
+import { useDebounced } from "@/components/seller/kit";
 import { compressImageForUpload } from "@/lib/image-compression";
-import { buildCategoryTree, flattenTree, pathLabels } from "@/lib/category-tree";
+import { buildCategoryTree } from "@/lib/category-tree";
 
 const IMAGEKIT_PUBLIC_KEY = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 const IMAGEKIT_URL_ENDPOINT = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
@@ -58,8 +61,6 @@ function slugify(value: string) {
 const CategoryFormFields = ({
   values,
   onChange,
-  parentOptions,
-  parentLabels,
   excludeId,
   onUpload,
   uploadingImage,
@@ -67,8 +68,6 @@ const CategoryFormFields = ({
 }: {
   values: Record<string, any>;
   onChange: (field: string, value: any) => void;
-  parentOptions: AdminCategory[];
-  parentLabels: Map<string, string>;
   excludeId?: string;
   onUpload: (field: "image" | "bannerImage", file: File) => void;
   uploadingImage: boolean;
@@ -156,18 +155,21 @@ const CategoryFormFields = ({
     <div className="grid grid-cols-2 gap-4">
       <div>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Parent Category</Label>
-        <select
-          value={values.parentId ?? ""}
-          onChange={(e) => onChange("parentId", e.target.value || undefined)}
-          className="mt-1 flex h-11 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="">None (Top Level)</option>
-          {parentOptions
-            .filter((c) => c.id !== excludeId)
-            .map((c) => (
-              <option key={c.id} value={c.id}>{parentLabels.get(c.id) ?? c.name}</option>
-            ))}
-        </select>
+        <CategoryField
+          admin
+          leafOnly={false}
+          className="mt-1"
+          value={values.parentId ?? null}
+          onChange={(id) => {
+            if (id && id === excludeId) {
+              toast.error("A category cannot be its own parent.");
+              return;
+            }
+            onChange("parentId", id || undefined);
+          }}
+          clearLabel="None (Top Level)"
+          title="Choose the parent category"
+        />
       </div>
       <div>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Sort Order</Label>
@@ -191,17 +193,63 @@ export default function AdminCategoriesPage() {
   const [loading, setLoading] = React.useState(true);
   const [categories, setCategories] = React.useState<AdminCategory[]>([]);
   const [search, setSearch] = React.useState("");
+  const q = useDebounced(search.trim());
+  // The tree is far too big to load whole: only the top level loads at first
+  // and each category's sub-categories load when it is opened.
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
+  const [loadedParents, setLoadedParents] = React.useState<Set<string>>(new Set());
+  const [loadingParents, setLoadingParents] = React.useState<Set<string>>(new Set());
+  // Sub-category count per category (from the server, kept in step with edits).
+  const [childCounts, setChildCounts] = React.useState<Record<string, number>>({});
+  const mergeBrowsed = React.useCallback((list: CategoryBrief[]) => {
+    setCategories((prev) => {
+      const byId = new Map(prev.map((c) => [c.id, c]));
+      for (const c of list) byId.set(c.id, c as unknown as AdminCategory);
+      return [...byId.values()];
+    });
+    setChildCounts((prev) => ({ ...prev, ...Object.fromEntries(list.map((c) => [c.id, c.childCount])) }));
+  }, []);
   // Tree order (main → group → leaf) with depth, hidden categories included.
   const tree = React.useMemo(() => buildCategoryTree(categories, { includeHidden: true }), [categories]);
-  const labels = React.useMemo(() => pathLabels(tree), [tree]);
-  const ordered = React.useMemo(
-    () => flattenTree(tree) as unknown as Array<AdminCategory & { depth: number }>,
-    [tree],
-  );
-  const visible = React.useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return q ? ordered.filter((c) => (labels.get(c.id) ?? c.name).toLowerCase().includes(q)) : ordered;
-  }, [ordered, labels, search]);
+  const ordered = React.useMemo(() => {
+    const out: Array<AdminCategory & { depth: number }> = [];
+    const walk = (nodes: typeof tree) =>
+      nodes.forEach((n) => {
+        out.push(n as unknown as AdminCategory & { depth: number });
+        if (expanded.has(n.id)) walk(n.children);
+      });
+    walk(tree);
+    return out;
+  }, [tree, expanded]);
+  const found = useSWR(q.length >= 2 ? ["admin-category-search", q] : null, () => browseCategories({ q }, { admin: true }), { revalidateOnFocus: false });
+  React.useEffect(() => {
+    if (found.data) mergeBrowsed(found.data.categories);
+  }, [found.data, mergeBrowsed]);
+  const visible = React.useMemo<Array<AdminCategory & { depth: number; path?: string[] }>>(() => {
+    if (q.length < 2) return ordered;
+    return (found.data?.categories ?? []).map((c) => ({ ...(c as unknown as AdminCategory), depth: 0, path: c.path }));
+  }, [q, ordered, found.data]);
+
+  const toggleExpand = async (id: string) => {
+    if (expanded.has(id)) {
+      setExpanded((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      return;
+    }
+    if (!loadedParents.has(id)) {
+      setLoadingParents((prev) => new Set(prev).add(id));
+      try {
+        const res = await browseCategories({ parentId: id }, { admin: true });
+        mergeBrowsed(res.categories);
+        setLoadedParents((prev) => new Set(prev).add(id));
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to load sub-categories");
+        return;
+      } finally {
+        setLoadingParents((prev) => { const n = new Set(prev); n.delete(id); return n; });
+      }
+    }
+    setExpanded((prev) => new Set(prev).add(id));
+  };
   const [saving, setSaving] = React.useState(false);
   const [pendingCategoryIds, setPendingCategoryIds] = React.useState<string[]>([]);
 
@@ -358,8 +406,9 @@ export default function AdminCategoriesPage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const result = await getAdminCategories();
-      setCategories(result.categories ?? []);
+      const result = await browseCategories({ parentId: "root" }, { admin: true });
+      setCategories(result.categories as unknown as AdminCategory[]);
+      setChildCounts(Object.fromEntries(result.categories.map((c) => [c.id, c.childCount])));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to load categories");
     } finally {
@@ -395,6 +444,12 @@ export default function AdminCategoriesPage() {
       setCategories((prev) =>
         prev.map((category) => (category.id === tempId ? result.category : category))
       );
+      if (payload.parentId) {
+        const parentId = payload.parentId;
+        setChildCounts((prev) => ({ ...prev, [parentId]: (prev[parentId] ?? 0) + 1 }));
+        setLoadedParents((prev) => new Set(prev).add(parentId));
+        setExpanded((prev) => new Set(prev).add(parentId));
+      }
       toast.success("Category created.");
     } catch (error) {
       setCategories((prev) => prev.filter((category) => category.id !== tempId));
@@ -560,7 +615,7 @@ export default function AdminCategoriesPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search categories" className="h-9 w-56" />
-                <p className="text-sm text-muted-foreground">{categories.length} total</p>
+                <p className="text-sm text-muted-foreground">{q.length >= 2 ? `${visible.length} found` : `${tree.length} main categories`}</p>
               </div>
             </div>
           </div>
@@ -569,25 +624,43 @@ export default function AdminCategoriesPage() {
             <div className="p-8 text-center"><p className="text-sm text-muted-foreground">Loading categories...</p></div>
           ) : categories.length === 0 ? (
             <div className="p-8 text-center"><p className="text-sm text-muted-foreground">No categories yet.</p></div>
+          ) : q.length >= 2 && found.isLoading ? (
+            <div className="p-8 text-center"><p className="text-sm text-muted-foreground">Searching…</p></div>
+          ) : q.length >= 2 && visible.length === 0 ? (
+            <div className="p-8 text-center"><p className="text-sm text-muted-foreground">No category matches &quot;{q}&quot;.</p></div>
           ) : (
             <div className="divide-y divide-border-soft">
               {visible.map((category) => (
                 <div
                   key={category.id}
-                  style={{ paddingLeft: `${1.5 + (search ? 0 : category.depth * 1.75)}rem` }}
+                  style={{ paddingLeft: `${1.5 + (q.length >= 2 ? 0 : category.depth * 1.75)}rem` }}
                   className={`flex flex-col gap-3 p-6 md:flex-row md:items-center md:justify-between ${
                     pendingCategoryIds.includes(category.id) ? "opacity-60" : ""
                   }`}
                 >
+                  <div className="flex flex-1 items-start gap-2">
+                    {q.length < 2 ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(category.id)}
+                        disabled={loadingParents.has(category.id)}
+                        aria-label={expanded.has(category.id) ? "Collapse" : "Expand"}
+                        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded hover:bg-mist ${(childCounts[category.id] ?? 0) > 0 ? "" : "invisible"}`}
+                      >
+                        {loadingParents.has(category.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronRight className={`h-4 w-4 transition-transform ${expanded.has(category.id) ? "rotate-90" : ""}`} />}
+                      </button>
+                    ) : null}
                   <div className="flex-1 space-y-1">
                     <p className={`text-foreground ${category.depth === 0 ? "font-semibold" : "font-medium"}`}>
-                      {search ? labels.get(category.id) ?? category.name : category.name}
+                      {q.length >= 2 ? category.path?.join(" › ") ?? category.name : category.name}
+                      {(childCounts[category.id] ?? 0) > 0 ? <span className="ml-2 text-xs font-normal text-muted-foreground">({childCounts[category.id]})</span> : null}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {category.slug}
                       {category.description ? ` · ${category.description.slice(0, 60)}...` : ""}
-                      {category.depth === 0 ? " · Main category" : ""}
+                      {category.depth === 0 && q.length < 2 ? " · Main category" : ""}
                     </p>
+                  </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
                     {pendingCategoryIds.includes(category.id) ? (
@@ -622,8 +695,6 @@ export default function AdminCategoriesPage() {
               <CategoryFormFields
                 values={createForm}
                 onChange={(field, value) => setCreateForm((prev) => ({ ...prev, [field]: value }))}
-                parentOptions={ordered}
-                parentLabels={labels}
                 onUpload={(field, file) => uploadCategoryAsset({ file, field, mode: "create" })}
                 uploadingImage={uploadingCreateImage}
                 uploadingBannerImage={uploadingCreateBannerImage}
@@ -647,8 +718,6 @@ export default function AdminCategoriesPage() {
               <CategoryFormFields
                 values={editForm}
                 onChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
-                parentOptions={ordered}
-                parentLabels={labels}
                 excludeId={editingId}
                 onUpload={(field, file) => uploadCategoryAsset({ file, field, mode: "edit" })}
                 uploadingImage={uploadingEditImage}

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CategoryOptions } from "@/components/seller/CategoryOptions";
+import { CategoryField } from "@/components/category/CategoryField";
 import { useRouter } from "next/navigation";
 import { EarningsHint } from "@/components/seller/EarningsHint";
 import Image from "next/image";
@@ -247,6 +247,12 @@ export default function SellerProductsClient({
   const [categories, setCategories] = React.useState<
     Array<{ id: string; name: string }>
   >(initialData?.categories ?? []);
+  // Categories are browsed level by level, so the list above holds only the
+  // top of the tree. Remember each one the seller picks so a saved product can
+  // show its category straight away.
+  const rememberCategory = React.useCallback((cat: { id: string; name: string }) => {
+    setCategories((prev) => (prev.some((c) => c.id === cat.id) ? prev : [...prev, { id: cat.id, name: cat.name }]));
+  }, []);
   const [occasions, setOccasions] = React.useState<Occasion[]>(
     initialData?.occasions ?? []
   );
@@ -1440,20 +1446,15 @@ export default function SellerProductsClient({
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
                             <Label required>Category</Label>
-                            <select
-                              className="h-12 w-full border border-border-soft bg-card px-3 text-sm text-foreground"
-                              value={editForm.categoryId}
-                              onChange={(event) =>
-                                setEditForm((prev) => ({
-                                  ...prev,
-                                  categoryId: event.target.value,
-                                }))
-                              }
+                            <CategoryField
+                              value={editForm.categoryId || null}
+                              onChange={(id, cat) => {
+                                if (cat) rememberCategory(cat);
+                                setEditForm((prev) => ({ ...prev, categoryId: id ?? "" }));
+                              }}
+                              fallbackLabel={product.category?.name}
                               disabled={product.deletedByAdmin}
-                            >
-                              <option value="">Select category</option>
-                              <CategoryOptions categories={categories} value={editForm.categoryId} />
-                            </select>
+                            />
                           </div>
                           <div className="space-y-2">
                             <Label required>Title</Label>
@@ -2105,19 +2106,13 @@ export default function SellerProductsClient({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label required>Category</Label>
-                    <select
-                      className="h-12 w-full border border-border-soft bg-card px-3 text-sm text-foreground"
-                      value={form.categoryId}
-                      onChange={(event) =>
-                        setForm((prev) => ({
-                          ...prev,
-                          categoryId: event.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">Select category</option>
-                      <CategoryOptions categories={categories} value={form.categoryId} />
-                    </select>
+                    <CategoryField
+                      value={form.categoryId || null}
+                      onChange={(id, cat) => {
+                        if (cat) rememberCategory(cat);
+                        setForm((prev) => ({ ...prev, categoryId: id ?? "" }));
+                      }}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label required>Title</Label>

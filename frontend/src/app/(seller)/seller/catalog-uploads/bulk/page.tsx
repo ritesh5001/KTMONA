@@ -7,19 +7,18 @@ import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, Download, Headset, Images, Upload } from "lucide-react";
 import { sellerCenter } from "@/services/seller-center";
 import { Badge, Btn, errorMessage } from "@/components/seller/kit";
-import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/components/seller/CategoryColumns";
+import { CategoryColumns, categoryPathLabel, useCategoryPath } from "@/components/seller/CategoryColumns";
 import { KycGate } from "@/components/seller/KycGate";
 
 type Report = Awaited<ReturnType<typeof sellerCenter.bulkUpload>>;
 
 function BulkCatalogUploadPageContent() {
   const router = useRouter();
-  const { byId } = useCategoryTree();
   const [categoryId, setCategoryId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<"template" | "upload" | null>(null);
   const [report, setReport] = React.useState<Report | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const path = categoryId ? (byId.get(categoryId)?.path ?? []) : [];
+  const { path } = useCategoryPath(categoryId);
   const leaf = path.at(-1)?.name ?? "";
 
   const download = async () => {

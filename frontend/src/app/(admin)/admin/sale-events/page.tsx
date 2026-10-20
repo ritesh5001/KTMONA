@@ -4,7 +4,8 @@ import * as React from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { ExternalLink, Plus, Tag } from "lucide-react";
-import { getCategories } from "@/services/catalog";
+import { browseCategories } from "@/services/catalog";
+import { CategoryField } from "@/components/category/CategoryField";
 import { adminCenter, type PlatformCampaign } from "@/services/admin-center";
 import { inr, fmtDate } from "@/services/seller-center";
 import { Badge, Btn, Empty, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, errorMessage, inputCls } from "@/components/seller/kit";
@@ -84,7 +85,9 @@ export default function SaleEventsPage() {
 }
 
 function CampaignModal({ campaign, onClose, onSaved }: { campaign: PlatformCampaign | "new" | null; onClose: () => void; onSaved: () => void }) {
-  const { data: cats } = useSWR("categories", () => getCategories());
+  // Names of the chosen categories (the full tree is too big to load, so they
+  // are looked up by id).
+  const [names, setNames] = React.useState<Record<string, string>>({});
   const existing = campaign && campaign !== "new" ? campaign : null;
   const [f, setF] = React.useState({ name: "", description: "", bannerImage: "", startsAt: "", endsAt: "", joinDeadline: "", minDiscountPercent: "10" });
   const [categoryIds, setCategoryIds] = React.useState<string[]>([]);
@@ -102,6 +105,12 @@ function CampaignModal({ campaign, onClose, onSaved }: { campaign: PlatformCampa
       minDiscountPercent: String(existing?.minDiscountPercent ?? 10),
     });
     setCategoryIds(existing?.categoryIds ?? []);
+    setNames({});
+    if (existing?.categoryIds?.length) {
+      browseCategories({ ids: existing.categoryIds }, { admin: true })
+        .then((r) => setNames(Object.fromEntries(r.categories.map((c) => [c.id, c.path?.join(" / ") ?? c.name]))))
+        .catch(() => undefined);
+    }
   }, [campaign]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!campaign) return null;
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -144,13 +153,27 @@ function CampaignModal({ campaign, onClose, onSaved }: { campaign: PlatformCampa
           <Field label="Sellers can join until"><input type="datetime-local" className={inputCls} value={f.joinDeadline} onChange={set("joinDeadline")} /></Field>
           <div>
             <p className="mb-1.5 text-sm font-medium">Categories (empty = all)</p>
-            <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto">
-              {(cats?.categories ?? []).map((c) => (
-                <button key={c.id} type="button" onClick={() => setCategoryIds((p) => (p.includes(c.id) ? p.filter((x) => x !== c.id) : [...p, c.id]))} className={cn("rounded-full border px-3 py-1 text-xs font-medium", categoryIds.includes(c.id) ? "border-ink bg-ink text-paper dark:border-brand dark:bg-brand dark:text-ink" : "border-border-soft hover:bg-mist")}>
-                  {c.name}
-                </button>
-              ))}
-            </div>
+            {categoryIds.length ? (
+              <div className="mb-2 flex max-h-40 flex-wrap gap-2 overflow-y-auto">
+                {categoryIds.map((id) => (
+                  <button key={id} type="button" onClick={() => setCategoryIds((p) => p.filter((x) => x !== id))} title="Remove" className="rounded-full border border-ink bg-ink px-3 py-1 text-xs font-medium text-paper dark:border-brand dark:bg-brand dark:text-ink">
+                    {names[id] ?? "Category"} ✕
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <CategoryField
+              admin
+              leafOnly={false}
+              value={null}
+              placeholder="Add a category…"
+              title="Add a category to this sale"
+              onChange={(id, cat) => {
+                if (!id || !cat) return;
+                setCategoryIds((p) => (p.includes(id) ? p : [...p, id]));
+                setNames((n) => ({ ...n, [id]: cat.path?.join(" / ") ?? cat.name }));
+              }}
+            />
           </div>
         </div>
       </div>

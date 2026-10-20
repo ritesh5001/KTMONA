@@ -42,6 +42,72 @@ export class CategoryService {
     }
 
     /**
+     * Browse the category tree one level at a time instead of loading all of
+     * it: `parentId` (an id, or `root`) returns that category's direct
+     * children, `q` searches by name (each result carries its `path`), and
+     * `ids` looks categories up by id (each carries its `path`). Seller tree
+     * by default; the admin panel also sees hidden ones.
+     */
+    async browse(
+        query: { parentId?: string | undefined; q?: string | undefined; ids?: string | undefined },
+        opts: { includeInactive?: boolean; scope?: 'SELLER' | 'STOREFRONT' | undefined } = {},
+    ): Promise<{ categories: Array<CategoryListResponse['categories'][number] & { childCount: number; path?: string[]; pathIds?: string[] }> }> {
+        const includeInactive = Boolean(opts.includeInactive);
+        const scope = opts.scope;
+        let rows: CategoryListResponse['categories'];
+        let withPath = false;
+
+        if (query.q?.trim()) {
+            rows = await this.repository.searchByName(query.q.trim().slice(0, 80), { ...(scope ? { scope } : {}), includeInactive, limit: 40 });
+            withPath = true;
+        } else if (query.ids) {
+            const ids = [...new Set(query.ids.split(',').map((v) => v.trim()).filter(Boolean))].slice(0, 200);
+            rows = (await this.repository.findByIds(ids)).filter((c) => includeInactive || c.isActive);
+            withPath = true;
+        } else {
+            const parentId = !query.parentId || query.parentId === 'root' ? null : query.parentId;
+            rows = await this.repository.findChildren(parentId, { ...(scope ? { scope } : {}), includeInactive });
+        }
+
+        const counts = await this.repository.countChildren(rows.map((c) => c.id), includeInactive);
+        const paths = withPath ? await this.pathsFor(rows) : null;
+        return {
+            categories: rows.map((c) => ({
+                ...c,
+                childCount: counts.get(c.id) ?? 0,
+                ...(paths ? { path: paths.get(c.id)?.names ?? [c.name], pathIds: paths.get(c.id)?.ids ?? [c.id] } : {}),
+            })),
+        };
+    }
+
+    /** "Main > Sub > … > Name" for each category, found by walking up (at most 8 levels). */
+    private async pathsFor(rows: Array<{ id: string; name: string; parentId: string | null }>): Promise<Map<string, { names: string[]; ids: string[] }>> {
+        const known = new Map<string, { id: string; name: string; parentId: string | null }>(rows.map((r) => [r.id, r]));
+        let missing = [...new Set(rows.map((r) => r.parentId).filter((id): id is string => Boolean(id) && !known.has(id as string)))];
+        for (let depth = 0; depth < 8 && missing.length > 0; depth++) {
+            const found = await this.repository.findByIds(missing);
+            for (const c of found) known.set(c.id, c);
+            missing = [...new Set(found.map((c) => c.parentId).filter((id): id is string => Boolean(id) && !known.has(id as string)))];
+        }
+        const out = new Map<string, { names: string[]; ids: string[] }>();
+        for (const r of rows) {
+            const names: string[] = [];
+            const ids: string[] = [];
+            let cur: { id: string; name: string; parentId: string | null } | undefined = r;
+            for (let i = 0; cur && i < 10; i++) {
+                names.unshift(cur.name);
+                ids.unshift(cur.id);
+                cur = cur.parentId ? known.get(cur.parentId) : undefined;
+            }
+            out.set(r.id, { names, ids });
+        }
+        return out;
+    }
+
+    /** Above this many categories the "everything" lists stop at the top two levels. */
+    private static readonly FULL_LIST_LIMIT = 3000;
+
+    /**
      * List all active categories
      * Uses Redis caching
      */
@@ -53,9 +119,14 @@ export class CategoryService {
         }
 
         // The seller listing tree (seller and admin pickers). The customer
-        // menu is served by listVisibleCategories().
-        const categories = await this.repository.findAllActive('SELLER');
-        const response: CategoryListResponse = { categories };
+        // menu is served by listVisibleCategories(). A tree too big to send in
+        // one go is cut to its top two levels; clients browse the rest with
+        // browse().
+        const tooBig = (await this.repository.countAll({ scope: 'SELLER' })) > CategoryService.FULL_LIST_LIMIT;
+        const categories = tooBig
+            ? await this.repository.findTopLevels({ scope: 'SELLER' })
+            : await this.repository.findAllActive('SELLER');
+        const response: CategoryListResponse = { categories, ...(tooBig ? { truncated: true } : {}) };
 
         // Cache the result
         // Categories change rarely and are invalidated explicitly on mutation.
@@ -176,6 +247,8 @@ export class CategoryService {
      * List all categories for admin (active + inactive)
      */
     async listAllCategories(): Promise<CategoryListResponse> {
+        const tooBig = (await this.repository.countAll({ includeInactive: true })) > CategoryService.FULL_LIST_LIMIT;
+        if (tooBig) return { categories: await this.repository.findTopLevels({ includeInactive: true }), truncated: true };
         const categories = await this.repository.findAll();
         return { categories };
     }

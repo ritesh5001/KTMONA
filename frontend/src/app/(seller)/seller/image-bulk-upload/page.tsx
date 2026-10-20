@@ -8,7 +8,7 @@ import { Ban, Download, FileSpreadsheet, Loader2, PlusCircle, X } from "lucide-r
 import { supplier } from "@/services/seller-supplier";
 import { useImageKitUpload } from "@/lib/use-imagekit-upload";
 import { Btn, Modal, PageHeader, PageShell, errorMessage } from "@/components/seller/kit";
-import { CategoryColumns, categoryPathLabel, useCategoryTree } from "@/components/seller/CategoryColumns";
+import { CategoryColumns, categoryPathLabel, useCategoryPath } from "@/components/seller/CategoryColumns";
 import { NOT_ALLOWED_IMAGES } from "@/components/seller/catalog-attributes";
 import { cn } from "@/lib/utils";
 
@@ -16,7 +16,6 @@ const MAX_IMAGES = 200;
 
 export default function ImageBulkUploadPage() {
   const params = useSearchParams();
-  const { byId } = useCategoryTree();
   const { upload } = useImageKitUpload("/catalogs/bulk");
   const [images, setImages] = React.useState<string[]>([]);
   const [pending, setPending] = React.useState(0);
@@ -58,7 +57,7 @@ export default function ImageBulkUploadPage() {
     }
   };
 
-  const path = categoryId ? (byId.get(categoryId)?.path ?? []) : [];
+  const { path } = useCategoryPath(categoryId);
 
   return (
     <PageShell>

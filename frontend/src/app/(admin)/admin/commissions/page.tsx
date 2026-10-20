@@ -11,13 +11,12 @@ import {
   createCommissionRule,
   updateCommissionRule,
   deleteCommissionRule,
-  getAdminCategories,
   type CommissionRule,
   type CreateCommissionRulePayload,
   type UpdateCommissionRulePayload,
-  type AdminCategory,
 } from "@/services/admin";
 import { toast } from "sonner";
+import { CategoryField } from "@/components/category/CategoryField";
 
 type RuleScope = "GLOBAL" | "CATEGORY" | "SELLER";
 
@@ -48,11 +47,9 @@ const emptyForm: FormState = {
 const CommissionFormFields = ({
   values,
   onChange,
-  categories,
 }: {
   values: FormState;
   onChange: (field: keyof FormState, value: any) => void;
-  categories: AdminCategory[];
 }) => (
   <div className="space-y-4">
     <div>
@@ -71,16 +68,14 @@ const CommissionFormFields = ({
     {values.scope === "CATEGORY" && (
       <div>
         <Label className="text-xs uppercase tracking-wider text-muted-foreground" required>Category</Label>
-        <select
-          value={values.categoryId}
-          onChange={(e) => onChange("categoryId", e.target.value)}
-          className="mt-1 flex h-11 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Select category</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+        <CategoryField
+          admin
+          leafOnly={false}
+          className="mt-1"
+          value={values.categoryId || null}
+          onChange={(id) => onChange("categoryId", id ?? "")}
+          title="Select category for this rule"
+        />
       </div>
     )}
 
@@ -139,7 +134,6 @@ const CommissionFormFields = ({
 export default function AdminCommissionsPage() {
   const [loading, setLoading] = React.useState(true);
   const [rules, setRules] = React.useState<CommissionRule[]>([]);
-  const [categories, setCategories] = React.useState<AdminCategory[]>([]);
   const [saving, setSaving] = React.useState(false);
 
   // Create modal
@@ -153,12 +147,8 @@ export default function AdminCommissionsPage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [rulesResult, catResult] = await Promise.all([
-        getCommissionRules(),
-        getAdminCategories(),
-      ]);
+      const rulesResult = await getCommissionRules();
       setRules(rulesResult.rules ?? []);
-      setCategories(catResult.categories ?? []);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to load commission rules");
     } finally {
@@ -256,8 +246,7 @@ export default function AdminCommissionsPage() {
     const scope = getRuleScope(rule);
     if (scope === "GLOBAL") return "Global Default";
     if (scope === "CATEGORY") {
-      const cat = categories.find((c) => c.id === rule.categoryId);
-      return `Category: ${cat?.name ?? rule.category?.name ?? rule.categoryId}`;
+      return `Category: ${rule.category?.name ?? rule.categoryId}`;
     }
     const sellerLabel = rule.seller?.seller_profiles?.store_name ?? rule.seller?.email ?? rule.sellerId;
     return `Seller: ${sellerLabel}`;
@@ -347,7 +336,6 @@ export default function AdminCommissionsPage() {
               <CommissionFormFields
                 values={createForm}
                 onChange={(field, value) => setCreateForm((prev) => ({ ...prev, [field]: value }))}
-                categories={categories}
               />
               <div className="mt-6 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
@@ -368,7 +356,6 @@ export default function AdminCommissionsPage() {
               <CommissionFormFields
                 values={editForm}
                 onChange={(field, value) => setEditForm((prev) => ({ ...prev, [field]: value }))}
-                categories={categories}
               />
               <div className="mt-6 flex justify-end gap-3">
                 <Button variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>

@@ -2,31 +2,23 @@
 
 import * as React from "react";
 import Link from "next/link";
-import useSWR from "swr";
-import { CategoryOptions } from "@/components/seller/CategoryOptions";
+import { CategoryField } from "@/components/category/CategoryField";
 import { toast } from "sonner";
 import { CheckCircle2, Download, FileSpreadsheet, UploadCloud, XCircle } from "lucide-react";
-import { getCategories } from "@/services/catalog";
 import { sellerCenter } from "@/services/seller-center";
-import { Btn, Field, PageHeader, PageShell, Panel, errorMessage, inputCls } from "@/components/seller/kit";
+import { Btn, Field, PageHeader, PageShell, Panel, errorMessage } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 import { KycGate } from "@/components/seller/KycGate";
 
 type Report = Awaited<ReturnType<typeof sellerCenter.bulkUpload>>;
 
 function BulkUploadPageContent() {
-  const { data: cats } = useSWR("categories", () => getCategories());
-  const categories = cats?.categories ?? [];
   const [categoryId, setCategoryId] = React.useState("");
   const [file, setFile] = React.useState<File | null>(null);
   const [downloading, setDownloading] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [report, setReport] = React.useState<Report | null>(null);
   const [dragOver, setDragOver] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!categoryId && categories[0]) setCategoryId((categories.find((c) => !categories.some((x) => x.parentId === c.id)) ?? categories[0]).id);
-  }, [categories, categoryId]);
 
   const download = async () => {
     setDownloading(true);
@@ -77,9 +69,7 @@ function BulkUploadPageContent() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex-1">
             <Field label="Category">
-              <select className={inputCls} value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                <CategoryOptions categories={categories} value={categoryId} />
-              </select>
+              <CategoryField value={categoryId || null} onChange={(id) => setCategoryId(id ?? "")} placeholder="Choose a category" />
             </Field>
           </div>
           <Btn variant="primary" loading={downloading} disabled={!categoryId} onClick={download}>

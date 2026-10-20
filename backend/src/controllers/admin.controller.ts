@@ -323,12 +323,17 @@ export const adminController = {
      * List all categories (active + inactive)
      */
     listCategories: async (
-        _req: Request,
+        req: Request,
         res: Response,
         next: NextFunction
     ): Promise<void> => {
         try {
-            const result = await categoryService.listAllCategories();
+            const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined);
+            const { parentId, q, ids } = { parentId: str(req.query['parentId']), q: str(req.query['q']), ids: str(req.query['ids']) };
+            const scope = req.query['scope'] === 'STOREFRONT' ? 'STOREFRONT' : req.query['scope'] === 'SELLER' ? 'SELLER' : undefined;
+            const result = parentId || q || ids
+                ? await categoryService.browse({ parentId, q, ids }, { includeInactive: true, scope })
+                : await categoryService.listAllCategories();
             res.json(result);
         } catch (error) {
             next(error);

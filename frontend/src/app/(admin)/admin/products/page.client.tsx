@@ -1,6 +1,6 @@
 "use client";
 
-import { CategoryOptions } from "@/components/seller/CategoryOptions";
+import { CategoryField } from "@/components/category/CategoryField";
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Search, X } from "lucide-react";
@@ -982,14 +982,14 @@ export default function AdminProductsClient({
               <label className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                 Category
               </label>
-              <select
-                className="h-10 border border-border-soft bg-card px-4 text-sm text-foreground transition focus:border-brand/50"
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-              >
-                <option value="all">All categories</option>
-                <CategoryOptions categories={categories} value={categoryFilter === "all" ? undefined : categoryFilter} />
-              </select>
+              <CategoryField
+                className="w-64"
+                admin
+                value={categoryFilter === "all" ? null : categoryFilter}
+                onChange={(id) => setCategoryFilter(id ?? "all")}
+                clearLabel="All categories"
+                title="Filter by category"
+              />
             </div>
           </div>
         </motion.div>
@@ -1392,19 +1392,12 @@ export default function AdminProductsClient({
                 <div className="grid gap-4 md:grid-cols-1">
                   <label className="flex flex-col gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                     <span>Category<RequiredMark /></span>
-                    <select
-                      value={editForm.categoryId}
-                      onChange={(event) =>
-                        setEditForm((prev) => ({
-                          ...prev,
-                          categoryId: event.target.value,
-                        }))
-                      }
-                      className="border border-border-soft bg-card px-3 py-2 text-sm text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
-                    >
-                      <option value="">Select category</option>
-                      <CategoryOptions categories={categories} value={editForm.categoryId} />
-                    </select>
+                    <CategoryField
+                      admin
+                      value={editForm.categoryId || null}
+                      onChange={(id) => setEditForm((prev) => ({ ...prev, categoryId: id ?? "" }))}
+                      fallbackLabel={editingProduct?.categoryName ?? undefined}
+                    />
                   </label>
                 </div>
 
