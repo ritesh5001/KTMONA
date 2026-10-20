@@ -16,6 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerSeller, verifyOtpUrl } from "@/services/auth";
 import { toast } from "sonner";
+import { trackSiteEvent } from "@/services/site-analytics";
+import { TrackSiteEvent } from "@/components/analytics/TrackSiteEvent";
 import { EmailTypoHint, useEmailTypoGuard } from "@/components/auth/EmailTypoHint";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 
@@ -102,6 +104,7 @@ export default function SellerRegisterPage() {
         password,
       });
       console.info("[auth-ui][register-seller] otp-sent");
+      trackSiteEvent("SELLER_SIGNUP_SUBMIT");
       toast.success(result.message);
       window.location.href = verifyOtpUrl(result.verifyWith ?? { email: email.trim().toLowerCase() }, { signup: true });
     } catch (error) {
@@ -114,6 +117,7 @@ export default function SellerRegisterPage() {
 
   return (
     <div className={theme.page}>
+      <TrackSiteEvent type="SELLER_SIGNUP_VIEW" />
       <div className={theme.texture} aria-hidden>
         <div className="absolute inset-0 bg-linear-to-r from-transparent via-brand/10 to-transparent" />
         <div className="absolute inset-0 bg-linear-to-b from-transparent via-navy/10 to-transparent" />

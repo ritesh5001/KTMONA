@@ -165,7 +165,8 @@ export class AuthService {
      * 1. Check if email OR phone already exists
      * 2. Hash password
      * 3. Send signup OTP; on verification the account is created with
-     *    status=ACTIVE and the seller is signed in to the panel straight away.
+     *    status=ACTIVE, but the seller is not signed in: they are told to log
+     *    in to the seller portal to complete KYC.
      *    Admin approval only applies to KYC, which gates product listing.
      */
     async registerSeller(data: RegisterSellerRequest): Promise<RegisterSuccessResponse> {
@@ -395,7 +396,7 @@ export class AuthService {
                 throw ApiError.conflict('Email or phone already in use');
             }
 
-            // Sellers get the panel immediately; only their KYC needs admin approval.
+            // Sellers are active straight away; only their KYC needs admin approval.
             const status = 'ACTIVE';
             const created = await this.repository.createUser({
                 email: payload.email,
@@ -426,6 +427,15 @@ export class AuthService {
                 }
             } else {
                 this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_user_created');
+            }
+
+            // A new seller is not signed in: they log in to the seller portal
+            // themselves and complete KYC there.
+            if (created.role === 'SELLER') {
+                return {
+                    message: 'You have successfully registered on KTMONA. Please log in to the portal to complete your KYC.',
+                    sellerRegistered: true,
+                };
             }
 
             return this.issueTokens({

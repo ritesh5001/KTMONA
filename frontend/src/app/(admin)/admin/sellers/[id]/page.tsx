@@ -159,6 +159,24 @@ export default function AdminSellerDetailPage() {
           </div>
         </Panel>
 
+        <Panel title="Cash on Delivery" action={s.codDisabled ? <Badge tone="red">Off</Badge> : <Badge tone="green">On</Badge>}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="min-w-0 flex-1 text-sm text-muted-foreground">
+              {s.codDisabled
+                ? "Off: buyers must pay online for every product from this seller."
+                : "On: buyers can choose Cash on Delivery for this seller's products (when COD is on for the platform)."}
+            </p>
+            <Btn
+              size="sm"
+              variant={s.codDisabled ? "brand" : "danger"}
+              loading={busy === "cod"}
+              onClick={() => act("cod", () => adminCenter.setSellerCod(s.id, !s.codDisabled), s.codDisabled ? "COD turned back on for this seller" : "COD turned off for this seller's products")}
+            >
+              {s.codDisabled ? "Turn COD on" : "Turn COD off"}
+            </Btn>
+          </div>
+        </Panel>
+
         <Panel title="Commission" action={<Btn size="sm" variant="outline" onClick={() => setDialog("commission")}>Change</Btn>}>
           <p className="text-2xl font-semibold">{s.commission.commissionPct}%{s.commission.platformFee ? <span className="text-base font-medium text-muted-foreground"> + {inr.format(s.commission.platformFee)} per order</span> : null}</p>
           <p className="text-sm text-muted-foreground">{s.commission.custom ? "Custom rate for this seller" : "Platform default rate"}</p>

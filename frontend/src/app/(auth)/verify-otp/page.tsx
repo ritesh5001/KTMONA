@@ -22,6 +22,8 @@ import {
 import { toast } from "sonner";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
 import { buyerReturnPath } from "@/lib/login-redirect";
+import { getCorrectLoginUrl } from "@/lib/subdomain";
+import { CheckCircle2 } from "lucide-react";
 
 function VerifyOtpContent() {
   const router = useRouter();
@@ -39,6 +41,9 @@ function VerifyOtpContent() {
   const [loading, setLoading] = React.useState(false);
   const [sending, setSending] = React.useState(false);
   const submittedOtpRef = React.useRef<string | null>(null);
+  // Set once a seller sign-up is verified: they are not signed in, but told to
+  // log in to the seller portal for KYC.
+  const [sellerRegistered, setSellerRegistered] = React.useState<string | null>(null);
 
   // One-time-code autofill supported on mobile browsers.
 
@@ -57,18 +62,16 @@ function VerifyOtpContent() {
       const result = await verifyAuthOtp(
         isEmail ? { email: identifier, otp } : { phone: identifier, otp }
       );
+      if (result.sellerRegistered) {
+        setSellerRegistered(
+          result.message ?? "You have successfully registered on KTMONA. Please log in to the portal to complete your KYC."
+        );
+        return;
+      }
       if (result.accessToken && result.refreshToken && result.user) {
         persistAuthCookies(result.accessToken, result.refreshToken, result.user);
 
         const role = result.user.role?.toUpperCase();
-
-        // A new seller goes straight into the panel, on the KYC tab: the panel
-        // is open immediately, only KYC needs KTMONA's approval.
-        if (isSignup && role === "SELLER") {
-          toast.success("You have successfully registered on KTMONA. Please complete your KYC.");
-          router.push("/seller/settings?tab=business");
-          return;
-        }
 
         toast.success(isEmail ? "Email verified successfully." : "Number verified successfully.");
 
@@ -91,7 +94,7 @@ function VerifyOtpContent() {
     } finally {
       setLoading(false);
     }
-  }, [identifier, isEmail, isSignup, channelLabel, otp, router]);
+  }, [identifier, isEmail, channelLabel, otp, router]);
 
   const handleResend = async () => {
     if (!identifier) {
@@ -172,6 +175,27 @@ function VerifyOtpContent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
+              {sellerRegistered ? (
+                <div className="space-y-5">
+                  <div
+                    role="status"
+                    className="flex gap-3 rounded-xl border border-emerald-600/30 bg-emerald-50 p-4 text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-950/40 dark:text-emerald-200"
+                  >
+                    <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                    <p className="text-sm font-medium leading-relaxed">{sellerRegistered}</p>
+                  </div>
+                  <Button
+                    className="w-full"
+                    size="lg"
+                    onClick={() => {
+                      window.location.href = getCorrectLoginUrl("SELLER");
+                    }}
+                  >
+                    Log in to Seller Portal
+                  </Button>
+                </div>
+              ) : (
+              <>
               <form className="space-y-5" onSubmit={handleVerify}>
                 <div className="space-y-2">
                   <Label htmlFor="identifier" required>
@@ -213,6 +237,8 @@ function VerifyOtpContent() {
               >
                 {sending ? "Sending OTP..." : "Resend OTP"}
               </Button>
+              </>
+              )}
             </CardContent>
           </Card>
         </motion.div>

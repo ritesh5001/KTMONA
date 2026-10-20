@@ -200,3 +200,11 @@ export async function checkoutWithPayment(
 export async function getCodConfig() {
   return apiRequest<{ enabled: boolean; maxOrderAmount: number }>("/v1/config/cod", { method: "GET" });
 }
+
+/**
+ * Whether this buyer's cart can be paid by Cash on Delivery: the platform
+ * switch plus any admin block on the customer, a seller or a product.
+ */
+export async function getCodEligibility() {
+  return apiRequest<{ available: boolean; reason: string | null; blocked: boolean }>("/v1/checkout/cod-eligibility", { method: "GET" });
+}

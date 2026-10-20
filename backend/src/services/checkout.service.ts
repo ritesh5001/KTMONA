@@ -20,6 +20,7 @@ import {
 import { recordReserveAttempt, recordReserveFailure } from '../monitoring/alerts.js';
 import { couponService } from './coupon.service.js';
 import { settingsService, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
+import { codEligibilityService } from './cod-eligibility.service.js';
 import { generateInvoiceNumber } from '../utils/invoice.util.js';
 import { sellerAdsService } from './seller-center/ads.service.js';
 import { Prisma } from '@prisma/client';
@@ -118,6 +119,12 @@ export class CheckoutService {
 
         if (selectedRows.length > MAX_CHECKOUT_ITEMS) {
             throw ApiError.badRequest(`Cart cannot contain more than ${MAX_CHECKOUT_ITEMS} items per checkout`);
+        }
+
+        // COD switched off by an admin for this customer, a seller or a product.
+        if (paymentMethod === 'COD') {
+            const blocked = await codEligibilityService.blockReason(userId, selectedRows);
+            if (blocked) throw ApiError.badRequest(blocked);
         }
 
         const validationErrors: string[] = [];

@@ -413,6 +413,14 @@ export async function updateProductDetails(
   );
 }
 
+/** Turn Cash on Delivery off (or back on) for one product. */
+export async function setProductCod(id: string, disabled: boolean) {
+  return apiRequest<{ success: boolean; data: { id: string; codDisabled: boolean } }>(
+    `/v1/admin/products/${id}/cod`,
+    { method: "PATCH", body: { disabled } }
+  );
+}
+
 export async function getProfitAnalytics(token?: string | null) {
   return apiRequest<ProfitAnalytics>("/v1/admin/analytics/profit", {
     method: "GET",

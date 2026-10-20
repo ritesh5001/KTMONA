@@ -143,6 +143,8 @@ export interface AdminSellerDetail {
   statusReason: string | null;
   /** End of a temporary suspension (null = until an admin reactivates). */
   suspendedUntil?: string | null;
+  /** Cash on Delivery switched off for all of this seller's products. */
+  codDisabled?: boolean;
   joinedAt: string;
   store: null | { name: string; slug: string; description: string | null; supportEmail: string | null; supportPhone: string | null; vacationMode: boolean };
   kyc: null | {
@@ -329,12 +331,89 @@ export interface HomeBanners {
   promo: HomeBannerItem | null;
 }
 
+export type CustomerTab = "all" | "active" | "suspended" | "cod_off";
+
+export interface AdminCustomerRow {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  status: "PENDING" | "ACTIVE" | "SUSPENDED";
+  codDisabled: boolean;
+  state: string | null;
+  joinedAt: string;
+  orders: number;
+  spent: number;
+  lastOrderAt: string | null;
+}
+
+export interface AdminCustomerDetail {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  gender: string | null;
+  dob: string | null;
+  state: string | null;
+  status: "PENDING" | "ACTIVE" | "SUSPENDED";
+  statusReason: string | null;
+  suspendedAt: string | null;
+  codDisabled: boolean;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  joinedAt: string;
+  lastLoginAt: string | null;
+  addresses: { id: string; label: string; line1: string; line2: string | null; city: string; state: string; pincode: string; isDefault: boolean }[];
+  stats: {
+    orders: number;
+    spent: number;
+    byStatus: Record<string, number>;
+    returns: number;
+    cancellations: number;
+    reviews: number;
+    wishlist: number;
+    cart: number;
+  };
+  recentOrders: { id: string; createdAt: string; status: string; amount: number; items: number; city: string | null; paymentMethod: "COD" | "ONLINE"; paymentStatus: string | null }[];
+}
+
+export interface SiteTrafficReport {
+  from: string;
+  to: string;
+  totals: {
+    visitors: number;
+    visits: number;
+    sellerSignupViews: number;
+    sellerSignupSubmits: number;
+    sellersRegistered: number;
+    customersRegistered: number;
+    productViews: number;
+    productViewers: number;
+    customersViewingProducts: number;
+  };
+  series: { day: string; visitors: number; productViews: number; productViewers: number; sellerSignupViews: number; sellerSignupSubmits: number; sellersRegistered: number }[];
+  topProducts: { productId: string; title: string; viewers: number; customers: number }[];
+}
+
 export const adminCenter = {
   dashboard: (days = 30) => get<AdminDashboard>(`/dashboard${qs({ days })}`),
 
   sellers: (params: { tab: SellerTab; page?: number; search?: string }) =>
     get<{ tab: SellerTab; counts: Record<string, number>; sellers: AdminSellerRow[]; pagination: Pagination }>(`/sellers${qs(params)}`),
   seller: (id: string) => get<AdminSellerDetail>(`/sellers/${id}`),
+  /** Cash on Delivery off for every product of this seller. */
+  setSellerCod: (id: string, disabled: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/cod`, { disabled }),
+  // Customers
+  customers: (params: { tab: CustomerTab; page?: number; search?: string }) =>
+    get<{ tab: CustomerTab; counts: Record<string, number>; customers: AdminCustomerRow[]; pagination: Pagination }>(`/customers${qs(params)}`),
+  customer: (id: string) => get<AdminCustomerDetail>(`/customers/${id}`),
+  setCustomerStatus: (id: string, status: "ACTIVE" | "SUSPENDED", reason?: string) =>
+    send<AdminCustomerDetail>("POST", `/customers/${id}/status`, { status, reason }),
+  setCustomerCod: (id: string, disabled: boolean) => send<AdminCustomerDetail>("POST", `/customers/${id}/cod`, { disabled }),
+  deleteCustomer: (id: string, confirm: string) => send<{ deleted: boolean }>("DELETE", `/customers/${id}`, { confirm }),
+  /** Website visitors, seller sign-up attempts and product views for a date range (YYYY-MM-DD). */
+  traffic: (params: { from: string; to: string }) => get<SiteTrafficReport>(`/traffic${qs(params)}`),
   reviewKyc: (id: string, status: "VERIFIED" | "REJECTED", reason?: string) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc`, { status, reason }),
   /** Whether the seller needs verified KYC before listing products. */
   setKycRequired: (id: string, required: boolean) => send<AdminSellerDetail>("POST", `/sellers/${id}/kyc-required`, { required }),

@@ -112,6 +112,8 @@ export interface AdminProduct {
         stock: number;
     }>;
     isPublished: boolean;
+    /** Admin switched Cash on Delivery off for this product. */
+    codDisabled?: boolean;
     deletedByAdmin: boolean;
     deletedByAdminAt: Date | null;
     deletedByAdminReason: string | null;
@@ -307,6 +309,7 @@ export class AdminRepository {
             approvedAt: product.approvedAt,
             approvedById: product.approvedById,
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -469,6 +472,7 @@ export class AdminRepository {
                 stock: variant.inventory?.stock ?? 0,
             })),
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -563,6 +567,7 @@ export class AdminRepository {
                 stock: variant.inventory?.stock ?? 0,
             })),
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -746,6 +751,7 @@ export class AdminRepository {
                 stock: variant.inventory?.stock ?? 0,
             })),
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -796,6 +802,7 @@ export class AdminRepository {
             approvedAt: product.approvedAt,
             approvedById: product.approvedById,
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -870,6 +877,7 @@ export class AdminRepository {
             approvedAt: product.approvedAt,
             approvedById: product.approvedById,
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -918,6 +926,7 @@ export class AdminRepository {
             approvedAt: product.approvedAt,
             approvedById: product.approvedById,
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,
@@ -962,6 +971,7 @@ export class AdminRepository {
             approvedAt: product.approvedAt,
             approvedById: product.approvedById,
             isPublished: product.isPublished,
+            codDisabled: product.codDisabled,
             deletedByAdmin: product.deletedByAdmin,
             deletedByAdminAt: product.deletedByAdminAt,
             deletedByAdminReason: product.deletedByAdminReason,

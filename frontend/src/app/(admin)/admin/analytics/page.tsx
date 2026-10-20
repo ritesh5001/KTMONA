@@ -4,6 +4,7 @@ import * as React from "react";
 import { motion } from "framer-motion";
 import { ProfitAnalytics, getProfitAnalytics, getPricingOverview, PricingOverviewProduct } from "@/services/admin";
 import { toast } from "sonner";
+import { TrafficSection } from "./_components/TrafficSection";
 
 export default function AdminAnalyticsPage() {
   const [loading, setLoading] = React.useState(true);
@@ -54,9 +55,11 @@ export default function AdminAnalyticsPage() {
             Platform Analytics
           </h1>
           <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            Revenue margins, seller performance, and pricing intelligence across the platform.
+            Website traffic, revenue margins, seller performance, and pricing intelligence across the platform.
           </p>
         </div>
+
+        <TrafficSection />
 
         {loading ? (
           <div className="border border-border-soft bg-card p-12 text-center">

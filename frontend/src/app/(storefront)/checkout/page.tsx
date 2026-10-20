@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkoutWithPayment, getCart, getCodConfig, type CouponPreview } from "@/services/cart";
+import { checkoutWithPayment, getCart, getCodConfig, getCodEligibility, type CouponPreview } from "@/services/cart";
 import { initiatePayment } from "@/services/payments";
 import { ApiTimeoutError } from "@/services/api";
 import { flushPendingCartWrite } from "@/lib/pending-cart";
@@ -143,8 +143,17 @@ function NativeCheckout() {
   // is within the courier's cash limit.
   const [paymentMethod, setPaymentMethod] = React.useState<"ONLINE" | "COD">("ONLINE");
   const [cod, setCod] = React.useState<{ enabled: boolean; maxOrderAmount: number } | null>(null);
+  // An admin can switch COD off for this customer, a seller or a product.
+  const [codBlockedReason, setCodBlockedReason] = React.useState<string | null>(null);
   React.useEffect(() => {
     getCodConfig().then(setCod).catch(() => setCod(null));
+    getCodEligibility()
+      .then((r) => {
+        if (!r.blocked) return;
+        setCodBlockedReason(r.reason);
+        setPaymentMethod("ONLINE");
+      })
+      .catch(() => undefined);
   }, []);
   // Order totals shown here are the pre-checkout estimate; the backend order
   // is the source of truth. We navigate away on success, so no live update.
@@ -792,7 +801,15 @@ function NativeCheckout() {
                     <span className="block text-xs text-muted-foreground">UPI, cards, net banking and wallets via PhonePe</span>
                   </span>
                 </label>
-                {cod?.enabled ? (
+                {cod?.enabled && codBlockedReason ? (
+                  <div className="flex cursor-not-allowed items-start gap-3 rounded-xl border border-border-soft p-3 opacity-60">
+                    <input type="radio" name="payment" className="mt-1" disabled checked={false} readOnly />
+                    <span>
+                      <span className="block text-sm font-medium">Cash on Delivery</span>
+                      <span className="block text-xs text-muted-foreground">{codBlockedReason}</span>
+                    </span>
+                  </div>
+                ) : cod?.enabled ? (
                   (() => {
                     const total = (taxSummary ? taxSummary.grandTotal : cartTotal);
                     const tooBig = total > cod.maxOrderAmount;

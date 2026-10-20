@@ -149,7 +149,7 @@ class AdminSellersService {
     async detail(sellerId: string) {
         const user = await prisma.user.findFirst({
             where: { id: sellerId, role: 'SELLER' },
-            select: { id: true, email: true, phone: true, whatsappNumber: true, status: true, createdAt: true, seller_profiles: { include: { seller_bank_accounts: true } } },
+            select: { id: true, email: true, phone: true, whatsappNumber: true, status: true, codDisabled: true, createdAt: true, seller_profiles: { include: { seller_bank_accounts: true } } },
         });
         if (!user) throw ApiError.notFound('Seller not found');
         const p = user.seller_profiles;
@@ -176,6 +176,8 @@ class AdminSellersService {
             status: user.status,
             statusReason: p?.status_reason ?? null,
             suspendedUntil: p?.suspended_until ?? null,
+            /** Cash on Delivery switched off for all of this seller's products. */
+            codDisabled: user.codDisabled,
             joinedAt: user.createdAt,
             store: p && { name: p.store_name, slug: p.store_slug, description: p.store_description, supportEmail: p.support_email, supportPhone: p.support_phone, vacationMode: p.vacation_mode },
             kyc: p && {

@@ -31,6 +31,9 @@ model User {
   isEmployee                   Boolean                 @default(false) @map("is_employee")
   /// Admin-panel modules an employee may use (see staff-permissions.ts).
   staffPermissions             String[]                @default([]) @map("staff_permissions")
+  /// Cash on Delivery switched off by an admin. On a customer: they cannot
+  /// pay by COD. On a seller: COD is off for every product they sell.
+  codDisabled                  Boolean                 @default(false) @map("cod_disabled")
   createdAt                    DateTime                @default(now()) @map("created_at")
   updatedAt                    DateTime                @updatedAt @map("updated_at")
   adminProfile                 AdminProfile?
@@ -228,6 +231,8 @@ model Product {
   pausedBySeller       Boolean                  @default(false) @map("paused_by_seller")
   /// Paused by holiday mode (resumed automatically when holiday mode ends).
   pausedForVacation    Boolean                  @default(false) @map("paused_for_vacation")
+  /// Admin switched Cash on Delivery off for this product.
+  codDisabled          Boolean                  @default(false) @map("cod_disabled")
   deletedByAdmin       Boolean                  @default(false) @map("deleted_by_admin")
   deletedByAdminAt     DateTime?                @map("deleted_by_admin_at")
   deletedByAdminReason String?                  @map("deleted_by_admin_reason")
@@ -1874,6 +1879,26 @@ model ProductViewDaily {
   @@id([productId, day])
   @@index([sellerId, day])
   @@map("product_view_daily")
+}
+
+/// Storefront traffic for the admin Analytics page. One row per visitor, per
+/// day, per event (and per product for PRODUCT_VIEW), so counts are unique.
+/// `visitorId` is a random id kept in the visitor's browser.
+model SiteEvent {
+  id        String   @id @default(cuid())
+  /// VISIT | SELLER_SIGNUP_VIEW | SELLER_SIGNUP_SUBMIT | PRODUCT_VIEW
+  type      String
+  visitorId String   @map("visitor_id")
+  /// Signed-in user, when there is one.
+  userId    String?  @map("user_id")
+  /// PRODUCT_VIEW only; '' otherwise so the unique key works.
+  productId String   @default("") @map("product_id")
+  day       DateTime @db.Date
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([type, visitorId, day, productId])
+  @@index([type, day])
+  @@map("site_events")
 }
 
 enum PriceLockStatus {

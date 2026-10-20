@@ -10,6 +10,7 @@
 export const STAFF_PERMISSIONS = [
     { key: 'dashboard', label: 'Dashboard & analytics', description: 'Dashboard numbers, analytics and reports.' },
     { key: 'sellers', label: 'Sellers', description: 'Approve sellers, review KYC, suspend / reactivate accounts.' },
+    { key: 'customers', label: 'Customers', description: 'Customer details and orders, suspend / delete accounts, Cash on Delivery switch.' },
     { key: 'catalog', label: 'Catalog & pricing', description: 'Catalog QC, products, listing prices, moderation, Price Lock.' },
     { key: 'categories', label: 'Categories & collections', description: 'Category tree and curated collections.' },
     { key: 'orders', label: 'Orders & returns', description: 'Orders, cancellations, returns, refunds, dispatch SLA, seller claims.' },
@@ -39,10 +40,12 @@ const ALWAYS_ALLOWED: RegExp[] = [
  */
 const PATH_RULES: [RegExp, StaffPermission][] = [
     [/^\/v1\/admin\/(stats|analytics)(\/|$)/, 'dashboard'],
-    [/^\/v1\/admin\/center\/dashboard(\/|$)/, 'dashboard'],
+    [/^\/v1\/admin\/center\/(dashboard|traffic)(\/|$)/, 'dashboard'],
 
     [/^\/v1\/admin\/(center\/)?sellers(\/|$)/, 'sellers'],
     [/^\/v1\/appointments\/admin\/block-seller/, 'sellers'],
+
+    [/^\/v1\/admin\/center\/customers(\/|$)/, 'customers'],
 
     [/^\/v1\/admin\/center\/(qc|price-lock)(\/|$)/, 'catalog'],
     [/^\/v1\/admin\/products(\/|$)/, 'catalog'],

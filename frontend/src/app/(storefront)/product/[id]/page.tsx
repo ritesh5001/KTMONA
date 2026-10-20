@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TrackSiteEvent } from "@/components/analytics/TrackSiteEvent";
 import Link from "next/link";
 import ProductDetailMain from "@/components/product-detail-main";
 import { ProductDetailDeferredSections } from "@/components/product-detail-deferred-sections";
@@ -156,7 +157,10 @@ export default async function ProductDetailPage({
       <div className="mx-auto flex max-w-7xl flex-col gap-12 px-4 py-10 sm:gap-16 sm:px-6 sm:py-14 lg:gap-20 lg:py-20">
         {/* Main Product Section */}
         {product ? (
-          <ProductDetailMain product={product} />
+          <>
+            <ProductDetailMain product={product} />
+            <TrackSiteEvent type="PRODUCT_VIEW" productId={product.id} />
+          </>
         ) : (
           <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
             <div className="flex flex-col justify-center space-y-6 py-12">

@@ -4,6 +4,10 @@
  */
 
 import { Router } from 'express';
+import { z } from 'zod';
+import { prisma } from '../config/db.js';
+import { ApiError } from '../errors/ApiError.js';
+import { auditService } from '../services/audit.service.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { adminController } from '../controllers/admin.controller.js';
 import { commissionRuleController } from '../controllers/commissionRule.controller.js';
@@ -147,6 +151,27 @@ adminRouter.put(
     '/products/:id',
     authorize('ADMIN', 'SUPER_ADMIN'),
     adminController.updateProduct
+);
+
+/**
+ * PATCH /v1/admin/products/:id/cod
+ * Turn Cash on Delivery off (or back on) for one product.
+ */
+adminRouter.patch(
+    '/products/:id/cod',
+    authorize('ADMIN', 'SUPER_ADMIN'),
+    async (req, res, next) => {
+        try {
+            const id = String(req.params.id ?? '');
+            const { disabled } = z.object({ disabled: z.boolean() }).parse(req.body);
+            const product = await prisma.product.update({ where: { id }, data: { codDisabled: disabled }, select: { id: true, codDisabled: true } }).catch(() => null);
+            if (!product) throw ApiError.notFound('Product not found');
+            await auditService.logAction(req.user!.userId, disabled ? 'PRODUCT_COD_DISABLED' : 'PRODUCT_COD_ENABLED', 'PRODUCT', id, {});
+            res.json({ success: true, data: product });
+        } catch (error) {
+            next(error);
+        }
+    }
 );
 
 /**

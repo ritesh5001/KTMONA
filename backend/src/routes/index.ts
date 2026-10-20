@@ -70,3 +70,4 @@ export { occasionRouter } from './occasion.routes.js';
 
 // Public platform config
 export { configRouter } from './config.routes.js';
+export { siteAnalyticsRouter } from './site-analytics.routes.js';

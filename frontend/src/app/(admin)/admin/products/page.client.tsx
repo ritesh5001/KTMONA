@@ -8,7 +8,7 @@ import ImageKit from "imagekit-javascript";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/label";
-import { deleteProduct, getAllProducts, updateProductDetails } from "@/services/admin";
+import { deleteProduct, getAllProducts, setProductCod, updateProductDetails } from "@/services/admin";
 import type {
   AdminProductUpdatePayload,
   AdminProductVariantUpdatePayload,
@@ -163,6 +163,8 @@ export default function AdminProductsClient({
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"active" | "trash">("active");
   const [editingProduct, setEditingProduct] = React.useState<any | null>(null);
+  // Cash on Delivery off for this product (saved through its own endpoint).
+  const [editCodDisabled, setEditCodDisabled] = React.useState(false);
   const [editForm, setEditForm] = React.useState({
     categoryId: "",
     occasionIds: [] as string[],
@@ -379,6 +381,7 @@ export default function AdminProductsClient({
       ? product.occasionIds.filter((id: unknown): id is string => typeof id === "string" && id.length > 0)
       : [];
     setEditingProduct(product);
+    setEditCodDisabled(Boolean(product.codDisabled));
     setEditForm({
       categoryId,
       occasionIds: existingOccasionIds,
@@ -809,6 +812,11 @@ export default function AdminProductsClient({
     setIsSavingEdit(true);
     try {
       const { product: saved } = await updateProductDetails(editingProduct.id, payload);
+      const codChanged = Boolean(editingProduct.codDisabled) !== editCodDisabled;
+      if (codChanged) {
+        await setProductCod(editingProduct.id, editCodDisabled);
+        (saved as { codDisabled?: boolean }).codDisabled = editCodDisabled;
+      }
 
       // Paint the saved row from the response so the table updates without waiting
       // on the background refetch below.
@@ -1121,6 +1129,11 @@ export default function AdminProductsClient({
                       ) : null}
                       <td className="p-6 font-medium text-foreground">
                         {product.title}
+                        {product.codDisabled ? (
+                          <span className="ml-2 inline-flex whitespace-nowrap rounded-md bg-red-500/10 px-2 py-0.5 text-xs font-semibold text-red-700 dark:text-red-300">
+                            COD off
+                          </span>
+                        ) : null}
                       </td>
                       <td className="p-6 text-muted-foreground">
                         {product.sellerEmail ?? product.sellerId?.slice(0, 8)}
@@ -1473,6 +1486,20 @@ export default function AdminProductsClient({
                   />
                   <label htmlFor="editPublished" className="text-muted-foreground">
                     Published
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 text-sm">
+                  <input
+                    id="editCodDisabled"
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={editCodDisabled}
+                    onChange={(event) => setEditCodDisabled(event.target.checked)}
+                  />
+                  <label htmlFor="editCodDisabled" className="text-muted-foreground">
+                    Cash on Delivery off for this product
+                    <span className="block text-xs">Buyers must pay online when this product is in their order.</span>
                   </label>
                 </div>
 

@@ -31,6 +31,7 @@ function qs(params: Record<string, string | number | undefined | null>) {
 export type StaffPermission =
   | "dashboard"
   | "sellers"
+  | "customers"
   | "catalog"
   | "categories"
   | "orders"
@@ -120,6 +121,7 @@ export const ADMIN_PAGE_PERMISSION: Record<string, StaffPermission> = {
   "/admin/analytics": "dashboard",
   "/admin/sla": "orders",
   "/admin/sellers": "sellers",
+  "/admin/customers": "customers",
   "/admin/catalog-qc": "catalog",
   "/admin/products": "catalog",
   "/admin/moderation": "catalog",

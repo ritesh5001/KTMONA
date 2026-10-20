@@ -21,6 +21,7 @@
  * Fastrr's coupons (including the TESTA test code) inside the overlay.
  */
 
+import { codEligibilityService } from './cod-eligibility.service.js';
 import { randomBytes } from 'node:crypto';
 import { Prisma, FastrrSessionStatus } from '@prisma/client';
 import { prisma } from '../config/db.js';
@@ -90,6 +91,13 @@ export class FastrrCheckoutService {
             request.userId,
             request.variantIds,
         );
+
+        // Fastrr offers COD inside its own overlay, so an order an admin has
+        // blocked COD for goes through the native checkout, which enforces it.
+        const codBlocked = await codEligibilityService.blockReason(request.userId, lines);
+        if (codBlocked) {
+            throw ApiError.conflict(`${codBlocked.replace(/ Please pay online\.$/, '')} Continue with standard checkout.`);
+        }
 
         const subtotal = lines.reduce(
             (sum, line) => sum.add(new Prisma.Decimal(line.price).mul(line.quantity)),

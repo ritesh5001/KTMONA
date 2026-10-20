@@ -42,7 +42,9 @@ import {
   History,
   Link2,
   Lock,
-  Users } from "lucide-react";
+  Users,
+  UsersRound,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { permissionForAdminPath, staffApi } from "@/services/platform";
@@ -109,11 +111,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       { section: "Sellers & catalog", href: "/admin/category-builder", label: "Category Builder", icon: Columns3 },
       { section: "Sellers & catalog", href: "/admin/category-requests", label: "Category Requests", icon: FolderTree },
       { section: "Sellers & catalog", href: "/admin/occasions", label: "Collections", icon: Sparkles },
-      { section: "Orders", href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-      { section: "Orders", href: "/admin/cancellations", label: "Cancellations", icon: XCircle, badge: count("cancellations") },
-      { section: "Orders", href: "/admin/returns", label: "Returns", icon: Undo2, badge: count("returns") },
-      { section: "Orders", href: "/admin/refunds", label: "Refunds", icon: RotateCcw },
-      { section: "Orders", href: "/admin/seller-claims", label: "Seller Claims", icon: FileWarning, badge: count("claims") },
+      { section: "Customers & orders", href: "/admin/customers", label: "Customers", icon: UsersRound },
+      { section: "Customers & orders", href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+      { section: "Customers & orders", href: "/admin/cancellations", label: "Cancellations", icon: XCircle, badge: count("cancellations") },
+      { section: "Customers & orders", href: "/admin/returns", label: "Returns", icon: Undo2, badge: count("returns") },
+      { section: "Customers & orders", href: "/admin/refunds", label: "Refunds", icon: RotateCcw },
+      { section: "Customers & orders", href: "/admin/seller-claims", label: "Seller Claims", icon: FileWarning, badge: count("claims") },
       { section: "Money", href: "/admin/payouts", label: "Payouts", icon: Banknote, badge: count("payouts") },
       { section: "Money", href: "/admin/penalties", label: "Penalties", icon: Gavel },
       { section: "Money", href: "/admin/payments", label: "Payments", icon: CreditCard },

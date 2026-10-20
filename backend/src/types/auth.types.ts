@@ -237,6 +237,8 @@ export interface MessageResponse {
     message: string;
     /** Seller sign-up verified: the application is waiting for admin approval. */
     applicationSubmitted?: boolean;
+    /** Seller sign-up verified: account created, no session issued. Log in for KYC. */
+    sellerRegistered?: boolean;
 }
 
 // Export dummy value to ensure this file is treated as a module by all tools

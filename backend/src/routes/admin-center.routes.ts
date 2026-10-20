@@ -11,6 +11,10 @@ import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { ApiError } from '../errors/ApiError.js';
 import { adminOpsService } from '../services/admin-center/ops.service.js';
 import { adminSellersService } from '../services/admin-center/sellers.service.js';
+import { adminCustomersService } from '../services/admin-center/customers.service.js';
+import { siteAnalyticsService } from '../services/site-analytics.service.js';
+import { prisma } from '../config/db.js';
+import { auditService } from '../services/audit.service.js';
 import { categoryLinksSchema, categoryLinksService } from '../services/category-links.service.js';
 import { adminReviewCreateSchema, adminReviewUpdateSchema, adminReviewsService, socialProofSchema } from '../services/admin-center/reviews.service.js';
 import { adminQcService } from '../services/admin-center/qc.service.js';
@@ -44,6 +48,24 @@ adminCenterRouter.use(authenticate, authorize('ADMIN', 'SUPER_ADMIN'));
 
 // Dashboard
 adminCenterRouter.get('/dashboard', h((req) => adminOpsService.dashboard(Number(req.query.days) || 30)));
+// Website traffic: visitors, seller sign-up attempts, product views (?from=&to=)
+adminCenterRouter.get('/traffic', h((req) => siteAnalyticsService.report(req.query)));
+
+// Customers
+adminCenterRouter.get('/customers', h((req) => adminCustomersService.list(req.query)));
+adminCenterRouter.get('/customers/:id', h((req) => adminCustomersService.detail(param(req, 'id'))));
+adminCenterRouter.post(
+    '/customers/:id/status',
+    h((req) => adminCustomersService.setStatus(aid(req), param(req, 'id'), z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']), reason: z.string().max(300).optional() }).parse(req.body)))
+);
+adminCenterRouter.post(
+    '/customers/:id/cod',
+    h((req) => adminCustomersService.setCod(aid(req), param(req, 'id'), z.object({ disabled: z.boolean() }).parse(req.body).disabled))
+);
+adminCenterRouter.delete(
+    '/customers/:id',
+    h((req) => adminCustomersService.deletePermanently(aid(req), param(req, 'id'), z.object({ confirm: z.string().min(1) }).parse(req.body).confirm))
+);
 
 // Catalog form fields per category
 adminCenterRouter.get('/category-fields/:categoryId', h((req) => categoryAttributeService.adminGet(param(req, 'categoryId'))));
@@ -67,6 +89,17 @@ adminCenterRouter.get('/sellers/:id', h((req) => adminSellersService.detail(para
 adminCenterRouter.post(
     '/sellers/:id/kyc',
     h((req) => adminSellersService.reviewKyc(aid(req), param(req, 'id'), z.object({ status: z.enum(['VERIFIED', 'REJECTED']), reason: z.string().max(300).optional() }).parse(req.body)))
+);
+// Cash on Delivery off for every product of this seller.
+adminCenterRouter.post(
+    '/sellers/:id/cod',
+    h(async (req) => {
+        const disabled = z.object({ disabled: z.boolean() }).parse(req.body).disabled;
+        const updated = await prisma.user.updateMany({ where: { id: param(req, 'id'), role: 'SELLER' }, data: { codDisabled: disabled } });
+        if (updated.count === 0) throw ApiError.notFound('Seller not found');
+        await auditService.logAction(aid(req), disabled ? 'SELLER_COD_DISABLED' : 'SELLER_COD_ENABLED', 'USER', param(req, 'id'), {});
+        return adminSellersService.detail(param(req, 'id'));
+    })
 );
 adminCenterRouter.post(
     '/sellers/:id/kyc-required',

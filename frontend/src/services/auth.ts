@@ -94,6 +94,8 @@ export interface VerifyOtpResponse {
   message?: string;
   /** Seller sign-up verified: the application now waits for admin approval. */
   applicationSubmitted?: boolean;
+  /** Seller sign-up verified: account created but not signed in; log in for KYC. */
+  sellerRegistered?: boolean;
   user?: {
     id: string;
     email: string | null;
