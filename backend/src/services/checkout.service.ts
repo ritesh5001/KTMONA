@@ -76,7 +76,7 @@ export class CheckoutService {
         /**
          * COD: the order is confirmed straight away with a payment that stays
          * INITIATED until the courier collects the cash on delivery. ONLINE
-         * (default): the order waits as PLACED for the PhonePe payment.
+         * (default): the order waits as PLACED for the Razorpay payment.
          */
         paymentMethod: 'ONLINE' | 'COD' = 'ONLINE',
     ): Promise<CheckoutResponse> {

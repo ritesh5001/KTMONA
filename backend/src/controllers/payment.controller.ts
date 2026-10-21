@@ -1,23 +1,31 @@
 
 import { Request, Response } from 'express';
+import { z } from 'zod';
 import { paymentService } from '../services/payment.service.js';
 import { asyncHandler } from '../middlewares/error.middleware.js';
 
+const verifySchema = z.object({
+    orderId: z.string().min(1),
+    // Present after Checkout succeeds; absent for a plain status check.
+    razorpayPaymentId: z.string().min(1).optional(),
+    razorpaySignature: z.string().min(1).optional(),
+});
+
 export class PaymentController {
 
-    /** Initiate a PhonePe payment for an order → returns redirectUrl. */
+    /** Start (or resume) a Razorpay payment for an order → Checkout options. */
     initiatePayment = asyncHandler(async (req: Request, res: Response) => {
-        const { orderId, platform } = req.body;
+        const { orderId } = req.body;
         const userId = (req as any).user.userId;
-        const result = await paymentService.initiatePayment(userId, orderId, platform);
+        const result = await paymentService.initiatePayment(userId, orderId);
         res.status(200).json({ success: true, data: result });
     });
 
-    /** Confirm a PhonePe payment via server-to-server status check. */
-    verifyPhonePePayment = asyncHandler(async (req: Request, res: Response) => {
-        const { orderId } = req.body;
+    /** Confirm a Razorpay payment (Checkout return, or a status check). */
+    verifyRazorpayPayment = asyncHandler(async (req: Request, res: Response) => {
+        const input = verifySchema.parse(req.body);
         const userId = (req as any).user.userId;
-        const result = await paymentService.verifyPhonePePayment(userId, orderId);
+        const result = await paymentService.verifyRazorpayPayment(userId, input);
         res.status(200).json({ success: true, data: result });
     });
 
@@ -25,9 +33,8 @@ export class PaymentController {
     retryPayment = asyncHandler(async (req: Request, res: Response) => {
         const orderId = req.params.orderId as string;
         const userId = (req as any).user.userId;
-        const platform = req.body?.platform;
         if (!orderId) throw new Error('Order ID required');
-        const result = await paymentService.retryPayment(userId, orderId, platform);
+        const result = await paymentService.retryPayment(userId, orderId);
         res.status(200).json({ success: true, data: result });
     });
 

@@ -7,16 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { checkoutWithPayment, getCart, getCodConfig, getCodEligibility, type CouponPreview } from "@/services/cart";
-import { initiatePayment } from "@/services/payments";
+import { initiatePayment, verifyRazorpayPayment } from "@/services/payments";
+import { loadRazorpayCheckout, openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { ApiTimeoutError } from "@/services/api";
 import { flushPendingCartWrite } from "@/lib/pending-cart";
 import { getAddresses, type Address } from "@/services/addresses";
 import { getShippingConfig } from "@/services/shipments";
 import CouponSection from "@/components/checkout/CouponSection";
-import FastrrCheckout, {
-  notifyFastrrFallback,
-} from "@/components/checkout/fastrr-checkout";
-import { getCheckoutConfig } from "@/services/fastrr";
 import { hasSession } from "@/lib/session";
 import { loginUrlWithReturn } from "@/lib/login-redirect";
 import { startNavigationFeedback } from "@/lib/navigation-feedback";
@@ -35,22 +32,9 @@ const currency = new Intl.NumberFormat("en-IN", {
   maximumFractionDigits: 0,
 });
 
-/**
- * Which checkout the buyer sees.
- *
- * Every path into checkout — cart, Buy Now, quick-buy — lands on this route, so
- * it is the one place the express/native decision has to be made. The server
- * owns the flag; this only reads it, which means turning Fastrr off takes effect
- * for buyers already sitting on the page, without a deploy.
- *
- * `?express=off` forces the native flow. It is the fallbackUrl handed to Fastrr,
- * and the escape hatch behind "Use Standard Checkout".
- */
 export default function CheckoutPage() {
   const router = useRouter();
-  const [provider, setProvider] = React.useState<
-    "LOADING" | "FASTRR" | "NATIVE"
-  >("LOADING");
+  const [ready, setReady] = React.useState(false);
 
   React.useEffect(() => {
     /*
@@ -70,57 +54,20 @@ export default function CheckoutPage() {
       router.replace(loginUrlWithReturn());
       return;
     }
-
-    // Read the flag from the URL directly rather than via useSearchParams: the
-    // decision is already client-only, and useSearchParams would opt this whole
-    // route out of prerendering unless wrapped in its own Suspense boundary.
-    const forceNative =
-      new URLSearchParams(window.location.search).get("express") === "off";
-
-    if (forceNative) {
-      setProvider("NATIVE");
-      return;
-    }
-
-    let active = true;
-    getCheckoutConfig()
-      .then((config) => {
-        if (active) setProvider(config.provider);
-      })
-      .catch(() => {
-        // The config call is not worth failing checkout over. The native flow is
-        // always safe to render, so an unreachable flag falls back to it.
-        if (active) setProvider("NATIVE");
-      });
-
-    return () => {
-      active = false;
-    };
+    setReady(true);
   }, [router]);
 
-  const handleFallback = React.useCallback((reason: string) => {
-    notifyFastrrFallback(reason);
-    setProvider("NATIVE");
-  }, []);
-
-  if (provider === "LOADING") {
+  if (!ready) {
     return (
       <div className="min-h-[calc(100vh-160px)] bg-background" aria-busy="true" />
     );
   }
 
-  if (provider === "FASTRR") {
-    return <FastrrCheckout onFallback={handleFallback} />;
-  }
-
-  return <NativeCheckout />;
+  return <CheckoutForm />;
 }
 
-/**
- * The original address-form + PhonePe checkout. Still the fallback whenever
- * express checkout is off, unavailable, or declined by the buyer.
- */
-function NativeCheckout() {
+/** Address form + Razorpay (or Cash on Delivery) checkout. */
+function CheckoutForm() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
   const [isPaying, setIsPaying] = React.useState(false);
@@ -154,6 +101,10 @@ function NativeCheckout() {
         setPaymentMethod("ONLINE");
       })
       .catch(() => undefined);
+  }, []);
+  // Fetch Razorpay's script while the buyer fills the form, so Pay opens at once.
+  React.useEffect(() => {
+    loadRazorpayCheckout().catch(() => undefined);
   }, []);
   // Order totals shown here are the pre-checkout estimate; the backend order
   // is the source of truth. We navigate away on success, so no live update.
@@ -342,7 +293,7 @@ function NativeCheckout() {
       // race ahead of it and fail with "Cart is empty".
       await flushPendingCartWrite();
 
-      // Place the order and initiate a PhonePe payment in one call.
+      // Place the order and start its Razorpay payment in one call.
       const orderResult = await checkoutWithPayment({
         shippingName: shipping.name || undefined,
         shippingPhone: shipping.phone || undefined,
@@ -377,9 +328,6 @@ function NativeCheckout() {
       }
       const payment =
         orderResult.payment ?? (await initiatePayment(orderId)).data;
-      if (!payment.redirectUrl) {
-        throw new Error("Payment could not be started. Please try again.");
-      }
 
       // The server-side cart is now consumed. Drop the cached snapshot so a
       // Back-navigation can't re-enable this button and double-submit into a
@@ -387,16 +335,32 @@ function NativeCheckout() {
       clearCheckoutCartSnapshot();
       setHasItems(false);
 
-      // PhonePe may drop our ?orderId= on the return redirect — stash it so the
-      // callback can still confirm the payment.
-      try {
-        window.sessionStorage.setItem("ktmona_pending_order", orderId);
-      } catch {
-        // Non-fatal — the callback also accepts orderId via the query string.
+      const result = await openRazorpayCheckout(payment);
+      if (result.status === "dismissed") {
+        // The order stays payable until the 30-minute window closes.
+        toast.error(
+          result.lastError
+            ? `Payment not completed: ${result.lastError}. You can pay from your orders within 30 minutes.`
+            : "Payment not completed. You can pay from your orders within 30 minutes.",
+          { duration: 10000 }
+        );
+        router.push("/user/orders");
+        return;
       }
 
-      // Redirect to PhonePe. Keep the button disabled (we're leaving the page).
-      window.location.assign(payment.redirectUrl);
+      const verified = await verifyRazorpayPayment({
+        orderId,
+        razorpayPaymentId: result.razorpayPaymentId,
+        razorpaySignature: result.razorpaySignature,
+      }).catch(() => null);
+      if (verified?.data.status === "SUCCESS") {
+        toast.success("Payment successful! Your order is confirmed.");
+        router.push(`/user/orders/${orderId}`);
+      } else {
+        // Paid but not yet confirmed: the webhook settles it shortly.
+        toast.success("Payment received. We're confirming your order.", { duration: 8000 });
+        router.push("/user/orders");
+      }
       return;
     } catch (error) {
       const message = error instanceof Error ? error.message : "Checkout failed";
@@ -408,7 +372,7 @@ function NativeCheckout() {
       if (error instanceof ApiTimeoutError) {
         clearCheckoutCartSnapshot();
         toast.error(
-          "The payment page took too long to open. Check your orders — if the order was placed, you can finish paying from there.",
+          "Placing your order took too long. Check your orders — if the order was placed, you can finish paying from there.",
           { duration: 10000 }
         );
         router.push("/user/orders");
@@ -798,7 +762,7 @@ function NativeCheckout() {
                   <input type="radio" name="payment" className="mt-1" checked={paymentMethod === "ONLINE"} onChange={() => setPaymentMethod("ONLINE")} />
                   <span>
                     <span className="block text-sm font-medium">Pay online</span>
-                    <span className="block text-xs text-muted-foreground">UPI, cards, net banking and wallets via PhonePe</span>
+                    <span className="block text-xs text-muted-foreground">UPI, cards, net banking and wallets via Razorpay</span>
                   </span>
                 </label>
                 {cod?.enabled && codBlockedReason ? (
@@ -846,7 +810,7 @@ function NativeCheckout() {
                         ? "Placing your order..."
                         : "Place Order"
                       : loading || isPaying
-                        ? "Redirecting to PhonePe..."
+                        ? "Opening secure payment..."
                         : "Proceed to Payment"}
                   </Button>
                 </motion.div>
@@ -855,7 +819,7 @@ function NativeCheckout() {
                   By proceeding, you agree to our terms of service.{" "}
                   {paymentMethod === "COD"
                     ? "Keep the exact amount ready when your order arrives."
-                    : "You'll be redirected to PhonePe to complete payment securely."}
+                    : "Pay securely with UPI, cards, net banking or wallets via Razorpay."}
                 </p>
               </div>
 
@@ -864,7 +828,7 @@ function NativeCheckout() {
                 <div className="flex items-center gap-3">
                   <span className="h-1.5 w-1.5 rounded-full bg-green-600/60" />
                   <span className="text-xs text-muted-foreground">
-                    Secured by PhonePe
+                    Secured by Razorpay
                   </span>
                 </div>
                 <div className="flex items-center gap-3">

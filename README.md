@@ -303,7 +303,7 @@ npm run verify:payment
 npm run verify:shipping
 npm run verify:admin
 npm run verify:notifications
-npm run verify:razorpay
+npm run verify:payment
 npm run verify:all
 ```
 

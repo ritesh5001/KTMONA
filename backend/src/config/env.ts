@@ -147,23 +147,13 @@ const envSchema = z.object({
     // Public base URL of THIS backend (used for absolute links / webhooks).
     BACKEND_PUBLIC_URL: z.string().url('BACKEND_PUBLIC_URL must be a valid URL').optional(),
 
-    // PhonePe PG (Standard Checkout v2)
-    // The SDK's init() needs the merchant id, which is distinct from the OAuth
-    // client id on some PhonePe accounts. Falls back to CLIENT_ID when unset,
-    // which is correct for accounts where they are the same value.
-    PHONEPE_MERCHANT_ID: z.string().optional(),
-    PHONEPE_CLIENT_ID: z.string().optional(),
-    PHONEPE_CLIENT_SECRET: z.string().optional(),
-    PHONEPE_CLIENT_VERSION: z.string().default('1'),
-    PHONEPE_ENV: z.enum(['SANDBOX', 'PRODUCTION']).default('SANDBOX'),
-    // Basic-auth credentials mirrored on the PhonePe dashboard webhook config.
-    PHONEPE_WEBHOOK_USERNAME: z.string().optional(),
-    PHONEPE_WEBHOOK_PASSWORD: z.string().optional(),
+    // Razorpay (Standard Checkout). Key id + secret from Dashboard → Account &
+    // Settings → API Keys; the webhook secret is the one typed into the webhook
+    // set up for https://api.ktmona.com/v1/payments/webhook/razorpay.
+    RAZORPAY_KEY_ID: z.string().optional(),
+    RAZORPAY_KEY_SECRET: z.string().optional(),
+    RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
 
-    // Shared secret for the Shiprocket catalog feed. Optional on purpose: their
-    // documented requests send no auth header, so the endpoints launch open and
-    // close the moment this is set on both sides.
-    SHIPROCKET_API_KEY: z.string().optional(),
     // Shiprocket shipping API (AWB, labels, pickups, manifests) for seller
     // orders. Use a dedicated Shiprocket "API user" (Settings → API). Unset =
     // sellers self-ship and enter the courier + AWB themselves.
@@ -177,46 +167,6 @@ const envSchema = z.object({
     SHIPMAXX_PASSWORD: z.string().optional(),
     SHIPMAXX_CHANNEL_ID: z.coerce.number().int().positive().optional(),
     SHIPMAXX_BASE_URL: z.string().url().default('https://appapi.losung360.com/external/v1'),
-    // -------------------------------------------------------------------
-    // Shiprocket Checkout (Fastrr)
-    //
-    // Fastrr hosts the entire address + payment step. We only mint an access
-    // token, then learn the outcome from their webhook. The key/secret pair is
-    // issued by Shiprocket per merchant account; without both, the integration
-    // stays dormant and the native PhonePe checkout continues to serve buyers.
-    // -------------------------------------------------------------------
-    FASTRR_API_KEY: z.string().optional(),
-    FASTRR_API_SECRET: z.string().optional(),
-    /**
-     * SANDBOX targets Shiprocket's dev stack, PRODUCTION the live one. This picks
-     * both the API host and the checkout UI bundle, so the two can never be
-     * mismatched — a prod token handed to the staging bundle simply fails.
-     */
-    FASTRR_ENV: z.enum(['SANDBOX', 'PRODUCTION']).default('SANDBOX'),
-    /** Escape hatch for a host Shiprocket moves without warning. */
-    FASTRR_BASE_URL: z.string().url('FASTRR_BASE_URL must be a valid URL').optional(),
-    /**
-     * Master switch for the buyer-facing flow. Off by default: the credentials
-     * alone should not silently reroute live checkout traffic. Turn this off to
-     * fall straight back to the native PhonePe checkout with no deploy.
-     */
-    FASTRR_CHECKOUT_ENABLED: z
-        .string()
-        .default('false')
-        .transform((v) => v.trim().toLowerCase() === 'true'),
-    FASTRR_TIMEOUT_MS: z.string().default('20000').transform(Number),
-    /**
-     * Optional shared secret for the inbound order webhook. Shiprocket does not
-     * document signing that callback, so we never trust its body regardless —
-     * every payload is re-verified against their Order/Details API. When set,
-     * this additionally gates the endpoint on a matching X-Api-Key.
-     */
-    FASTRR_WEBHOOK_API_KEY: z.string().optional(),
-
-    // Optional deep link the mobile app is redirected to after payment.
-    PHONEPE_MOBILE_REDIRECT_URL: z.string().optional(),
-    // Optional override for the web redirect base (defaults to FRONTEND_BASE_URL).
-    PHONEPE_WEB_REDIRECT_BASE_URL: z.string().optional(),
 });
 
 /**

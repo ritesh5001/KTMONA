@@ -11,16 +11,11 @@ export class WebhookController {
             throw new Error('Provider is required');
         }
 
-        // PhonePe sends its auth digest in the Authorization header.
-        const signature =
-            (req.headers['authorization'] as string) ||
-            (req.headers['x-verify'] as string) ||
-            '';
+        // Razorpay signs the exact bytes it sent; app.ts keeps them as rawBody.
+        const signature = (req.headers['x-razorpay-signature'] as string) || '';
+        const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
 
-        // Fastrr identifies itself with X-Api-Key rather than a signed digest.
-        const apiKey = (req.headers['x-api-key'] as string) || '';
-
-        await webhookService.processWebhook(provider, req.body, signature, apiKey);
+        await webhookService.processWebhook(provider, rawBody, req.body, signature);
 
         res.status(200).json({ success: true, message: 'Webhook processed' });
     });

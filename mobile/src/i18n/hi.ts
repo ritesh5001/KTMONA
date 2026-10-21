@@ -1,7 +1,7 @@
 /**
  * Hindi translations, keyed by the English text shown in the app.
  * Missing keys fall back to English. Keep brand names (KTMONA, WhatsApp,
- * PhonePe, UPI, GST) in Latin script, as Hindi shoppers see them on packaging.
+ * Razorpay, UPI, GST) in Latin script, as Hindi shoppers see them on packaging.
  */
 export const HI: Record<string, string> = {
   // ── Navigation & tabs ────────────────────────────────────────────────
@@ -397,14 +397,14 @@ export const HI: Record<string, string> = {
   "Special instructions…": "खास निर्देश…",
   "Payment method": "पेमेंट का तरीका",
   "Pay online": "ऑनलाइन पेमेंट करें",
-  "UPI, cards, net banking and wallets via PhonePe": "PhonePe से UPI, कार्ड, नेट बैंकिंग और वॉलेट",
+  "UPI, cards, net banking and wallets via Razorpay": "Razorpay से UPI, कार्ड, नेट बैंकिंग और वॉलेट",
   "Cash on Delivery": "कैश ऑन डिलीवरी",
   "Pay in cash or UPI to the delivery partner": "डिलीवरी पार्टनर को कैश या UPI से भुगतान करें",
   "Available for orders up to": "इतने तक के ऑर्डर पर उपलब्ध",
   "Place Order": "ऑर्डर करें",
   "Proceed to Payment": "पेमेंट करें",
   "Placing order": "ऑर्डर किया जा रहा है",
-  "Opening PhonePe": "PhonePe खुल रहा है",
+  "Opening payment": "पेमेंट खुल रहा है",
   "Confirming payment": "पेमेंट कन्फ़र्म हो रहा है",
   "Order placed! Pay in cash when it's delivered.": "ऑर्डर हो गया! डिलीवरी पर कैश में भुगतान करें।",
   "Cash on Delivery: keep": "कैश ऑन डिलीवरी: ऑर्डर आने पर",

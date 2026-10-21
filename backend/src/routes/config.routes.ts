@@ -14,19 +14,8 @@ import {
     FLAT_GST_FEE_INR,
     COD_MAX_ORDER_INR,
 } from '../services/settings.service.js';
-import { fastrrController } from '../controllers/fastrr.controller.js';
 
 export const configRouter = Router();
-
-/**
- * GET /v1/config/checkout
- * Which checkout the client should render: Shiprocket's Fastrr overlay, or the
- * native address-form + PhonePe flow. Server-side so the switch reaches app
- * builds already on buyers' phones without a release.
- */
-configRouter.get('/checkout', (req, res, next) =>
-    fastrrController.getCheckoutConfig(req, res, next),
-);
 
 /**
  * GET /v1/config/shipping

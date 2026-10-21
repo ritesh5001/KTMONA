@@ -12,7 +12,7 @@ export const checkoutSchema = z.object({
 		 */
 		variantIds: z.array(z.string().min(1)).min(1).max(50).optional(),
 		couponCode: z.string().min(1).max(64).optional(),
-		/** COD = cash on delivery; omitted or ONLINE = pay with PhonePe. */
+		/** COD = cash on delivery; omitted or ONLINE = pay with Razorpay. */
 		paymentMethod: z.enum(['ONLINE', 'COD']).optional(),
 		shippingName: z.string().min(1).optional(),
 		shippingPhone: z.string().min(5).optional(),

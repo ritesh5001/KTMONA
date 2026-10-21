@@ -28,39 +28,42 @@ FASHN_POLL_TIMEOUT_MS=115000
 
 ---
 
-## Payments — PhonePe (Standard Checkout v2)
+## Payments — Razorpay
 
-Checkout places the order (PLACED) and initiates a PhonePe payment; the order
-is confirmed only after payment succeeds. Unpaid orders are swept by
-`cancelStaleOrders` after 30 minutes.
+Razorpay is the only online gateway (Cash on Delivery needs no gateway).
+Checkout places the order (PLACED) and creates a Razorpay order for it; the
+order is confirmed only after the payment is captured. Unpaid orders are swept
+by `cancelStaleOrders` after 30 minutes, which first asks Razorpay whether the
+order was paid, so a lost webhook never cancels a paid order.
 
 ```bash
-PHONEPE_CLIENT_ID=...
-PHONEPE_CLIENT_SECRET=...
-PHONEPE_CLIENT_VERSION=1
-PHONEPE_ENV=SANDBOX            # SANDBOX | PRODUCTION
-PHONEPE_WEBHOOK_USERNAME=...   # chosen when configuring the dashboard webhook
-PHONEPE_WEBHOOK_PASSWORD=...
-FRONTEND_BASE_URL=https://...  # PhonePe redirects buyers to
-                              # $FRONTEND_BASE_URL/checkout/phonepe/callback
+RAZORPAY_KEY_ID=rzp_test_...   # rzp_live_... for real money
+RAZORPAY_KEY_SECRET=...
+RAZORPAY_WEBHOOK_SECRET=...    # the secret typed into the dashboard webhook
 ```
 
 **Flow**
 
-1. `POST /v1/checkout?withPayment=1` (or `POST /v1/payments/initiate`) creates a
-   PhonePe order; the response carries `redirectUrl`.
-2. The buyer pays on PhonePe and returns to `/checkout/phonepe/callback`
-   (web) or the app polls (mobile).
-3. `POST /v1/payments/phonepe/verify` confirms the state server-to-server via
-   PhonePe's Order Status API before marking the payment SUCCESS and confirming
-   the order. Webhooks provide the same confirmation asynchronously.
+1. `POST /v1/checkout?withPayment=1` (or `POST /v1/payments/initiate`) creates
+   the Razorpay order (one per KTMONA order, reused on retry) and returns
+   `keyId`, `razorpayOrderId`, `amount` (paise) and buyer prefill.
+2. The website opens Razorpay Checkout (checkout.js); the app opens the native
+   SDK (`react-native-razorpay`).
+3. `POST /v1/payments/razorpay/verify` with `orderId`, `razorpayPaymentId`,
+   `razorpaySignature` checks the signature, reads the payment back from
+   Razorpay (capturing it if only authorized) and confirms the order. With only
+   `orderId` it asks Razorpay for the order's payments instead (orders-page
+   self-heal).
 
-**Webhook** — register `https://<backend-host>/v1/payments/webhook/phonepe`
-with the username/password above; subscribe to `checkout.order.completed` and
-`checkout.order.failed`. Verified via `SHA256(username:password)` in the
-Authorization header, then re-confirmed against the status API.
+**Webhook** — register `https://api.ktmona.com/v1/payments/webhook/razorpay`
+with `RAZORPAY_WEBHOOK_SECRET`; subscribe to `payment.authorized`,
+`payment.captured`, `payment.failed`, `order.paid`, `refund.processed` and
+`refund.failed`. Verified as HMAC-SHA256 of the raw body
+(`X-Razorpay-Signature`).
 
-**Refunds** — issued via PhonePe's refund API from the cancellation/return flow.
+**Refunds** — issued via Razorpay's refund API from the cancellation/return
+flow. Orders paid through the retired PhonePe / Shiprocket Checkout gateways
+are refunded in the ledger only; return that money from the old dashboard.
 
 ---
 

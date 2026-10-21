@@ -12,7 +12,7 @@ import {
 import { prisma } from './config/db.js';
 import { checkRedisConnection } from './config/redis.js';
 import { logger } from './config/logger.js';
-import { isPhonePeConfigured } from './services/phonepe.client.js';
+import { isRazorpayConfigured } from './services/razorpay.client.js';
 import type { IntegrityReport } from './jobs/inventoryIntegrity.js';
 import {
     authRouter,
@@ -23,8 +23,6 @@ import {
     productMediaRouter,
     imagekitRouter,
     bestsellerRouter,
-    shiprocketRouter,
-    fastrrRouter,
     tryOnRouter,
     cartRouter,
     checkoutRouter,
@@ -112,8 +110,16 @@ export function createApp(): Application {
         },
     }));
 
-    // Parse JSON bodies
-    app.use(express.json({ limit: env.JSON_BODY_LIMIT }));
+    // Parse JSON bodies. Payment webhooks also keep the raw bytes: Razorpay's
+    // signature is an HMAC of the body exactly as sent, not of re-serialised JSON.
+    app.use(express.json({
+        limit: env.JSON_BODY_LIMIT,
+        verify: (req, _res, buf) => {
+            if (req.url?.startsWith('/v1/payments/webhook')) {
+                (req as typeof req & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+            }
+        },
+    }));
 
     // Parse URL-encoded bodies
     app.use(express.urlencoded({ extended: true, limit: env.URLENCODED_BODY_LIMIT }));
@@ -290,7 +296,7 @@ export function createApp(): Application {
                 select: { status: true, invoiceNumber: true, createdAt: true },
             });
 
-            // Recent payment rows — reveals whether PhonePe order creation is
+            // Recent payment rows — reveals whether Razorpay order creation is
             // actually succeeding (providerOrderId set) on this deployment.
             const recentPayments = await prisma.payment.findMany({
                 where: { createdAt: { gte: since } },
@@ -302,9 +308,9 @@ export function createApp(): Application {
             res.set('Cache-Control', 'no-store');
             res.json({
                 windowMinutes: 60,
-                phonepeConfigured: isPhonePeConfigured(),
-                phonepeEnv: env.PHONEPE_ENV,
-                phonepeWebhookAuthSet: Boolean(env.PHONEPE_WEBHOOK_USERNAME && env.PHONEPE_WEBHOOK_PASSWORD),
+                razorpayConfigured: isRazorpayConfigured(),
+                razorpayLiveMode: Boolean(env.RAZORPAY_KEY_ID?.startsWith('rzp_live_')),
+                razorpayWebhookSecretSet: Boolean(env.RAZORPAY_WEBHOOK_SECRET),
                 frontendBaseUrlSet: Boolean(env.FRONTEND_BASE_URL),
                 byStatus,
                 recent: recent.map((o) => ({
@@ -349,12 +355,6 @@ export function createApp(): Application {
     app.use('/v1/seller/products', productMediaRouter);
     app.use('/v1/imagekit', imagekitRouter);
     app.use('/v1/bestsellers', bestsellerRouter);
-    // Read-only catalog feed polled by Shiprocket Checkout (Fastrr).
-    app.use('/v1/shiprocket', shiprocketRouter);
-
-    // Shiprocket Checkout (Fastrr). The catalog feed above is Shiprocket reading
-    // from us; this is the buyer opening their hosted checkout.
-    app.use('/v1/fastrr', fastrrRouter);
     app.use('/v1/try-on', tryOnRouter);
 
     // Address management

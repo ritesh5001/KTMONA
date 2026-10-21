@@ -147,10 +147,9 @@ async function verifyPayment() {
 
         // 3. Test Webhook (Success)
         console.log('\n🔔 testing payment success settlement path...');
-        // There is no MOCK webhook any more: PhonePe is the only provider and its
-        // webhook is signature-checked then re-confirmed against the live Order Status
-        // API. Invoke the same handler the verified webhook calls, so this still covers
-        // order confirmation + seller settlement creation without faking a real payment.
+        // There is no MOCK webhook: Razorpay is the only provider and its webhook is
+        // signature-checked. Invoke the same handler the verified webhook calls, so this
+        // still covers order confirmation + seller settlement creation without a real payment.
         await paymentService.handlePaymentSuccess(
             paymentId,
             order.id,

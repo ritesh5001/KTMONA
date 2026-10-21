@@ -6,7 +6,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { listBuyerOrders, downloadInvoice } from "@/services/orders";
-import { retryPayment, verifyPhonePePayment } from "@/services/payments";
+import { retryPayment, verifyRazorpayPayment } from "@/services/payments";
+import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { listMyCancellations, requestCancellation } from "@/services/cancellations";
 import { listMyReturns, requestReturn } from "@/services/returns";
 import { useLiveFreshness } from "@/hooks/use-live-freshness";
@@ -140,15 +141,15 @@ export default function UserOrdersClient({
     },
   });
 
-  // ---- Self-heal pending PhonePe payments ----
-  // If a buyer paid but never hit the callback (e.g. PhonePe dropped the return
-  // param), the order sits PLACED/PENDING. On load, reconcile each pending
-  // order against PhonePe's status API via the backend.
+  // ---- Self-heal pending Razorpay payments ----
+  // If a buyer paid but the confirmation never landed (closed the tab, lost
+  // network), the order sits PLACED/PENDING. On load, ask the backend to check
+  // each pending order with Razorpay.
   const healedRef = React.useRef<Set<string>>(new Set());
   React.useEffect(() => {
     const pending = orders.filter((o: any) => {
       const status = paymentStatusByOrder[o.id];
-      // Cash on Delivery has no PhonePe payment to reconcile.
+      // Cash on Delivery has no online payment to reconcile.
       if (o.paymentMethod === "COD") return false;
       return status && status !== "SUCCESS" && status !== "FAILED" && !healedRef.current.has(o.id);
     });
@@ -160,12 +161,12 @@ export default function UserOrdersClient({
       for (const order of pending) {
         healedRef.current.add(order.id);
         try {
-          const res = await verifyPhonePePayment(order.id);
+          const res = await verifyRazorpayPayment({ orderId: order.id });
           if (res.data.status === "SUCCESS" || res.data.status === "FAILED") {
             anyConfirmed = true;
           }
         } catch {
-          // No PhonePe attempt for this order, or nothing to reconcile — ignore.
+          // No online attempt for this order, or nothing to reconcile — ignore.
         }
       }
       if (anyConfirmed && !cancelled) void mutate();
@@ -176,28 +177,35 @@ export default function UserOrdersClient({
     };
   }, [orders, paymentStatusByOrder, mutate]);
 
-  // ---- Retry payment (redirect back to PhonePe) ----
+  // ---- Retry payment (reopen Razorpay Checkout on the same order) ----
   const [retryingOrderId, setRetryingOrderId] = React.useState<string | null>(null);
   const handleRetryPayment = React.useCallback(async (orderId: string) => {
     if (retryingOrderId) return;
     setRetryingOrderId(orderId);
     try {
-      const result = await retryPayment(orderId);
-      const redirectUrl = result.data.redirectUrl;
-      if (!redirectUrl) {
-        throw new Error("Payment could not be started. Please try again.");
+      const { data: payment } = await retryPayment(orderId);
+      const result = await openRazorpayCheckout(payment);
+      if (result.status === "dismissed") {
+        if (result.lastError) toast.error(`Payment not completed: ${result.lastError}`);
+        return;
       }
-      try {
-        window.sessionStorage.setItem("ktmona_pending_order", orderId);
-      } catch {
-        // Non-fatal.
-      }
-      window.location.assign(redirectUrl);
+      const verified = await verifyRazorpayPayment({
+        orderId,
+        razorpayPaymentId: result.razorpayPaymentId,
+        razorpaySignature: result.razorpaySignature,
+      }).catch(() => null);
+      toast.success(
+        verified?.data.status === "SUCCESS"
+          ? "Payment successful! Your order is confirmed."
+          : "Payment received. We're confirming your order."
+      );
+      void mutate();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to retry payment");
+    } finally {
       setRetryingOrderId(null);
     }
-  }, [retryingOrderId]);
+  }, [retryingOrderId, mutate]);
 
   const openCancellationModal = React.useCallback((orderId: string) => {
     setCancelModalOrderId(orderId);

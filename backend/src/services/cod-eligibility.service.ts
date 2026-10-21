@@ -3,9 +3,8 @@
  *
  * On top of the platform-wide switch (Admin → Settings), an admin can turn COD
  * off for one customer, one seller (all their products) or one product. The
- * native checkout enforces this, the checkout page reads it to hide the COD
- * option, and express checkout (Fastrr, which offers COD itself) is refused
- * for a blocked order so the buyer lands on the native checkout instead.
+ * checkout enforces this, and the checkout page reads it to hide the COD
+ * option.
  */
 
 import { prisma } from '../config/db.js';

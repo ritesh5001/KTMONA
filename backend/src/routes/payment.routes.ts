@@ -7,9 +7,9 @@ const router = Router();
 
 router.use(authenticate);
 
-// PhonePe: create a payment link/order for checkout, and confirm it on return.
+// Razorpay: open Checkout for an order, and confirm the payment on return.
 router.post('/initiate', paymentController.initiatePayment);
-router.post('/phonepe/verify', paymentController.verifyPhonePePayment);
+router.post('/razorpay/verify', paymentController.verifyRazorpayPayment);
 router.post('/retry/:orderId', paymentController.retryPayment);
 router.get('/:orderId', paymentController.getPaymentDetails);
 

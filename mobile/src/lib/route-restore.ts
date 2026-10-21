@@ -35,7 +35,7 @@ const RESTORE_WINDOW_MS = 60 * 60 * 1000;
 /**
  * Routes that must never be restored.
  *
- * These own state that does not survive the process: a PhonePe attempt in
+ * These own state that does not survive the process: a payment attempt in
  * flight, a half-entered address, an OTP awaiting verification. Resuming them
  * would show a screen that cannot function.
  */

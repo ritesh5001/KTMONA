@@ -11,7 +11,6 @@ import { hashPassword } from './utils/password.util.js';
 import { reelRepository } from './repositories/reel.repository.js';
 import { warmCatalogCaches } from './services/catalog-warmup.service.js';
 import { appointmentService } from './services/appointment.service.js';
-import { fastrrOrderService } from './services/fastrr-order.service.js';
 import { sellerPricingService } from './services/seller-center/pricing.service.js';
 import { sellerAdsService } from './services/seller-center/ads.service.js';
 import { sellerInsightsService } from './services/seller-center/insights.service.js';
@@ -20,8 +19,8 @@ import { adminPenaltiesService } from './services/admin-center/penalties.service
 /**
  * How often the consolidated maintenance sweep runs (30 minutes by default).
  *
- * Stale-order cleanup, the inventory integrity check, the appointment sweep and
- * Fastrr reconciliation used to be four separate timers at 5-15 minute offsets.
+ * Stale-order cleanup, the inventory integrity check and the appointment sweep
+ * used to be separate timers at 5-15 minute offsets.
  * Neon suspends the compute after five minutes without a query, so one of them
  * always fired before that window closed: the database never once scaled to
  * zero, and billed around the clock for a 40 MB dataset.
@@ -37,9 +36,8 @@ import { adminPenaltiesService } from './services/admin-center/penalties.service
  * Lower MAINTENANCE_INTERVAL_MS if that matters more than the compute bill;
  * raise it toward an hour to save more.
  *
- * Fastrr reconciliation is the failsafe Shiprocket's docs recommend for a lost
- * webhook or a buyer who closes the tab before being redirected back, so it is
- * unaffected by cadence beyond taking longer to notice.
+ * The stale-order sweep also asks Razorpay about each order before cancelling
+ * it, so it doubles as the failsafe for a lost webhook or a closed tab.
  */
 const MAINTENANCE_INTERVAL_MS = env.MAINTENANCE_INTERVAL_MS;
 
@@ -356,13 +354,6 @@ async function bootstrap(): Promise<void> {
                 await appointmentService.autoCompletePastAppointments();
             } catch (err) {
                 logger.warn({ err }, 'Appointment completion sweep error');
-            }
-
-            // A no-op unless Fastrr is configured.
-            try {
-                await fastrrOrderService.reconcilePendingSessions();
-            } catch (err) {
-                logger.warn({ err }, 'Fastrr reconciliation error');
             }
 
             // Seller center: start/end discount offers, bill ad spend into the

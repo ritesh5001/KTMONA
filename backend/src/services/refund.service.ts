@@ -1,9 +1,7 @@
 import { RefundInitiator, RefundStatus, PaymentStatus, PaymentProvider } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import { refundLogger } from '../config/logger.js';
-import { phonepeService } from './phonepe.service.js';
-import { isPhonePeConfigured } from './phonepe.client.js';
-import { initiateFastrrRefund, isFastrrConfigured } from './fastrr.client.js';
+import { isRazorpayConfigured, refundRazorpayPayment } from './razorpay.client.js';
 import {
     refundCreatedTotal,
     refundLedgerSuccessTotal,
@@ -159,8 +157,7 @@ export class RefundService {
 
         // ── 4. Call the payment provider (outside tx) ───────────────
         // A refund can only proceed once the payment was actually collected.
-        // razorpayRefundId is the historical column name; it stores the
-        // provider refund id (PhonePe) or a manual marker.
+        // razorpayRefundId stores the Razorpay refund id, or a manual marker.
         let razorpayRefundId: string | null = null;
         let providerSuccess = false;
 
@@ -174,53 +171,32 @@ export class RefundService {
             );
             providerSuccess = false;
         } else if (
-            order.payment.provider === PaymentProvider.PHONEPE
-            && order.payment.providerOrderId
-            && isPhonePeConfigured()
+            order.payment.provider === PaymentProvider.RAZORPAY
+            && order.payment.providerPaymentId
+            && isRazorpayConfigured()
         ) {
             try {
-                const ppRefund = await phonepeService.initiateRefund(
-                    `rf_${refund.id}`,
-                    order.payment.providerOrderId,
+                const rzpRefund = await refundRazorpayPayment(
+                    order.payment.providerPaymentId,
                     amount / 100, // paise → rupees
+                    { orderId, refundId: refund.id },
                 );
-                razorpayRefundId = ppRefund.refundId ?? null;
+                razorpayRefundId = rzpRefund.id;
                 providerSuccess = true;
             } catch (error: any) {
                 refundLogger.error(
                     { orderId, refundId: refund.id, error: error?.message },
-                    'phonepe_refund_api_failed',
-                );
-                providerSuccess = false;
-            }
-        } else if (
-            order.payment.provider === PaymentProvider.FASTRR
-            && order.payment.providerOrderId
-            && isFastrrConfigured()
-        ) {
-            // Shiprocket brokered the gateway, so they own the refund too — we
-            // hold no gateway handle we could refund against ourselves. Falling
-            // through to the manual branch below would mark the ledger refunded
-            // while no money actually moved, so this must be an explicit case.
-            try {
-                await initiateFastrrRefund(
-                    order.payment.providerOrderId,
-                    amount / 100, // paise → rupees
-                );
-                // Fastrr queues refunds asynchronously and reports the outcome in
-                // their refund report; the ledger entry records the order it was
-                // raised against.
-                razorpayRefundId = `fastrr_${order.payment.providerOrderId}_${refund.id}`;
-                providerSuccess = true;
-            } catch (error: any) {
-                refundLogger.error(
-                    { orderId, refundId: refund.id, error: error?.message },
-                    'fastrr_refund_api_failed',
+                    'razorpay_refund_api_failed',
                 );
                 providerSuccess = false;
             }
         } else {
-            // No provider attempt on record — settle the ledger manually.
+            // COD, or a payment from a retired gateway (PhonePe, Shiprocket
+            // Checkout): settle the ledger; the money is returned by hand.
+            refundLogger.warn(
+                { orderId, refundId: refund.id, provider: order.payment.provider },
+                'refund_manual_payout_needed',
+            );
             razorpayRefundId = `manual_refund_${refund.id}`;
             providerSuccess = true;
         }

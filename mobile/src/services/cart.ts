@@ -1,4 +1,5 @@
 import { apiRequest } from "./apiClient";
+import type { RazorpayPaymentInit } from "./payments";
 
 export interface CartItemDetails {
   id: string;
@@ -179,11 +180,11 @@ export async function checkout(
 }
 
 /**
- * Place the order AND initiate the PhonePe payment in a single request.
+ * Place the order AND start its Razorpay payment in a single request.
  *
  * The app used to POST /v1/checkout and then POST /v1/payments/initiate, which
  * meant the buyer waited two full server round-trips (plus mobile network
- * latency) between tapping Place Order and PhonePe opening. The backend already
+ * latency) between tapping Place Order and the payment sheet opening. The backend already
  * supports doing both in one call, which is what the website uses.
  */
 export async function checkoutWithPayment(
@@ -216,31 +217,10 @@ export async function checkoutWithPayment(
       couponCode?: string | null;
       discountAmount?: number;
     };
-    payment?: {
-      paymentId: string;
-      orderId: string;
-      /** WEB only. Mobile uses the SDK fields below — PhonePe blocks in-app browsers. */
-      redirectUrl?: string;
-      phonepeOrderId?: string;
-      /** Order token for the native SDK. Present when the caller sent platform MOBILE. */
-      sdkToken?: string;
-      sdkExpireAt?: number;
-      /** Distinct from the OAuth client id; the SDK's init() needs this one. */
-      merchantId?: string;
-      environment?: string;
-      amount: number;
-      currency: string;
-      provider: string;
-    } | null;
+    payment?: RazorpayPaymentInit | null;
     paymentInitError?: string;
   }>({
-    // platform=MOBILE is not optional. Without it the backend takes the WEB
-    // branch and creates a hosted-checkout PhonePe order, which carries no SDK
-    // token — so the app has to place a *second* /v1/payments/initiate call to
-    // get one. That left an orphaned PhonePe order PENDING until expiry behind
-    // every checkout, and cost the buyer the extra round-trip this single
-    // request exists to avoid.
-    url: "/v1/checkout?withPayment=1&platform=MOBILE",
+    url: "/v1/checkout?withPayment=1",
     method: "POST",
     data: payload ?? {},
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,

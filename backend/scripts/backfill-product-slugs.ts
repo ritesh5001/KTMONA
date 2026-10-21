@@ -1,10 +1,9 @@
 /**
- * Gives every product a stable `slug`, which Shiprocket uses as the product
- * `handle`.
+ * Gives every product a stable `slug`.
  *
- * Deriving the handle from the title on each request would mean a title edit
- * silently creates a new product on Shiprocket's side and orphans the old one,
- * so it is written once here and never recomputed. Titles collide (several
+ * Deriving it from the title on each request would mean a title edit silently
+ * changes the product's identity, so it is written once here and never
+ * recomputed. Titles collide (several
  * products share "…Modi Jacket Black"), so a colliding slug gets the numeric
  * external id appended — stable, because that id never changes.
  *
@@ -12,7 +11,17 @@
  *   npm run backfill:product-slugs -- --apply
  */
 import { prisma } from '../src/config/db.js';
-import { slugify } from '../src/services/shiprocket-catalog.service.js';
+
+function slugify(value: string): string {
+    return value
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/['’]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
+}
 
 async function main() {
     const apply = process.argv.includes('--apply');

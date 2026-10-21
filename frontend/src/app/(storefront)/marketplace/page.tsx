@@ -139,7 +139,7 @@ export async function generateMetadata({
 
   let title = "Shop Online from Verified Sellers | KTMONA Marketplace";
   let description =
-    "Browse fashion, lifestyle and everyday products from verified sellers across India on KTMONA. Filter by price, size, colour and category, and pay securely with PhonePe.";
+    "Browse fashion, lifestyle and everyday products from verified sellers across India on KTMONA. Filter by price, size, colour and category, and pay securely with Razorpay.";
 
   if (occasionSlug) {
     const label = occasionSlug.charAt(0).toUpperCase() + occasionSlug.slice(1).replace(/-/g, " ");

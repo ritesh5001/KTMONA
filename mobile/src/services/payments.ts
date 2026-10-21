@@ -1,33 +1,25 @@
 import { apiRequest } from "./api";
 
-export interface InitiatePaymentResponse {
-  data: {
-    paymentId: string;
-    orderId: string;
-    phonepeOrderId?: string;
-    /**
-     * PhonePe hosted checkout page. WEB only.
-     *
-     * Absent for mobile: PhonePe no longer permits a WebView or browser
-     * redirect inside an app, so the native SDK is used instead and there is
-     * no URL to open.
-     */
-    redirectUrl?: string;
-    /** Order token for the native SDK. Present when platform is MOBILE. */
-    sdkToken?: string;
-    /** Epoch millis after which the SDK order can no longer be opened. */
-    sdkExpireAt?: number;
-    /** Merchant id the SDK's init() requires — distinct from the OAuth client id. */
-    merchantId?: string;
-    /** SANDBOX or PRODUCTION, so the app opens the SDK against the right one. */
-    environment?: string;
-    amount: number;
-    currency: string;
-    provider: string;
-  };
+/** What the Razorpay SDK needs to open for one KTMONA order. */
+export interface RazorpayPaymentInit {
+  paymentId: string;
+  /** Our order id. */
+  orderId: string;
+  razorpayOrderId: string;
+  /** Public key id. */
+  keyId: string;
+  /** In paise. */
+  amount: number;
+  currency: string;
+  provider: string;
+  prefill?: { name?: string; email?: string; contact?: string };
 }
 
-export interface PhonePeVerifyResponse {
+export interface InitiatePaymentResponse {
+  data: RazorpayPaymentInit;
+}
+
+export interface VerifyPaymentResponse {
   data: {
     status: "SUCCESS" | "FAILED" | "PENDING";
     paymentId: string;
@@ -39,20 +31,26 @@ export interface PaymentDetailsResponse {
   data: { status: string };
 }
 
-/** Initiate a PhonePe payment for an order → returns a redirectUrl. */
+/** Start (or resume) the Razorpay payment for an order. */
 export async function initiatePayment(orderId: string, token?: string | null) {
   return apiRequest<InitiatePaymentResponse>("/v1/payments/initiate", {
     method: "POST",
-    body: { orderId, platform: "MOBILE" },
+    body: { orderId },
     token,
   });
 }
 
-/** Confirm a PhonePe payment after the buyer returns from the browser. */
-export async function verifyPhonePePayment(orderId: string, token?: string | null) {
-  return apiRequest<PhonePeVerifyResponse>("/v1/payments/phonepe/verify", {
+/**
+ * Confirm a Razorpay payment. Pass the ids the SDK returned after paying; with
+ * only the order id the backend asks Razorpay for the order's payments instead.
+ */
+export async function verifyRazorpayPayment(
+  input: { orderId: string; razorpayPaymentId?: string; razorpaySignature?: string },
+  token?: string | null
+) {
+  return apiRequest<VerifyPaymentResponse>("/v1/payments/razorpay/verify", {
     method: "POST",
-    body: { orderId },
+    body: input,
     token,
   });
 }
@@ -60,7 +58,7 @@ export async function verifyPhonePePayment(orderId: string, token?: string | nul
 export async function retryPayment(orderId: string, token?: string | null) {
   return apiRequest<InitiatePaymentResponse>(`/v1/payments/retry/${orderId}`, {
     method: "POST",
-    body: { platform: "MOBILE" },
+    body: {},
     token,
   });
 }

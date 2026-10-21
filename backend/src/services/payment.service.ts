@@ -11,21 +11,35 @@ import { generateInvoiceNumber } from '../utils/invoice.util.js';
 import { commissionService } from './commission.service.js';
 import { dispatchFreshness } from '../live/freshness.service.js';
 import { CACHE_TAGS, orderTag } from '../live/cache-tags.js';
-import { phonepeService } from './phonepe.service.js';
-import { isPhonePeConfigured } from './phonepe.client.js';
+import {
+    captureRazorpayPayment,
+    createRazorpayOrder,
+    fetchRazorpayOrderPayments,
+    fetchRazorpayPayment,
+    isRazorpayConfigured,
+    isValidCheckoutSignature,
+    refundRazorpayPayment,
+    toPaise,
+    type RazorpayPayment,
+} from './razorpay.client.js';
 import { env } from '../config/env.js';
 import { sellerAdsService } from './seller-center/ads.service.js';
 
 // =====================================================================
 // Payment service.
 //
-// Active gateway: PhonePe (Standard Checkout v2, redirect flow).
-//   - initiatePayment       → create a PhonePe order, return its redirectUrl
-//   - verifyPhonePePayment  → confirm state server-to-server, then confirm order
-//   - handlePaymentSuccess  → confirm order + settlements (verify + webhook)
-//   - handlePaymentFailure  → mark payment FAILED + notify
-//   - processRefund         → mark REFUNDED + call PhonePe refund
-//   - cancelStaleOrders     → cron cleanup of unpaid PLACED orders
+// Gateway: Razorpay (Standard Checkout on web, native SDK in the app).
+//   - initiatePayment        → create (or reuse) the Razorpay order for our order
+//   - verifyRazorpayPayment  → after Checkout returns: check signature, then settle
+//   - syncRazorpayOrder      → ask Razorpay for the order's payments and settle
+//   - handlePaymentSuccess   → confirm order + settlements (verify + webhook)
+//   - handlePaymentFailure   → mark payment FAILED + notify
+//   - processRefund          → mark REFUNDED + call Razorpay refund
+//   - cancelStaleOrders      → cron cleanup of unpaid PLACED orders
+//
+// One Razorpay order per KTMONA order: Razorpay accepts repeated attempts on
+// the same order, so retries reuse it and every path (verify, webhook, sweep)
+// looks up the same providerOrderId.
 // =====================================================================
 
 /** Maximum age (ms) of a PLACED order before stale-cleanup cancels it. */
@@ -36,8 +50,9 @@ const TX_TIMEOUT_MS = 30000;
 // second copy of the shipping fee in this file is what let payments drift ₹180 above
 // the order total.
 
-/** Where the buyer lands after a PhonePe redirect-flow payment. */
-export type PaymentPlatform = 'WEB' | 'MOBILE';
+export type PaymentOutcome = 'SUCCESS' | 'FAILED' | 'PENDING';
+
+type PaymentRow = NonNullable<Awaited<ReturnType<typeof paymentRepository.findPaymentByOrderId>>>;
 
 function roundMoney(value: number): number {
     return Math.round(value * 100) / 100;
@@ -46,65 +61,6 @@ function roundMoney(value: number): number {
 function toNumber(value: unknown): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
-}
-
-/** A redirect target the buyer's own phone or browser could never reach. */
-function isUnreachablePublicUrl(url: string): boolean {
-    try {
-        const host = new URL(url).hostname.toLowerCase();
-        return (
-            host === 'localhost' ||
-            host === '127.0.0.1' ||
-            host === '0.0.0.0' ||
-            host === '::1' ||
-            host.endsWith('.local') ||
-            // Private ranges: fine on a dev LAN, dead for a real buyer.
-            /^10\./.test(host) ||
-            /^192\.168\./.test(host) ||
-            /^172\.(1[6-9]|2\d|3[01])\./.test(host)
-        );
-    } catch {
-        return true;
-    }
-}
-
-/**
- * Where PhonePe sends the buyer back to after the hosted checkout page.
- *
- * This is the single most damaging value to get wrong: PhonePe takes the money
- * and then hands the buyer to whatever URL we supplied. If that is a developer's
- * `localhost:3001`, the buyer lands on a dead page on their own phone with the
- * payment already taken — which looks exactly like "payments are broken" even
- * though the charge succeeded.
- *
- * `.env` in this repo carries `PHONEPE_WEB_REDIRECT_BASE_URL=http://localhost:3001`
- * for local work, and that variable takes precedence over FRONTEND_BASE_URL. So
- * the one thing that must not happen is that value reaching a real buyer. A
- * private or loopback host is rejected outright rather than trusted.
- */
-function resolvePublicRedirectBase(): string {
-    const candidates = [
-        env.PHONEPE_WEB_REDIRECT_BASE_URL,
-        env.FRONTEND_BASE_URL,
-        'https://www.ktmona.com',
-    ];
-
-    for (const candidate of candidates) {
-        if (!candidate) continue;
-        const trimmed = candidate.trim().replace(/\/$/, '');
-        if (!trimmed) continue;
-
-        if (isUnreachablePublicUrl(trimmed)) {
-            paymentLogger.warn(
-                { event: 'phonepe_redirect_base_rejected', candidate: trimmed },
-                'Ignoring a non-public PhonePe redirect base — a buyer could not reach it',
-            );
-            continue;
-        }
-        return trimmed;
-    }
-
-    return 'https://www.ktmona.com';
 }
 
 function isTransactionStartTimeout(error: unknown): boolean {
@@ -131,6 +87,9 @@ export class PaymentService {
                 grandTotal: true,
                 subTotalAmount: true,
                 totalTaxAmount: true,
+                shippingName: true,
+                shippingEmail: true,
+                shippingPhone: true,
             },
         });
     }
@@ -169,47 +128,14 @@ export class PaymentService {
         throw new ApiError(500, 'Order has no payable amount');
     }
 
-    /**
-     * Where PhonePe redirects the buyer after checkout.
-     * WEB → frontend callback page; MOBILE → app deep link (if configured).
-     */
-    private buildPhonePeRedirectUrl(orderId: string, platform: PaymentPlatform): string {
-        const configured = platform === 'MOBILE' ? env.PHONEPE_MOBILE_REDIRECT_URL : undefined;
-
-        if (configured) {
-            // PhonePe Standard Checkout validates merchantUrls.redirectUrl and
-            // accepts https only. A custom app scheme — `mobile://checkout` — is
-            // rejected during checkout, which surfaces to the buyer as
-            // "Something went wrong" on PhonePe's own domain AFTER the page has
-            // loaded. It looks like a gateway outage; it is a malformed request.
-            //
-            // Returning the buyer to the app is still the goal, but it has to be
-            // done by having the https callback page deep-link onward, not by
-            // handing PhonePe a scheme it will not take.
-            if (/^https:\/\//i.test(configured) && !isUnreachablePublicUrl(configured)) {
-                const sep = configured.includes('?') ? '&' : '?';
-                return `${configured}${sep}orderId=${encodeURIComponent(orderId)}`;
-            }
-
-            paymentLogger.warn(
-                { event: 'phonepe_mobile_redirect_rejected', configured },
-                'PHONEPE_MOBILE_REDIRECT_URL is not a public https URL — PhonePe would reject it. Falling back to the web callback.',
-            );
-        }
-
-        const base = resolvePublicRedirectBase();
-        return `${base}/checkout/phonepe/callback?orderId=${encodeURIComponent(orderId)}`;
-    }
-
     // ------------------------------------------------------------------
-    // Initiate a PhonePe payment for a PLACED order.
-    // Creates/reuses the payment row, creates the PhonePe order, and returns
-    // the redirectUrl the client sends the buyer to.
+    // Start a Razorpay payment for a PLACED order.
+    // Returns what Checkout (web) or the native SDK (app) needs to open.
     // ------------------------------------------------------------------
 
-    async initiatePayment(userId: string, orderId: string, platform: PaymentPlatform = 'WEB') {
-        if (!isPhonePeConfigured()) {
-            throw new ApiError(500, 'PhonePe is not configured');
+    async initiatePayment(userId: string, orderId: string) {
+        if (!isRazorpayConfigured()) {
+            throw new ApiError(503, 'Online payments are not available right now. Please try again later.');
         }
 
         const [order, existingPayment] = await Promise.all([
@@ -230,28 +156,31 @@ export class PaymentService {
             throw new ApiError(400, 'Order already paid');
         }
 
-        const payableAmount = this.resolvePayableAmount(order as any);
+        const payableAmount = this.resolvePayableAmount(order);
 
-        // The merchant order id is generated locally, so it can be persisted in the
-        // same write that creates/resets the payment row. Writing it up front also
-        // closes a real gap: previously it was saved only AFTER PhonePe returned, so
-        // a crash in between left a live PhonePe order that no webhook could ever be
-        // matched to — a paid order that would never be confirmed.
-        const merchantOrderId = phonepeService.buildMerchantOrderId(orderId);
-        const redirectUrl = this.buildPhonePeRedirectUrl(orderId, platform);
+        // Reuse the Razorpay order from an earlier attempt: a buyer who closed
+        // Checkout and paid later on the same order must still be matched.
+        const reusable =
+            existingPayment?.provider === PaymentProvider.RAZORPAY
+            && existingPayment.providerOrderId
+            && roundMoney(existingPayment.amount) === payableAmount
+                ? existingPayment.providerOrderId
+                : null;
 
-        // Create/reset the payment row (reuse on retry).
+        const razorpayOrderId =
+            reusable
+            ?? (await createRazorpayOrder({ amount: payableAmount, receipt: orderId, notes: { orderId, userId } })).id;
+
         let payment;
         if (existingPayment) {
             payment = await prisma.payment.update({
                 where: { id: existingPayment.id },
                 data: {
                     status: PaymentStatus.INITIATED,
-                    provider: PaymentProvider.PHONEPE,
+                    provider: PaymentProvider.RAZORPAY,
                     amount: payableAmount,
-                    providerOrderId: merchantOrderId,
-                    providerPaymentId: null,
-                    providerSignature: null,
+                    providerOrderId: razorpayOrderId,
+                    ...(reusable ? {} : { providerPaymentId: null, providerSignature: null }),
                 },
             });
         } else {
@@ -260,20 +189,18 @@ export class PaymentService {
                 userId,
                 amount: payableAmount,
                 currency: 'INR',
-                provider: PaymentProvider.PHONEPE,
+                provider: PaymentProvider.RAZORPAY,
                 status: PaymentStatus.INITIATED,
-                providerOrderId: merchantOrderId,
+                providerOrderId: razorpayOrderId,
             });
         }
 
-        // Audit trail only — nothing reads it on this path, and the payment row itself
-        // already records the status. Making the buyer wait several cross-region
-        // round-trips for it just delays the redirect to PhonePe.
+        // Audit trail only; the payment row already records the status.
         void paymentRepository
             .createPaymentEvent({
                 paymentId: payment.id,
                 type: PaymentEventType.INITIATED,
-                payload: { provider: 'PHONEPE', amount: payableAmount },
+                payload: { provider: 'RAZORPAY', amount: payableAmount, razorpayOrderId, reused: Boolean(reusable) },
             })
             .catch((error) => {
                 paymentLogger.warn(
@@ -282,93 +209,44 @@ export class PaymentService {
                 );
             });
 
-        // MOBILE and WEB take different PhonePe endpoints.
-        //
-        // PhonePe stopped allowing a WebView or browser redirect inside a mobile
-        // app; the hosted checkout page refuses to render there, which is what
-        // showed the buyer "Something went wrong" on PhonePe's own domain after
-        // they had already committed to paying. Apps must open the native SDK,
-        // which needs an order token rather than a URL.
-        //
-        // The website is unaffected and still uses the redirect flow.
-        if (platform === 'MOBILE') {
-            const sdkOrder = await phonepeService.createSdkOrder(
-                payableAmount,
-                merchantOrderId,
-                { orderId, userId },
-            );
-
-            if (sdkOrder.merchantOrderId && sdkOrder.merchantOrderId !== merchantOrderId) {
-                await paymentRepository.updateProviderOrderId(payment.id, sdkOrder.merchantOrderId);
-            }
-
-            return {
-                paymentId: payment.id,
-                orderId: sdkOrder.merchantOrderId,
-                phonepeOrderId: sdkOrder.phonepeOrderId,
-                // What the SDK needs. No redirectUrl: there is no browser hop.
-                sdkToken: sdkOrder.token,
-                sdkExpireAt: sdkOrder.expireAt,
-                merchantId: env.PHONEPE_MERCHANT_ID ?? env.PHONEPE_CLIENT_ID ?? '',
-                environment: env.PHONEPE_ENV,
-                amount: sdkOrder.amount,
-                currency: 'INR',
-                provider: 'PHONEPE',
-            };
-        }
-
-        const phonepeOrder = await phonepeService.createOrder(
-            payableAmount,
-            merchantOrderId,
-            redirectUrl,
-            { orderId, userId },
-        );
-
-        // Normally PhonePe echoes back the id we sent, so this write is skipped
-        // entirely. Only reconcile if it ever differs.
-        if (phonepeOrder.merchantOrderId && phonepeOrder.merchantOrderId !== merchantOrderId) {
-            await paymentRepository.updateProviderOrderId(payment.id, phonepeOrder.merchantOrderId);
-        }
-
         return {
             paymentId: payment.id,
-            orderId: phonepeOrder.merchantOrderId,
-            phonepeOrderId: phonepeOrder.phonepeOrderId,
-            redirectUrl: phonepeOrder.redirectUrl,
-            amount: phonepeOrder.amount,
+            orderId,
+            razorpayOrderId,
+            /** Public key id; Checkout needs it to open. */
+            keyId: env.RAZORPAY_KEY_ID!,
+            /** In paise, as Checkout expects. */
+            amount: toPaise(payableAmount),
             currency: 'INR',
-            provider: 'PHONEPE',
+            provider: 'RAZORPAY',
+            prefill: {
+                name: order.shippingName ?? undefined,
+                email: order.shippingEmail ?? undefined,
+                contact: order.shippingPhone ?? undefined,
+            },
         };
     }
 
     /** Retry payment for a PLACED order whose payment is FAILED/INITIATED. */
-    async retryPayment(userId: string, orderId: string, platform: PaymentPlatform = 'WEB') {
-        const order = await this.findOrderForPayment(userId, orderId);
-        if (!order) {
-            throw new ApiError(404, 'Order not found or access denied');
-        }
-        if (order.status !== OrderStatus.PLACED) {
-            throw new ApiError(400, `Cannot retry payment for order with status ${order.status}`);
-        }
-        const existingPayment = await paymentRepository.findPaymentByOrderId(orderId);
-        if (existingPayment && existingPayment.status === PaymentStatus.SUCCESS) {
-            throw new ApiError(400, 'Order already paid');
-        }
-        return this.initiatePayment(userId, orderId, platform);
+    async retryPayment(userId: string, orderId: string) {
+        return this.initiatePayment(userId, orderId);
     }
 
     // ------------------------------------------------------------------
-    // Verify a PhonePe payment (redirect callback / client polling).
-    // The redirect carries no signature, so the trusted confirmation is a
-    // server-to-server Order Status call.
+    // Confirm a payment.
+    //
+    // Checkout's success handler posts the signed ids here. The signature
+    // proves the ids came from Razorpay for our order; the payment itself is
+    // then read back from Razorpay so the amount and state are authoritative.
+    // Without ids (orders-page self-heal, or a buyer who closed the tab), the
+    // order's payments are listed from Razorpay instead.
     // ------------------------------------------------------------------
 
-    async verifyPhonePePayment(userId: string, orderId: string): Promise<{
-        status: 'SUCCESS' | 'FAILED' | 'PENDING';
-        paymentId: string;
-        message: string;
-    }> {
-        const payment = await paymentRepository.findPaymentByOrderId(orderId);
+    async verifyRazorpayPayment(
+        userId: string,
+        input: { orderId: string; razorpayPaymentId?: string | undefined; razorpaySignature?: string | undefined },
+    ): Promise<{ status: PaymentOutcome; paymentId: string; message: string }> {
+        const payment = await paymentRepository.findPaymentByOrderId(input.orderId);
         if (!payment) {
             throw new ApiError(404, 'Payment not found');
         }
@@ -378,77 +256,114 @@ export class PaymentService {
         if (payment.status === PaymentStatus.SUCCESS) {
             return { status: 'SUCCESS', paymentId: payment.id, message: 'Payment already verified' };
         }
-        if (payment.provider !== PaymentProvider.PHONEPE || !payment.providerOrderId) {
-            // No PhonePe attempt on record yet (e.g. order creation failed, or the
-            // order predates PhonePe). Report PENDING instead of throwing so the
-            // orders-page self-heal doesn't spam 400s into the logs.
-            return {
-                status: 'PENDING',
-                paymentId: payment.id,
-                message: 'No PhonePe payment attempt for this order',
-            };
+        if (payment.provider !== PaymentProvider.RAZORPAY || !payment.providerOrderId) {
+            // Nothing on record to check (e.g. payment start failed, or a legacy order).
+            return { status: 'PENDING', paymentId: payment.id, message: 'No online payment attempt for this order' };
         }
 
-        // A gateway hiccup here is not a failed payment. Cancelled and abandoned
-        // orders can make this call error or 502, and letting that propagate showed
-        // the buyer "Payment Not Completed — Internal server error" on what may be a
-        // perfectly good order. Report PENDING and let the webhook settle it.
-        let statusResponse: Awaited<ReturnType<typeof phonepeService.getOrderStatus>>;
-        try {
-            statusResponse = await phonepeService.getOrderStatus(payment.providerOrderId);
-        } catch (error) {
-            paymentLogger.warn(
-                { event: 'phonepe_status_check_failed', orderId, paymentId: payment.id, error },
-                'PhonePe status check failed; reporting PENDING',
-            );
-            return {
-                status: 'PENDING',
-                paymentId: payment.id,
-                message: 'Could not reach PhonePe. We will confirm this shortly.',
-            };
-        }
-
-        if (statusResponse.state === 'COMPLETED') {
-            const transactionId =
-                statusResponse.paymentDetails?.[0]?.transactionId ?? statusResponse.orderId;
-            try {
-                await this.handlePaymentSuccess(
-                    payment.id,
-                    payment.orderId,
-                    transactionId,
-                    { merchantOrderId: payment.providerOrderId, phonepeOrderId: statusResponse.orderId, source: 'status_check' },
+        if (input.razorpayPaymentId && input.razorpaySignature) {
+            if (!isValidCheckoutSignature(payment.providerOrderId, input.razorpayPaymentId, input.razorpaySignature)) {
+                paymentLogger.warn(
+                    { event: 'razorpay_signature_invalid', orderId: input.orderId, paymentId: payment.id },
+                    'Razorpay checkout signature did not match',
                 );
-            } catch (error) {
-                if (isTransactionStartTimeout(error)) {
-                    const latest = await paymentRepository.findPaymentById(payment.id);
-                    if (latest?.status === PaymentStatus.SUCCESS) {
-                        return { status: 'SUCCESS', paymentId: payment.id, message: 'Payment already verified' };
-                    }
-                    throw new ApiError(503, 'Payment is being finalized. Please refresh order status in a few seconds.');
-                }
-                throw error;
+                throw new ApiError(400, 'Payment verification failed');
             }
-            return { status: 'SUCCESS', paymentId: payment.id, message: 'Payment verified' };
         }
 
-        if (statusResponse.state === 'FAILED') {
-            await this.handlePaymentFailure(payment.id, {
-                merchantOrderId: payment.providerOrderId,
-                phonepeOrderId: statusResponse.orderId,
-                source: 'status_check',
-            });
-            return { status: 'FAILED', paymentId: payment.id, message: 'Payment failed' };
+        let outcome: PaymentOutcome;
+        try {
+            outcome = input.razorpayPaymentId
+                ? await this.settleRazorpayPayment(
+                    payment,
+                    await fetchRazorpayPayment(input.razorpayPaymentId),
+                    'checkout_return',
+                    input.razorpaySignature,
+                )
+                : await this.syncRazorpayOrder(payment, 'status_check');
+        } catch (error) {
+            if (isTransactionStartTimeout(error)) {
+                const latest = await paymentRepository.findPaymentById(payment.id);
+                if (latest?.status === PaymentStatus.SUCCESS) {
+                    return { status: 'SUCCESS', paymentId: payment.id, message: 'Payment already verified' };
+                }
+                throw new ApiError(503, 'Payment is being finalized. Please refresh order status in a few seconds.');
+            }
+            if (error instanceof ApiError && error.statusCode === 502) {
+                // A gateway hiccup is not a failed payment; the webhook settles it.
+                return { status: 'PENDING', paymentId: payment.id, message: 'We will confirm this payment shortly.' };
+            }
+            throw error;
         }
 
-        return { status: 'PENDING', paymentId: payment.id, message: 'Payment is still pending' };
+        const message =
+            outcome === 'SUCCESS' ? 'Payment verified' : outcome === 'FAILED' ? 'Payment failed' : 'Payment is still pending';
+        return { status: outcome, paymentId: payment.id, message };
+    }
+
+    /** Settle from whatever Razorpay holds for this order's Razorpay order. */
+    async syncRazorpayOrder(payment: PaymentRow, source: string): Promise<PaymentOutcome> {
+        if (!payment.providerOrderId) return 'PENDING';
+        const attempts = await fetchRazorpayOrderPayments(payment.providerOrderId);
+        const paid =
+            attempts.find((p) => p.status === 'captured')
+            ?? attempts.find((p) => p.status === 'authorized');
+        if (paid) return this.settleRazorpayPayment(payment, paid, source);
+        // Failed attempts do not fail the order: the buyer can still pay on it.
+        return 'PENDING';
+    }
+
+    /**
+     * Turn one Razorpay payment into our order state. Captures an authorized
+     * payment (accounts without auto-capture), and only confirms the order when
+     * the captured amount covers what we asked for.
+     */
+    async settleRazorpayPayment(
+        payment: PaymentRow,
+        rzp: RazorpayPayment,
+        source: string,
+        signature?: string,
+    ): Promise<PaymentOutcome> {
+        if (rzp.order_id !== payment.providerOrderId) {
+            paymentLogger.warn(
+                { event: 'razorpay_order_mismatch', paymentId: payment.id, expected: payment.providerOrderId, got: rzp.order_id },
+                'Razorpay payment belongs to a different order',
+            );
+            throw new ApiError(400, 'Payment does not belong to this order');
+        }
+
+        let current = rzp;
+        if (current.status === 'authorized') {
+            current = await captureRazorpayPayment(current.id, current.amount);
+        }
+
+        if (current.status === 'failed') return 'PENDING';
+        if (current.status !== 'captured' && current.status !== 'refunded') return 'PENDING';
+
+        if (current.amount < toPaise(payment.amount)) {
+            paymentLogger.error(
+                { event: 'razorpay_amount_short', paymentId: payment.id, expected: toPaise(payment.amount), got: current.amount },
+                'Razorpay captured less than the order total',
+            );
+            return 'PENDING';
+        }
+
+        await this.handlePaymentSuccess(
+            payment.id,
+            payment.orderId,
+            current.id,
+            { provider: 'RAZORPAY', razorpayOrderId: current.order_id, razorpayPaymentId: current.id, method: current.method, source },
+            signature,
+        );
+        return 'SUCCESS';
     }
 
     // ------------------------------------------------------------------
     // Refund processing (idempotent, crash-safe)
     //
-    // Ledger-only: marks the payment REFUNDED. With no gateway wired up,
-    // the actual money return is handled manually/offline for now; the new
-    // gateway will add its refund call here when rebuilt.
+    // Marks the payment REFUNDED, then asks Razorpay to return the money.
+    // Payments from retired gateways (PhonePe, Shiprocket Checkout) are
+    // ledger-only: their money has to be returned from that gateway's dashboard.
     // ------------------------------------------------------------------
 
     async processRefund(orderId: string): Promise<{
@@ -506,19 +421,11 @@ export class PaymentService {
             };
         }
 
-        // Call PhonePe refund outside the tx. On failure, revert to SUCCESS so
-        // we never leave a REFUNDED row without an actual refund.
-        if (
-            payment.provider === PaymentProvider.PHONEPE
-            && payment.providerOrderId
-            && isPhonePeConfigured()
-        ) {
+        // Call Razorpay outside the tx. On failure, revert to SUCCESS so we
+        // never leave a REFUNDED row without an actual refund.
+        if (payment.provider === PaymentProvider.RAZORPAY && payment.providerPaymentId) {
             try {
-                await phonepeService.initiateRefund(
-                    `rf_${payment.id}`,
-                    payment.providerOrderId,
-                    payment.amount,
-                );
+                await refundRazorpayPayment(payment.providerPaymentId, payment.amount, { orderId, paymentId: payment.id });
             } catch (error: any) {
                 paymentLogger.error(
                     { orderId, paymentId: payment.id, error: error?.message },
@@ -530,6 +437,11 @@ export class PaymentService {
                 });
                 throw new ApiError(502, `Refund API failed: ${error?.message ?? 'unknown error'}`);
             }
+        } else {
+            paymentLogger.warn(
+                { orderId, paymentId: payment.id, provider: payment.provider },
+                'refund_ledger_only_manual_payout_needed',
+            );
         }
 
         refundSuccessTotal.inc();
@@ -559,7 +471,7 @@ export class PaymentService {
 
     // ------------------------------------------------------------------
     // Shared success handler — idempotent via optimistic lock inside tx.
-    // A future gateway's verify/webhook should converge here to confirm
+    // Checkout return, webhook and stale sweep all converge here to confirm
     // the order and create settlements.
     // ------------------------------------------------------------------
 
@@ -697,29 +609,19 @@ export class PaymentService {
                     // The exclusion lives inside this branch, not alongside it: a
                     // sibling `payment: {...}` filter would AND with the null branch
                     // and stop sweeping orders that have no payment row at all —
-                    // exactly the PhonePe orders whose payment init failed.
+                    // exactly the orders whose payment start failed.
                     {
                         payment: {
                             is: {
                                 status: { not: PaymentStatus.SUCCESS },
+                                // Legacy Shiprocket Checkout orders were created after
+                                // payment, so PLACED there meant "paid"; never sweep them.
                                 provider: { not: PaymentProvider.FASTRR },
                             },
                         },
                     },
                     { payment: null },
                 ],
-                // Fastrr orders are exempt, and the exemption is load-bearing.
-                //
-                // This sweep exists for the PhonePe flow, where an order is created
-                // *before* payment and a PLACED order past its TTL genuinely means
-                // the buyer walked away. Fastrr inverts that: an order only exists
-                // here because Shiprocket already confirmed the checkout, so PLACED
-                // means "paid, mid-confirmation" — and a COD order legitimately
-                // carries an INITIATED payment until it is collected on delivery.
-                //
-                // Without this, any hiccup between creating the order and confirming
-                // it would leave a paid order to be auto-cancelled 30 minutes later,
-                // with its stock released and the buyer's money already taken.
             },
             include: { payment: true },
         });
@@ -728,6 +630,22 @@ export class PaymentService {
 
         for (const order of staleOrders) {
             try {
+                // A lost webhook or a closed tab must not cancel a paid order:
+                // ask Razorpay first, and skip the order if it cannot answer.
+                if (order.payment?.provider === PaymentProvider.RAZORPAY && order.payment.providerOrderId) {
+                    if (!isRazorpayConfigured()) continue;
+                    try {
+                        const outcome = await this.syncRazorpayOrder(order.payment, 'stale_sweep');
+                        if (outcome === 'SUCCESS') continue;
+                    } catch (error) {
+                        paymentLogger.warn(
+                            { event: 'stale_sweep_razorpay_check_failed', orderId: order.id, error: error instanceof Error ? error.message : String(error) },
+                            'Could not check Razorpay; leaving the order for the next sweep',
+                        );
+                        continue;
+                    }
+                }
+
                 const reserveMovements = await prisma.inventoryMovement.findMany({
                     where: { orderId: order.id, type: 'RESERVE' },
                     select: { variantId: true, quantity: true },

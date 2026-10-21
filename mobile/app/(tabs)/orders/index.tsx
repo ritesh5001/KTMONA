@@ -9,8 +9,8 @@ import {
 } from "react-native";
 import { colors, radius, spacing, typography, shadow } from "../../../src/theme/tokens";
 import { listBuyerOrders, type BuyerOrder } from "../../../src/services/orders";
-import { retryPayment, verifyPhonePePayment } from "../../../src/services/payments";
-import { initPhonePe, startPhonePeTransaction } from "../../../src/services/phonepe-sdk";
+import { retryPayment } from "../../../src/services/payments";
+import { confirmRazorpayPayment, openRazorpayCheckout } from "../../../src/services/razorpay-sdk";
 import { listMyCancellations, requestCancellation } from "../../../src/services/cancellations";
 import { listMyReturns, requestReturn } from "../../../src/services/returns";
 import { useAuth } from "../../../src/hooks/useAuth";
@@ -28,27 +28,6 @@ import {
   AppText as Text,
   ScreenContainer as SafeAreaView,
 } from "../../../src/components";
-
-const PHONEPE_POLL_INTERVAL_MS = 3000;
-const PHONEPE_MAX_WAIT_MS = 4 * 60 * 1000;
-
-async function waitForPhonePeRetryResult(
-  orderId: string,
-  token: string
-): Promise<"SUCCESS" | "FAILED" | "TIMEOUT"> {
-  const deadline = Date.now() + PHONEPE_MAX_WAIT_MS;
-  while (Date.now() < deadline) {
-    try {
-      const result = await verifyPhonePePayment(orderId, token);
-      if (result.data.status === "SUCCESS") return "SUCCESS";
-      if (result.data.status === "FAILED") return "FAILED";
-    } catch {
-      // Transient error while the buyer is in the PhonePe app — keep polling.
-    }
-    await new Promise((resolve) => setTimeout(resolve, PHONEPE_POLL_INTERVAL_MS));
-  }
-  return "TIMEOUT";
-}
 
 const currency = new Intl.NumberFormat("en-IN", {
   style: "currency",
@@ -580,43 +559,27 @@ export default function OrdersScreen() {
     }
   }, [returnModalOrderId, returnReason, orders, closeReturnModal, loadOrders, lockReturn, showToast, token, unlockReturn]);
 
-  // ---- Retry payment: open PhonePe in browser, then poll for the result ----
+  // ---- Retry payment: reopen the Razorpay sheet on the same order ----
   const [retryingOrderId, setRetryingOrderId] = React.useState<string | null>(null);
   const handleRetryPayment = React.useCallback(async (orderId: string) => {
     if (retryingOrderId || !token) return;
     setRetryingOrderId(orderId);
     try {
-      // Same constraint as checkout: PhonePe refuses to render their hosted
-      // page inside an app, so a retry has to open the native SDK too.
-      const result = await retryPayment(orderId, token);
-      const payment = result.data;
-      if (!payment.sdkToken || !payment.phonepeOrderId || !payment.merchantId) {
-        throw new Error("Payment could not be started. Please try again.");
+      const { data: payment } = await retryPayment(orderId, token);
+      const sdkResult = await openRazorpayCheckout(payment);
+
+      if (sdkResult.status === "cancelled") return;
+      if (sdkResult.status === "failed") {
+        notifyError();
+        showToast(`Payment failed: ${sdkResult.error}`, "error");
+        return;
       }
 
-      await initPhonePe({
-        merchantId: payment.merchantId,
-        environment: payment.environment ?? "PRODUCTION",
-        flowId: orderId,
-      });
-
-      const sdkResult = await startPhonePeTransaction({
-        phonepeOrderId: payment.phonepeOrderId,
-        merchantId: payment.merchantId,
-        token: payment.sdkToken,
-      });
-
       // The SDK finishing is not proof the money settled; the server decides.
-      const outcome =
-        sdkResult.status === "FAILURE"
-          ? "FAILED"
-          : await waitForPhonePeRetryResult(orderId, token);
+      const outcome = await confirmRazorpayPayment(orderId, token, sdkResult);
       if (outcome === "SUCCESS") {
         notifySuccess();
         showToast("Payment successful. Order confirmed.", "success");
-      } else if (outcome === "FAILED") {
-        notifyError();
-        showToast("Payment failed. You can retry anytime.", "error");
       } else {
         showToast("Payment pending. Pull to refresh for the final status.", "info");
       }

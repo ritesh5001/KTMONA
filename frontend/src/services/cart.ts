@@ -1,4 +1,5 @@
 import { apiRequest, CHECKOUT_REQUEST_TIMEOUT_MS } from "@/services/api";
+import type { RazorpayPaymentInit } from "@/services/payments";
 
 export interface CartItemDetails {
   id: string;
@@ -150,7 +151,7 @@ export async function checkout(
   });
 }
 
-/** Place the order AND initiate a PhonePe payment in one call. */
+/** Place the order AND start its Razorpay payment in one call. */
 export async function checkoutWithPayment(
   payload?: {
     shippingName?: string;
@@ -162,7 +163,7 @@ export async function checkoutWithPayment(
     shippingPincode?: string;
     shippingNotes?: string;
     couponCode?: string;
-    /** COD = Cash on Delivery: order is confirmed, no payment redirect. */
+    /** COD = Cash on Delivery: order is confirmed, nothing to pay now. */
     paymentMethod?: "ONLINE" | "COD";
   },
   token?: string | null
@@ -179,14 +180,7 @@ export async function checkoutWithPayment(
       couponCode?: string | null;
       discountAmount?: number;
     };
-    payment?: {
-      paymentId: string;
-      orderId: string;
-      redirectUrl?: string;
-      amount: number;
-      currency: string;
-      provider: string;
-    } | null;
+    payment?: RazorpayPaymentInit | null;
     paymentInitError?: string;
   }>("/v1/checkout?withPayment=1", {
     method: "POST",

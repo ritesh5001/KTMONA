@@ -40,7 +40,7 @@ const API_REQUEST_TIMEOUT_MS = 30000;
 
 /**
  * Timeout for order/payment mutations. Placing an order does cart validation,
- * an inventory-reserving transaction, GST calculation, then a PhonePe OAuth +
+ * an inventory-reserving transaction, GST calculation, then a Razorpay
  * order-create round-trip. On a cold/slow backend that comfortably exceeds the
  * default 15s — and aborting mid-flight strands an order the client never
  * learns about. Give these calls real headroom.

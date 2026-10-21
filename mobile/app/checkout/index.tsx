@@ -15,11 +15,11 @@ import { colors, radius, spacing, typography, shadow } from "../../src/theme/tok
 import { FieldLabel } from "../../src/components/FieldLabel";
 import { flushPendingCartWrite } from "../../src/lib/pending-cart";
 import { checkoutWithPayment, validateCoupon, type CouponPreview } from "../../src/services/cart";
-import { initiatePayment, verifyPhonePePayment } from "../../src/services/payments";
+import { initiatePayment } from "../../src/services/payments";
 import { getCodConfig } from "../../src/services/extras";
 import { useQuery } from "@tanstack/react-query";
 import { useT } from "../../src/i18n";
-import { initPhonePe, startPhonePeTransaction } from "../../src/services/phonepe-sdk";
+import { confirmRazorpayPayment, openRazorpayCheckout } from "../../src/services/razorpay-sdk";
 import { ApiError } from "../../src/services/api";
 import { useAuth } from "../../src/hooks/useAuth";
 import { useNetworkStatus } from "../../src/hooks/useNetworkStatus";
@@ -42,7 +42,6 @@ import {
   getCachedShippingConfig,
   getCachedGstConfig,
 } from "../../src/services/shipping";
-import { getCheckoutConfig } from "../../src/services/fastrr";
 
 // ---------------------------------------------------------------------------
 // Address selector row — memoized for FlatList
@@ -87,70 +86,6 @@ const AddressSelectorRow = React.memo(function AddressSelectorRow({
 });
 
 // ---------------------------------------------------------------------------
-// PhonePe polling — payment finishes in the browser, so we ask our backend
-// (which asks PhonePe) for the outcome.
-// ---------------------------------------------------------------------------
-
-/**
- * Poll fast at first, then back off.
- *
- * A payment is usually already COMPLETED by the time the buyer switches back from
- * PhonePe, so the answer normally arrives on the first or second check. A flat 3s
- * interval left people staring at "Waiting for payment confirmation" for up to
- * three extra seconds after their money had already moved.
- */
-function phonepePollDelayMs(attempt: number): number {
-  if (attempt < 4) return 700;
-  if (attempt < 9) return 1500;
-  return 3000;
-}
-const PHONEPE_MAX_WAIT_MS = 4 * 60 * 1000;
-/**
- * How long to keep polling after the buyer has come back to our app.
- *
- * A cancelled PhonePe payment does not report FAILED — it simply stays PENDING
- * until PhonePe's own expiry, so the old loop sat on "Waiting for payment
- * confirmation" for the full four minutes. Returning to the app means the buyer
- * is done with the gateway; a short grace window covers a payment that is still
- * settling, and after that it is a cancellation.
- */
-const PHONEPE_GRACE_AFTER_RETURN_MS = 12 * 1000;
-
-async function waitForPhonePeResult(
-  orderId: string,
-  token: string,
-  hasReturnedToApp: () => boolean
-): Promise<"SUCCESS" | "FAILED" | "CANCELLED" | "TIMEOUT"> {
-  const deadline = Date.now() + PHONEPE_MAX_WAIT_MS;
-  let attempt = 0;
-  let returnedAt: number | null = null;
-
-  while (Date.now() < deadline) {
-    try {
-      const result = await verifyPhonePePayment(orderId, token);
-      if (result.data.status === "SUCCESS") return "SUCCESS";
-      if (result.data.status === "FAILED") return "FAILED";
-    } catch {
-      // Transient error while the buyer is in the PhonePe app — keep polling.
-    }
-
-    if (hasReturnedToApp()) {
-      if (returnedAt === null) {
-        returnedAt = Date.now();
-      } else if (Date.now() - returnedAt > PHONEPE_GRACE_AFTER_RETURN_MS) {
-        return "CANCELLED";
-      }
-    }
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, phonepePollDelayMs(attempt))
-    );
-    attempt += 1;
-  }
-  return "TIMEOUT";
-}
-
-// ---------------------------------------------------------------------------
 // Screen
 // ---------------------------------------------------------------------------
 
@@ -159,8 +94,6 @@ export default function CheckoutScreen() {
   const pathname = usePathname();
   const routeParams = useLocalSearchParams<{
     buyNowVariantId?: string;
-    /** `off` pins this screen to the native flow — the express fallback. */
-    express?: string;
   }>();
   const insets = useSafeAreaInsets();
   const { session, isLoading: authLoading } = useAuth();
@@ -239,37 +172,6 @@ export default function CheckoutScreen() {
       });
     return () => controller.abort();
   }, []);
-
-  // ---------- Express checkout (Shiprocket / Fastrr) ----------
-  //
-  // Every route into checkout lands here, so this is the one place the
-  // express/native decision is made. The flag lives on the server, which means
-  // it reaches builds already installed on buyers' phones without a release —
-  // and an unreachable config simply keeps the native flow, which always works.
-  const forceNativeCheckout = routeParams.express === "off";
-
-  React.useEffect(() => {
-    if (forceNativeCheckout) return;
-
-    const controller = new AbortController();
-
-    getCheckoutConfig(token, controller.signal)
-      .then((config) => {
-        if (!mountedRef.current || config.provider !== "FASTRR") return;
-        // `replace`, not `push`: the buyer must not be able to swipe back into a
-        // half-started native checkout behind the express one.
-        router.replace(
-          buyNowVariantId
-            ? `/checkout/fastrr?buyNowVariantId=${encodeURIComponent(buyNowVariantId)}`
-            : "/checkout/fastrr"
-        );
-      })
-      .catch(() => {
-        // Non-fatal — stay on the native checkout.
-      });
-
-    return () => controller.abort();
-  }, [buyNowVariantId, forceNativeCheckout, router, token]);
 
   // ---------- Coupon state ----------
   const [couponCode, setCouponCode] = React.useState("");
@@ -528,9 +430,9 @@ export default function CheckoutScreen() {
       // Without this the order could race ahead of it and fail with "Cart is empty".
       await flushPendingCartWrite();
 
-      // 1. Place the order AND start the PhonePe payment in ONE request. Doing
+      // 1. Place the order AND start the Razorpay payment in ONE request. Doing
       //    these as two sequential calls meant the buyer waited for two full
-      //    round-trips before PhonePe opened.
+      //    round-trips before the payment sheet opened.
       const orderResult = await checkoutWithPayment(
         {
           ...shippingPayload,
@@ -560,92 +462,57 @@ export default function CheckoutScreen() {
         throw new Error(orderResult.paymentInitError);
       }
 
-      setPayLabel("Opening PhonePe");
-
-      // The SDK, not a browser.
-      //
-      // PhonePe withdrew support for opening their hosted checkout page inside a
-      // mobile app; the old `Linking.openURL(redirectUrl)` now fails on their own
-      // domain with "Something went wrong", after the buyer has committed. The
-      // backend therefore returns an SDK order token for MOBILE instead of a URL.
-      const payment =
-        orderResult.payment?.sdkToken
-          ? orderResult.payment
-          : (await initiatePayment(orderId, token)).data;
-
-      if (!payment?.sdkToken || !payment.phonepeOrderId || !payment.merchantId) {
-        throw new Error("Payment could not be started. Please try again.");
-      }
-
-      // Declared out here rather than inside the try: this value decides whether
-      // the buyer is told their money went through.
-      let outcome: Awaited<ReturnType<typeof waitForPhonePeResult>>;
-
-      await initPhonePe({
-        merchantId: payment.merchantId,
-        environment: payment.environment ?? "PRODUCTION",
-        // Correlates this checkout with PhonePe's own logs during support.
-        flowId: session?.user?.id ?? orderId,
-      });
-
-      const sdkResult = await startPhonePeTransaction({
-        phonepeOrderId: payment.phonepeOrderId,
-        merchantId: payment.merchantId,
-        token: payment.sdkToken,
-      });
+      setPayLabel("Opening payment");
+      const payment = orderResult.payment ?? (await initiatePayment(orderId, token)).data;
+      const sdkResult = await openRazorpayCheckout(payment);
 
       if (!mountedRef.current) return;
 
-      if (sdkResult.status === "FAILURE") {
-        outcome = "FAILED";
-      } else {
-        // SUCCESS from the SDK means the buyer finished the flow, not that the
-        // money has settled — and INTERRUPTED can still mean a completed payment
-        // whose result never made it back to the app. Either way the server is
-        // the authority, so confirm before telling anyone their order is placed.
+      if (sdkResult.status === "paid") {
+        // The SDK saying "paid" is the buyer finishing the flow; the server is
+        // the authority on whether the money settled.
         setPayLabel("Confirming payment");
-        outcome = await waitForPhonePeResult(orderId, token, () => true);
-      }
+        const outcome = await confirmRazorpayPayment(orderId, token, sdkResult);
+        if (!mountedRef.current) return;
 
-      if (outcome === "SUCCESS") {
-        notifySuccess();
-        // Only a full-cart checkout empties the cart. The backend deletes just
-        // the purchased rows on a buy-now and deliberately leaves the rest, so
-        // clearing locally here would blank items the shopper still owns and
-        // rely on the refresh below to put them back — a visible flash at best,
-        // and a cart that looks wiped until the next refresh if that call
-        // fails. The refresh alone is correct for buy-now: it reads the cart
-        // the server actually kept.
-        if (!buyNowVariantId) {
-          clearCart();
+        if (outcome === "SUCCESS") {
+          notifySuccess();
+          // Only a full-cart checkout empties the cart. The backend deletes just
+          // the purchased rows on a buy-now and deliberately leaves the rest, so
+          // clearing locally here would blank items the shopper still owns and
+          // rely on the refresh below to put them back — a visible flash at best,
+          // and a cart that looks wiped until the next refresh if that call
+          // fails. The refresh alone is correct for buy-now: it reads the cart
+          // the server actually kept.
+          if (!buyNowVariantId) {
+            clearCart();
+          }
+          showToast("Payment successful. Order confirmed.", "success");
+          router.replace(`/orders/${orderId}`);
+          setTimeout(() => {
+            void refreshCart();
+          }, 0);
+          return;
         }
-        showToast("Payment successful. Order confirmed.", "success");
+
+        // Paid but not settled yet — the webhook will confirm it.
+        showToast("Payment pending. Check your orders for the final status.", "info");
         router.replace(`/orders/${orderId}`);
-        setTimeout(() => {
-          void refreshCart();
-        }, 0);
         return;
       }
 
-      if (outcome === "FAILED") {
-        setError("Payment failed. You can retry from your orders.");
+      if (sdkResult.status === "failed") {
+        setError(`Payment failed: ${sdkResult.error} You can retry from your orders.`);
         notifyError();
         showToast("Payment failed. Retry from orders.", "error");
         router.replace(`/orders/${orderId}`);
         return;
       }
 
-      if (outcome === "CANCELLED") {
-        // The buyer backed out of PhonePe. The order exists and is unpaid — send
-        // them to it so they can retry rather than leaving them on a dead spinner.
-        setError("Payment was cancelled. You can retry from your orders.");
-        showToast("Payment cancelled.", "info");
-        router.replace(`/orders/${orderId}`);
-        return;
-      }
-
-      // TIMEOUT — payment may still complete via webhook.
-      showToast("Payment pending. Check your orders for the final status.", "info");
+      // The buyer closed the sheet. The order exists and is unpaid — send them
+      // to it so they can retry rather than leaving them on a dead spinner.
+      setError("Payment was cancelled. You can retry from your orders.");
+      showToast("Payment cancelled.", "info");
       router.replace(`/orders/${orderId}`);
     } catch (err) {
       if (!mountedRef.current) return;
@@ -1054,7 +921,7 @@ export default function CheckoutScreen() {
         <View style={styles.card}>
           <Text style={[styles.summaryLabel, { fontFamily: typography.sansMedium, color: colors.charcoal, marginBottom: spacing.sm }]}>Payment method</Text>
           {([
-            { key: "ONLINE" as const, title: "Pay online", hint: "UPI, cards, net banking and wallets via PhonePe", enabled: true },
+            { key: "ONLINE" as const, title: "Pay online", hint: "UPI, cards, net banking and wallets via Razorpay", enabled: true },
             ...(codQ.data?.enabled
               ? [{
                   key: "COD" as const,

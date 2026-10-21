@@ -13,8 +13,6 @@ export { productMediaRouter } from './product-media.routes.js';
 export { reviewRouter } from './review.routes.js';
 export { imagekitRouter } from './imagekit.routes.js';
 export { bestsellerRouter } from './bestseller.routes.js';
-export { shiprocketRouter } from './shiprocket.routes.js';
-export { fastrrRouter } from './fastrr.routes.js';
 export { tryOnRouter } from './try-on.routes.js';
 // Address management
 export { addressRouter } from './address.routes.js';

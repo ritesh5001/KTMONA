@@ -1,19 +1,25 @@
 import { apiRequest, CHECKOUT_REQUEST_TIMEOUT_MS } from "@/services/api";
 
-export interface InitiatePaymentResponse {
-  data: {
-    paymentId: string;
-    orderId: string;
-    phonepeOrderId?: string;
-    /** PhonePe hosted checkout page — redirect the buyer here. */
-    redirectUrl?: string;
-    amount: number;
-    currency: string;
-    provider: string;
-  };
+/** What Razorpay Checkout needs to open for one KTMONA order. */
+export interface RazorpayPaymentInit {
+  paymentId: string;
+  /** Our order id. */
+  orderId: string;
+  razorpayOrderId: string;
+  /** Public key id. */
+  keyId: string;
+  /** In paise. */
+  amount: number;
+  currency: string;
+  provider: string;
+  prefill?: { name?: string; email?: string; contact?: string };
 }
 
-export interface PhonePeVerifyResponse {
+export interface InitiatePaymentResponse {
+  data: RazorpayPaymentInit;
+}
+
+export interface VerifyPaymentResponse {
   data: {
     status: "SUCCESS" | "FAILED" | "PENDING";
     paymentId: string;
@@ -25,24 +31,27 @@ export interface PaymentDetailsResponse {
   data: { status: string };
 }
 
-/** Initiate a PhonePe payment for an order → returns a redirectUrl. */
+/** Start (or resume) the Razorpay payment for an order. */
 export async function initiatePayment(orderId: string, token?: string | null) {
   return apiRequest<InitiatePaymentResponse>("/v1/payments/initiate", {
     method: "POST",
-    body: { orderId, platform: "WEB" },
+    body: { orderId },
     token,
     timeoutMs: CHECKOUT_REQUEST_TIMEOUT_MS,
   });
 }
 
 /**
- * Confirm a PhonePe payment after the redirect back (or while polling).
- * The backend checks the authoritative state with PhonePe's Order Status API.
+ * Confirm a Razorpay payment. Pass the ids Checkout returned after paying; with
+ * only the order id the backend asks Razorpay for the order's payments instead.
  */
-export async function verifyPhonePePayment(orderId: string, token?: string | null) {
-  return apiRequest<PhonePeVerifyResponse>("/v1/payments/phonepe/verify", {
+export async function verifyRazorpayPayment(
+  input: { orderId: string; razorpayPaymentId?: string; razorpaySignature?: string },
+  token?: string | null
+) {
+  return apiRequest<VerifyPaymentResponse>("/v1/payments/razorpay/verify", {
     method: "POST",
-    body: { orderId },
+    body: input,
     token,
   });
 }
@@ -50,7 +59,7 @@ export async function verifyPhonePePayment(orderId: string, token?: string | nul
 export async function retryPayment(orderId: string, token?: string | null) {
   return apiRequest<InitiatePaymentResponse>(`/v1/payments/retry/${orderId}`, {
     method: "POST",
-    body: { platform: "WEB" },
+    body: {},
     token,
     timeoutMs: CHECKOUT_REQUEST_TIMEOUT_MS,
   });

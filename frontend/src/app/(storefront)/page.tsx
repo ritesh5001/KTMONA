@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     absolute: "KTMONA | Trust Every Click | Shop from Verified Sellers in India",
   },
   description:
-    "KTMONA is a trusted multi-vendor marketplace. Discover fashion, lifestyle and everyday products from verified Indian sellers, with secure PhonePe payments, easy returns and doorstep delivery.",
+    "KTMONA is a trusted multi-vendor marketplace. Discover fashion, lifestyle and everyday products from verified Indian sellers, with secure Razorpay payments, easy returns and doorstep delivery.",
   keywords: [
     "KTMONA",
     "online marketplace india",
@@ -103,7 +103,7 @@ const faqJsonLd = {
       name: "How do I pay on KTMONA?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "You can pay securely through PhonePe using UPI, cards or net banking. Every order gets a downloadable invoice."
+        text: "You can pay securely through Razorpay using UPI, cards, net banking or wallets, or choose Cash on Delivery where available. Every order gets a downloadable invoice."
       }
     },
     {
