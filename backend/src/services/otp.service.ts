@@ -177,7 +177,13 @@ export class OtpService {
 
         if (route.keyType === 'email') {
             const { subject, html } = this.renderOtpEmail(code, opts.context);
-            await sendEmail(route.key, subject, html);
+            try {
+                await sendEmail(route.key, subject, html);
+            } catch (error) {
+                // e.g. the sender domain is not verified in Resend. Say so instead of a bare 500.
+                this.logger.error({ email: route.key, context: opts.context, err: error }, 'otp_email_failed');
+                throw new ApiError(503, "We couldn't send the verification code right now. Please try again in a few minutes.");
+            }
             this.logger.info({ email: route.key, context: opts.context }, 'otp_email_sent');
             return { channel: 'email', keyType: 'email', key: route.key };
         }

@@ -2,7 +2,7 @@
 
 import { ADS_ENABLED } from "@/lib/features";
 import * as React from "react";
-import useSWR from "swr";
+import useSWR, { SWRConfig, type SWRConfiguration } from "swr";
 import Link from "next/link";
 import {
   BadgeCheck,
@@ -34,6 +34,15 @@ import { getUnreadCount } from "@/services/notifications";
 import { sellerCenter } from "@/services/seller-center";
 import { getStorefrontUrl } from "@/lib/subdomain";
 import { PanelShell, type PanelNavItem } from "@/components/panel/PanelShell";
+
+// Defaults for every seller page (a page's own options still win). SWR's stock
+// settings refetch every key on each tab focus after 5s and retry failures
+// without limit, so switching tabs refired every request on the page.
+const SELLER_SWR_DEFAULTS: SWRConfiguration = {
+  dedupingInterval: 10_000,
+  focusThrottleInterval: 60_000,
+  errorRetryCount: 3,
+};
 
 export function SellerShell({ children }: { children: React.ReactNode }) {
   // Shared SWR key with a 5-minute dedupe: the shell mounts on every seller
@@ -123,39 +132,41 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <PanelShell
-      panelLabel="Seller Panel"
-      roleLabel="Seller"
-      navItems={navItems}
-      notificationsHref="/seller/notifications"
-      unreadCount={unread}
-      supportHref="/seller/support"
-      topLinks={topLinks}
-      accountName={settings?.store?.name ?? null}
-      accountSub={settings ? `Seller ID: ${settings.sellerCode}` : null}
-      showHelpCard={false}
-      sidebarHeader={
-        <div className="rounded-xl bg-sidebar-accent/60">
-          <Link href="/seller/settings" className="flex items-center gap-2.5 px-3 py-2.5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
-              <Store className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-accent-foreground">
-              {settings?.store?.name ?? "My Store"}
-            </span>
-          </Link>
-          <div className="grid grid-cols-2 border-t border-sidebar-border text-xs font-medium">
-            <Link href="/seller/notifications" className="flex items-center justify-center gap-1.5 py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
-              <Bell className="h-3.5 w-3.5" /> Notices{unread ? ` (${unread})` : ""}
+    <SWRConfig value={SELLER_SWR_DEFAULTS}>
+      <PanelShell
+        panelLabel="Seller Panel"
+        roleLabel="Seller"
+        navItems={navItems}
+        notificationsHref="/seller/notifications"
+        unreadCount={unread}
+        supportHref="/seller/support"
+        topLinks={topLinks}
+        accountName={settings?.store?.name ?? null}
+        accountSub={settings ? `Seller ID: ${settings.sellerCode}` : null}
+        showHelpCard={false}
+        sidebarHeader={
+          <div className="rounded-xl bg-sidebar-accent/60">
+            <Link href="/seller/settings" className="flex items-center gap-2.5 px-3 py-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sidebar-primary text-sidebar-primary-foreground">
+                <Store className="h-4 w-4" />
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-sidebar-accent-foreground">
+                {settings?.store?.name ?? "My Store"}
+              </span>
             </Link>
-            <Link href="/seller/support" className="flex items-center justify-center gap-1.5 border-l border-sidebar-border py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
-              <Headset className="h-3.5 w-3.5" /> Support
-            </Link>
+            <div className="grid grid-cols-2 border-t border-sidebar-border text-xs font-medium">
+              <Link href="/seller/notifications" className="flex items-center justify-center gap-1.5 py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
+                <Bell className="h-3.5 w-3.5" /> Notices{unread ? ` (${unread})` : ""}
+              </Link>
+              <Link href="/seller/support" className="flex items-center justify-center gap-1.5 border-l border-sidebar-border py-2 text-sidebar-foreground hover:text-sidebar-accent-foreground">
+                <Headset className="h-3.5 w-3.5" /> Support
+              </Link>
+            </div>
           </div>
-        </div>
-      }
-    >
-      {children}
-    </PanelShell>
+        }
+      >
+        {children}
+      </PanelShell>
+    </SWRConfig>
   );
 }

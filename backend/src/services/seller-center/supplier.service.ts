@@ -7,7 +7,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/db.js';
 import { ApiError } from '../../errors/ApiError.js';
-import { invalidateProductCaches, invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
+import { CACHE_KEYS, cached, invalidateProductCaches, invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
 import { DISPATCH_SLA_HOURS, LOW_STOCK_THRESHOLD, addDays, dispatchBy, pctChange, round2, utcDay } from './common.js';
 import { sellerOrdersService } from './orders.service.js';
 import { adminOpsService } from '../admin-center/ops.service.js';
@@ -22,6 +22,10 @@ const QUALITY_BANDS = [
     { key: 'BLOCKED', label: 'Blocked', max: Infinity, visibility: 'No views' },
 ] as const;
 const MIN_RATINGS_FOR_SCORE = 5;
+
+/** Home cards built from history (seconds). Seller-side changes clear them sooner. */
+const HOME_INSIGHTS_TTL = 5 * 60;
+const HOME_RATES_TTL = 15 * 60;
 
 function qualityBand(lowPct: number | null) {
     if (lowPct === null) return null;
@@ -49,41 +53,28 @@ class SellerSupplierService {
     // ── Home ────────────────────────────────────────────────────────────────
 
     async home(sellerId: string, range: 'daily' | 'weekly' | 'monthly' = 'daily') {
-        const now = new Date();
-        const bucketDays = range === 'monthly' ? 30 : range === 'weekly' ? 7 : 1;
-        const buckets = 7;
-        const since = utcDay(addDays(now, -(bucketDays * buckets) + 1));
         const liveVariants = { product: { sellerId, deletedByAdmin: false, isPublished: true } };
 
-        const [profile, counts, outOfStock, lowStock, views, items, rto, priceSuggestions, announcements, hasBank, products] = await Promise.all([
-            prisma.seller_profiles.findUnique({ where: { user_id: sellerId } }),
+        // To-do counts stay live (a new buyer order must show at once). The history
+        // cards are cached per seller; seller-side changes clear them through
+        // invalidateSellerPrivateCaches.
+        const [profile, counts, outOfStock, lowStock, insights, rates, announcements, hasBank, products] = await Promise.all([
+            prisma.seller_profiles.findUnique({
+                where: { user_id: sellerId },
+                select: { store_name: true, gstin: true, gst_number: true, enrolment_id: true, pickup_pincode: true },
+            }),
             sellerOrdersService.counts(sellerId),
             prisma.productVariant.count({ where: { ...liveVariants, OR: [{ inventory: null }, { inventory: { stock: { lte: 0 } } }] } }),
             prisma.productVariant.count({ where: { ...liveVariants, inventory: { stock: { gt: 0, lte: LOW_STOCK_THRESHOLD } } } }),
-            prisma.productViewDaily.findMany({ where: { sellerId, day: { gte: since } }, select: { day: true, views: true } }),
-            prisma.orderItem.findMany({
-                where: { sellerId, order: { status: { notIn: ['PLACED'] }, createdAt: { gte: since } } },
-                select: { orderId: true, order: { select: { createdAt: true } } },
+            cached(CACHE_KEYS.SELLER_HOME_INSIGHTS(sellerId, range), HOME_INSIGHTS_TTL, () => this.homeInsights(sellerId, range)),
+            cached(CACHE_KEYS.SELLER_HOME_RATES(sellerId), HOME_RATES_TTL, async () => {
+                const [rto, priceSuggestions] = await Promise.all([this.rtoAndReturnRates(sellerId, 90), this.priceSuggestionCount(sellerId)]);
+                return { rto, priceSuggestions };
             }),
-            this.rtoAndReturnRates(sellerId, 90),
-            this.priceSuggestionCount(sellerId),
             adminOpsService.activeAnnouncements(),
             prisma.seller_bank_accounts.count({ where: { seller_id: sellerId } }),
             prisma.product.count({ where: { sellerId } }),
         ]);
-
-        const series = Array.from({ length: buckets }, (_, i) => {
-            const start = utcDay(addDays(since, i * bucketDays));
-            const end = addDays(start, bucketDays);
-            return {
-                start,
-                end: addDays(end, -1),
-                views: views.filter((v) => v.day >= start && v.day < end).reduce((s, v) => s + v.views, 0),
-                orders: new Set(items.filter((r) => r.order.createdAt >= start && r.order.createdAt < end).map((r) => r.orderId)).size,
-            };
-        });
-        const last = series[series.length - 1]!;
-        const prev = series[series.length - 2]!;
 
         const setup = [
             { key: 'store', label: 'Add store name', done: Boolean(profile?.store_name), href: '/seller/settings' },
@@ -101,16 +92,47 @@ class SellerSupplierService {
                 outOfStock,
                 lowStock,
             },
-            insights: {
-                range,
-                series,
-                views: { value: last.views, change: pctChange(last.views, prev.views) },
-                orders: { value: last.orders, change: pctChange(last.orders, prev.orders) },
-            },
-            rto,
-            priceSuggestions,
+            insights,
+            rto: rates.rto,
+            priceSuggestions: rates.priceSuggestions,
             setup: setup.filter((s) => !s.done).length ? setup : [],
             announcements,
+        };
+    }
+
+    /** Views and orders in 7 buckets of 1, 7 or 30 days, newest last. */
+    private async homeInsights(sellerId: string, range: 'daily' | 'weekly' | 'monthly') {
+        const bucketDays = range === 'monthly' ? 30 : range === 'weekly' ? 7 : 1;
+        const buckets = 7;
+        const since = utcDay(addDays(new Date(), -(bucketDays * buckets) + 1));
+
+        const [views, items] = await Promise.all([
+            prisma.productViewDaily.findMany({ where: { sellerId, day: { gte: since } }, select: { day: true, views: true } }),
+            prisma.orderItem.findMany({
+                where: { sellerId, order: { status: { notIn: ['PLACED'] }, createdAt: { gte: since } } },
+                select: { orderId: true, order: { select: { createdAt: true } } },
+            }),
+        ]);
+
+        const series = Array.from({ length: buckets }, (_, i) => {
+            const start = utcDay(addDays(since, i * bucketDays));
+            const end = addDays(start, bucketDays);
+            return {
+                // Strings, not Dates: this object round-trips through the cache as JSON.
+                start: start.toISOString(),
+                end: addDays(end, -1).toISOString(),
+                views: views.filter((v) => v.day >= start && v.day < end).reduce((s, v) => s + v.views, 0),
+                orders: new Set(items.filter((r) => r.order.createdAt >= start && r.order.createdAt < end).map((r) => r.orderId)).size,
+            };
+        });
+        const last = series[series.length - 1]!;
+        const prev = series[series.length - 2]!;
+
+        return {
+            range,
+            series,
+            views: { value: last.views, change: pctChange(last.views, prev.views) },
+            orders: { value: last.orders, change: pctChange(last.orders, prev.orders) },
         };
     }
 

@@ -12,7 +12,22 @@ import { sellerCenter } from "@/services/seller-center";
  * `banner` shows the reason above a page that stays usable (e.g. history).
  */
 export function KycGate({ children, mode = "block" }: { children?: React.ReactNode; mode?: "block" | "banner" }) {
-  const { data, isLoading } = useSWR("seller-settings", sellerCenter.settings);
+  const { data, error, isLoading, mutate } = useSWR("seller-settings", sellerCenter.settings);
+  // A failed settings load must not leave the form behind a skeleton forever.
+  if (error && !data && mode === "block") {
+    return (
+      <div role="alert" className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 sm:flex-row sm:items-center">
+        <p className="min-w-0 flex-1 text-sm text-red-800">We couldn&apos;t check your KYC status right now. Please try again.</p>
+        <button
+          type="button"
+          onClick={() => void mutate()}
+          className="inline-flex shrink-0 items-center justify-center rounded-lg bg-navy px-4 py-2 text-sm font-medium text-paper transition hover:bg-ink"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
   if (isLoading || !data) return mode === "block" ? <div className="h-40 animate-pulse rounded-2xl bg-mist" /> : <>{children}</>;
 
   const status = data.business?.kycStatus ?? null;

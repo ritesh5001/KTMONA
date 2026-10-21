@@ -85,6 +85,9 @@ export const CACHE_KEYS = {
         `seller:analytics:inventory:${sellerId}`,
     SELLER_ANALYTICS_REFUND: (sellerId: string, start?: string, end?: string) =>
         `seller:analytics:refund:${sellerId}:${start ?? '_'}:${end ?? '_'}`,
+    // Seller Home: the slow, history-based cards. Live to-do counts are never cached.
+    SELLER_HOME_INSIGHTS: (sellerId: string, range: string) => `seller:analytics:home-insights:${sellerId}:${range}`,
+    SELLER_HOME_RATES: (sellerId: string) => `seller:analytics:home-rates:${sellerId}`,
 } as const;
 
 /**
@@ -112,6 +115,15 @@ export async function setCache<T>(
     ttlSeconds: number = DEFAULT_TTL
 ): Promise<void> {
     await setCacheSafe(key, data, ttlSeconds);
+}
+
+/** Read-through cache: return the cached value, or compute, store and return it. */
+export async function cached<T>(key: string, ttlSeconds: number, load: () => Promise<T>): Promise<T> {
+    const hit = await getCache<T>(key);
+    if (hit !== null) return hit;
+    const value = await load();
+    await setCacheSafe(key, value, ttlSeconds);
+    return value;
 }
 
 /**
