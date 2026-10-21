@@ -54,7 +54,8 @@ async function notifyAdminsForShipmentEvent(
 }
 
 // =========================================================================
-//  ORDER PLACED — fires when checkout succeeds (before payment)
+//  ORDER PLACED — fires once the order is confirmed: at checkout for COD,
+//  after the Razorpay payment succeeds for online orders
 // =========================================================================
 
 export async function emitOrderPlaced(orderId: string): Promise<void> {
@@ -69,7 +70,7 @@ export async function emitOrderPlaced(orderId: string): Promise<void> {
         await notificationService.notifyOrderPlaced(
             order.userId,
             order.id,
-            Number(order.totalAmount)
+            Number(order.grandTotal || order.totalAmount)
         );
 
         // Notify each seller
@@ -93,14 +94,14 @@ export async function emitPaymentSuccess(orderId: string): Promise<void> {
     try {
         const order = await prisma.order.findUnique({
             where: { id: orderId },
-            select: { id: true, userId: true, totalAmount: true }
+            select: { id: true, userId: true, totalAmount: true, grandTotal: true }
         });
         if (!order) return;
 
         await notificationService.notifyPaymentSuccess(
             order.userId,
             order.id,
-            Number(order.totalAmount)
+            Number(order.grandTotal || order.totalAmount)
         );
     } catch (err) {
         orderEventsLogger.error({ orderId, error: err instanceof Error ? err.message : String(err) }, 'emitPaymentSuccess failed');

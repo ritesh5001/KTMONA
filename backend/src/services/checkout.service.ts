@@ -533,10 +533,14 @@ export class CheckoutService {
             void sellerAdsService.attributeOrder(order.id).catch(() => undefined);
         }
 
-        // Trigger Notifications (event-driven, idempotent, best-effort)
-        void emitOrderPlaced(order.id).catch((error) => {
-            checkoutLogger.error({ orderId: order.id, error }, 'Failed to emit order placed event');
-        });
+        // Order confirmation (buyer email + seller new-order alerts). Only COD is
+        // confirmed at this point; an online order is still unpaid, so its
+        // confirmation goes out from paymentService.handlePaymentSuccess.
+        if (paymentMethod === 'COD') {
+            void emitOrderPlaced(order.id).catch((error) => {
+                checkoutLogger.error({ orderId: order.id, error }, 'Failed to emit order placed event');
+            });
+        }
 
         void dispatchFreshness({
             type: 'order.updated',

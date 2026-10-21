@@ -3,7 +3,7 @@ import { paymentRepository } from '../repositories/payment.repository.js';
 import { PaymentStatus, PaymentEventType, PaymentProvider, OrderStatus } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import { ApiError } from '../errors/ApiError.js';
-import { emitPaymentSuccess, emitPaymentFailed } from '../events/order.events.js';
+import { emitOrderPlaced, emitPaymentSuccess, emitPaymentFailed } from '../events/order.events.js';
 import { paymentLogger } from '../config/logger.js';
 import { paymentSuccessTotal, staleCancelTotal, refundSuccessTotal } from '../config/metrics.js';
 import { recordPaymentFailure } from '../monitoring/alerts.js';
@@ -527,6 +527,8 @@ export class PaymentService {
         }, `Payment succeeded for order ${orderId}`);
 
         await commissionService.calculateAndStoreSellerSettlement(orderId);
+        // The order confirmation waits for the money: checkout only sends it for COD.
+        await emitOrderPlaced(orderId);
         await emitPaymentSuccess(orderId);
         // Credit the sale to any ad click that led to it (best-effort).
         await sellerAdsService.attributeOrder(orderId).catch((err) =>
