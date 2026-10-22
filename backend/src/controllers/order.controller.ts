@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { orderService } from '../services/order.service.js';
 import { generateInvoicePDF, recordInvoiceDownload } from '../services/invoice.service.js';
+import { BUYER_ORDER_FILTERS, type BuyerOrderFilter } from '../types/order.types.js';
 
 function parsePositiveInt(value: unknown, fallback: number): number {
     const n = Number(value);
@@ -12,6 +13,13 @@ function parseDate(value: unknown): Date | undefined {
     if (typeof value !== 'string' || !value.trim()) return undefined;
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
+/** `?status=ON_THE_WAY,RETURN` → known buyer filter buckets; unknown values are ignored. */
+function parseBuyerStatuses(value: unknown): BuyerOrderFilter[] {
+    if (typeof value !== 'string' || !value.trim()) return [];
+    const wanted = new Set(value.split(',').map((s) => s.trim().toUpperCase()));
+    return BUYER_ORDER_FILTERS.filter((f) => wanted.has(f));
 }
 
 /**
@@ -34,11 +42,13 @@ export class OrderController {
             const limit = parsePositiveInt(req.query['limit'], 20);
             const startDate = parseDate(req.query['startDate']);
             const endDate = parseDate(req.query['endDate']);
+            const statuses = parseBuyerStatuses(req.query['status']);
             const result = await orderService.listBuyerOrders(userId, {
                 page,
                 limit,
                 ...(startDate ? { startDate } : {}),
                 ...(endDate ? { endDate } : {}),
+                ...(statuses.length ? { statuses } : {}),
             });
             res.set('Cache-Control', 'no-store');
             res.json(result);

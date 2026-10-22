@@ -43,7 +43,15 @@ export default function RegisterScreen() {
   const [error, setError] = React.useState<string | null>(null);
 
   const handleRegister = async () => {
-    if (!fullName || !email.trim() || !password) {
+    if (!fullName.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
+    if (fullName.trim().length < 2) {
+      setError("Full name must be at least 2 characters.");
+      return;
+    }
+    if (!email.trim() || !password) {
       setError("Please fill all required fields.");
       return;
     }
@@ -127,6 +135,9 @@ export default function RegisterScreen() {
             placeholder="Enter your name"
             placeholderTextColor={REGISTER_PLACEHOLDER_COLOR}
             style={styles.input}
+            autoComplete="name"
+            autoCapitalize="words"
+            maxLength={80}
             value={fullName}
             onChangeText={setFullName}
           />

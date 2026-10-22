@@ -5,11 +5,13 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   CalendarClock,
+  Eye,
   Heart,
   LayoutDashboard,
   LogOut,
   MapPin,
   ShoppingBag,
+  Sparkles,
   Undo2,
   UserRound,
 } from "lucide-react";
@@ -21,6 +23,8 @@ const LINKS = [
   { href: "/user/orders", label: "My Orders", icon: ShoppingBag },
   { href: "/user/returns", label: "Returns", icon: Undo2 },
   { href: "/user/wishlist", label: "Wishlist", icon: Heart },
+  { href: "/user/recently-viewed", label: "Recently Viewed", icon: Eye },
+  { href: "/user/recommended", label: "Recommended", icon: Sparkles },
   { href: "/user/addresses", label: "Addresses", icon: MapPin },
   { href: "/user/appointments", label: "Appointments", icon: CalendarClock },
   { href: "/user/notifications", label: "Notifications", icon: Bell },

@@ -206,6 +206,8 @@ export interface CreateUserData {
     status: UserStatus;
     isEmailVerified: boolean;
     isPhoneVerified: boolean;
+    /** Customer's name from signup; stored on user_profiles. */
+    fullName?: string | null;
 }
 
 // ============================================================================

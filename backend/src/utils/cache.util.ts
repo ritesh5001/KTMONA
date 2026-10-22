@@ -23,8 +23,8 @@ export const CACHE_KEYS = {
     BESTSELLERS_LIST: 'products:bestsellers',
 
     // Auth-scoped dashboard/list reads. Keep TTLs short and always key by owner.
-    BUYER_ORDERS: (userId: string, page: number, limit: number, start?: string, end?: string) =>
-        `orders:buyer:${userId}:${page}:${limit}:${start ?? '_'}:${end ?? '_'}`,
+    BUYER_ORDERS: (userId: string, page: number, limit: number, start?: string, end?: string, status?: string) =>
+        `orders:buyer:${userId}:${page}:${limit}:${start ?? '_'}:${end ?? '_'}:${status || '_'}`,
     BUYER_ORDER_DETAIL: (userId: string, orderId: string) => `orders:buyer:${userId}:detail:${orderId}`,
     SELLER_ORDERS: (sellerId: string, page: number, limit: number, start?: string, end?: string) =>
         `orders:seller:${sellerId}:${page}:${limit}:${start ?? '_'}:${end ?? '_'}`,

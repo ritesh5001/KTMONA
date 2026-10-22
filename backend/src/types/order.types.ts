@@ -206,6 +206,13 @@ export interface BuyerOrderListResponse {
 }
 
 /**
+ * "My Orders" status filter buckets (GET /v1/orders?status=ON_THE_WAY,RETURN).
+ * ON_THE_WAY = confirmed or shipped, not yet delivered; RETURN = has a return request.
+ */
+export const BUYER_ORDER_FILTERS = ['ON_THE_WAY', 'DELIVERED', 'CANCELLED', 'RETURN'] as const;
+export type BuyerOrderFilter = (typeof BUYER_ORDER_FILTERS)[number];
+
+/**
  * Order detail response (buyer)
  */
 export interface BuyerOrderDetailResponse {

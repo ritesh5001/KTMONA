@@ -63,6 +63,56 @@ export function scoreRecommendationCandidate(params: {
     return params.categoryFrequency * 10 + affinity * 2 + recentBoost;
 }
 
+const productCardSelect = {
+    id: true,
+    title: true,
+    description: true,
+    images: true,
+    sellerPrice: true,
+    adminListingPrice: true,
+    category: { select: { id: true, name: true } },
+} as const;
+
+/**
+ * Top up a short (or empty) list with the newest live products, so a shopper
+ * with no wishlist, orders or views yet still sees something to browse.
+ * Fallback picks score 0, below every personalised pick.
+ */
+async function fillWithNewestProducts(
+    picks: RecommendedProduct[],
+    excludedIds: Set<string>,
+): Promise<RecommendedProduct[]> {
+    const missing = MAX_RESULTS - picks.length;
+    if (missing <= 0) return picks;
+
+    const skip = [...excludedIds, ...picks.map((p) => p.id)];
+    const newest = await prisma.product.findMany({
+        where: {
+            isPublished: true,
+            deletedByAdmin: false,
+            status: 'APPROVED',
+            ...(skip.length > 0 ? { id: { notIn: skip } } : {}),
+        },
+        select: productCardSelect,
+        orderBy: [{ createdAt: 'desc' }, { id: 'asc' }],
+        take: missing,
+    });
+
+    return [
+        ...picks,
+        ...newest.map((p) => ({
+            id: p.id,
+            title: p.title,
+            description: p.description ?? null,
+            images: p.images ?? [],
+            sellerPrice: Number(p.sellerPrice ?? 0),
+            adminListingPrice: p.adminListingPrice != null ? Number(p.adminListingPrice) : null,
+            category: p.category,
+            recommendationScore: 0,
+        })),
+    ];
+}
+
 export class RecommendationService {
     async getRecommendations(userId: string): Promise<RecommendedProduct[]> {
         const cacheKey = CACHE_KEYS.RECOMMENDATIONS(userId);
@@ -168,23 +218,25 @@ export class RecommendationService {
             bumpFrequency(categoryFrequency, categoryId, affinityScore);
         }
 
+        const excludedIds = new Set<string>([
+            ...wishlistProductIds,
+            ...purchasedProductIds,
+        ]);
+
         const categoryIds = Array.from(categoryFrequency.keys());
         if (categoryIds.length === 0) {
+            const results = await fillWithNewestProducts([], excludedIds);
             recommendationGenerationTimeMs.observe(performance.now() - startedAt);
             recommendationCandidateCount.observe(0);
             recommendationLogger.info({
                 userId,
                 candidateCount: 0,
-                resultCount: 0,
+                resultCount: results.length,
                 executionTime: Math.round(performance.now() - startedAt),
             }, 'recommendations_generated');
-            return [];
+            await setCache(cacheKey, results, 60);
+            return results;
         }
-
-        const excludedIds = new Set<string>([
-            ...wishlistProductIds,
-            ...purchasedProductIds,
-        ]);
 
         const candidatesRaw = await prisma.product.findMany({
             where: {
@@ -250,7 +302,7 @@ export class RecommendationService {
             return a.candidate.id.localeCompare(b.candidate.id);
         });
 
-        const results = scored.slice(0, MAX_RESULTS).map(({ candidate, score }) => ({
+        const personalised = scored.slice(0, MAX_RESULTS).map(({ candidate, score }) => ({
             id: candidate.id,
             title: candidate.title,
             description: candidate.description,
@@ -260,6 +312,7 @@ export class RecommendationService {
             category: candidate.category,
             recommendationScore: score,
         }));
+        const results = await fillWithNewestProducts(personalised, excludedIds);
 
         const executionTime = performance.now() - startedAt;
         recommendationGenerationTimeMs.observe(executionTime);

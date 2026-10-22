@@ -6,7 +6,9 @@ import type {
     CreateOrderRequest,
     SellerOrderItem,
     OrderItemWithProduct,
+    BuyerOrderFilter,
 } from '../types/order.types.js';
+import type { Prisma } from '@prisma/client';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 20;
@@ -122,9 +124,24 @@ export class OrderRepository {
      */
     async findByUserId(
         userId: string,
-        params?: { page?: number; limit?: number; startDate?: Date; endDate?: Date }
+        params?: {
+            page?: number;
+            limit?: number;
+            startDate?: Date;
+            endDate?: Date;
+            statuses?: BuyerOrderFilter[];
+        }
     ): Promise<OrderWithItems[]> {
         const { skip, take } = resolvePagination(params?.page, params?.limit);
+        const statusFilters: Record<BuyerOrderFilter, Prisma.OrderWhereInput> = {
+            ON_THE_WAY: { status: { in: ['CONFIRMED', 'SHIPPED'] } },
+            DELIVERED: { status: 'DELIVERED' },
+            CANCELLED: { status: 'CANCELLED' },
+            RETURN: { returnRequests: { some: {} } },
+        };
+        const statusWhere = params?.statuses?.length
+            ? { OR: params.statuses.map((s) => statusFilters[s]) }
+            : {};
         const createdAtFilter =
             params?.startDate || params?.endDate
                 ? {
@@ -137,6 +154,7 @@ export class OrderRepository {
             where: {
                 userId,
                 ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
+                ...statusWhere,
             },
             include: {
                 items: true,

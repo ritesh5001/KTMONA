@@ -84,8 +84,27 @@ export interface SellerOrderListResponse {
   orderItems: SellerOrderItem[];
 }
 
-export async function listBuyerOrders(token?: string | null) {
-  return apiRequest<BuyerOrderListResponse>("/v1/orders", {
+/** "My Orders" status filter buckets understood by GET /v1/orders?status=. */
+export type BuyerOrderStatusFilter = "ON_THE_WAY" | "DELIVERED" | "CANCELLED" | "RETURN";
+
+export interface BuyerOrderListParams {
+  page?: number;
+  statuses?: BuyerOrderStatusFilter[];
+  startDate?: string;
+  endDate?: string;
+}
+
+/** Orders come back 20 per page, newest first. */
+export const BUYER_ORDERS_PAGE_SIZE = 20;
+
+export async function listBuyerOrders(token?: string | null, params: BuyerOrderListParams = {}) {
+  const query = new URLSearchParams();
+  if (params.page && params.page > 1) query.set("page", String(params.page));
+  if (params.statuses?.length) query.set("status", params.statuses.join(","));
+  if (params.startDate) query.set("startDate", params.startDate);
+  if (params.endDate) query.set("endDate", params.endDate);
+  const qs = query.toString();
+  return apiRequest<BuyerOrderListResponse>(`/v1/orders${qs ? `?${qs}` : ""}`, {
     method: "GET",
     token,
   });

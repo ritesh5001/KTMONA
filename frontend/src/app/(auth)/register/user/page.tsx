@@ -37,7 +37,15 @@ export default function UserRegisterPage() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!fullName || !email.trim() || !password) {
+    if (!fullName.trim()) {
+      toast.error("Please enter your full name.");
+      return;
+    }
+    if (fullName.trim().length < 2) {
+      toast.error("Full name must be at least 2 characters.");
+      return;
+    }
+    if (!email.trim() || !password) {
       toast.error("Please fill all required fields.");
       return;
     }
@@ -176,7 +184,9 @@ export default function UserRegisterPage() {
                   <Input
                     id="name"
                     placeholder="Aarav Sharma"
-                    autoComplete="off"
+                    autoComplete="name"
+                    required
+                    maxLength={80}
                     value={fullName}
                     onChange={(event) => setFullName(event.target.value)}
                   />

@@ -408,6 +408,7 @@ export class AuthService {
                 // Whichever channel received the code is now verified.
                 isEmailVerified: channel === 'email',
                 isPhoneVerified: channel === 'phone',
+                fullName: payload.fullName?.trim() || null,
             }).catch((error: any) => {
                 if (error?.code === 'P2002' || String(error?.message ?? '').includes('Unique constraint')) {
                     throw ApiError.conflict('Email or phone already in use');

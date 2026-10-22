@@ -83,6 +83,9 @@ export class AuthRepository {
                 status: data.status,
                 isEmailVerified: data.isEmailVerified,
                 isPhoneVerified: data.isPhoneVerified,
+                ...(data.fullName
+                    ? { user_profiles: { create: { full_name: data.fullName, updated_at: new Date() } } }
+                    : {}),
             },
         });
     }

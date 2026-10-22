@@ -66,8 +66,72 @@ export interface BuyerOrderDetailResponse {
   order: BuyerOrderDetail;
 }
 
-export async function listBuyerOrders(token?: string | null) {
-  return apiRequest<BuyerOrderListResponse>("/v1/orders", {
+/** "My Orders" status filter buckets understood by GET /v1/orders?status=. */
+export type BuyerOrderStatusFilter = "ON_THE_WAY" | "DELIVERED" | "CANCELLED" | "RETURN";
+
+export interface BuyerOrderListParams {
+  page?: number;
+  statuses?: BuyerOrderStatusFilter[];
+  startDate?: string;
+  endDate?: string;
+}
+
+/** Orders come back 20 per page, newest first. */
+export const BUYER_ORDERS_PAGE_SIZE = 20;
+
+export const ORDER_STATUS_FILTERS: { value: BuyerOrderStatusFilter; label: string }[] = [
+  { value: "ON_THE_WAY", label: "On the way" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "RETURN", label: "Return" },
+];
+
+/** How many calendar years get their own option (this year and the three before). */
+const ORDER_YEAR_OPTIONS = 4;
+
+/** "Last 30 days", the recent years, then "Older" for everything before them. */
+export function orderTimeFilterOptions(now: Date): { value: string; label: string }[] {
+  const year = now.getFullYear();
+  return [
+    { value: "LAST_30", label: "Last 30 days" },
+    ...Array.from({ length: ORDER_YEAR_OPTIONS }, (_, i) => ({
+      value: String(year - i),
+      label: String(year - i),
+    })),
+    { value: "OLDER", label: "Older" },
+  ];
+}
+
+/** Date range for a time option, as ISO strings for GET /v1/orders. */
+export function orderTimeFilterRange(
+  value: string,
+  now: Date
+): Pick<BuyerOrderListParams, "startDate" | "endDate"> {
+  if (value === "LAST_30") {
+    // Start of the day 30 days ago, so the request (and its server cache key) is stable all day.
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+    return { startDate: start.toISOString() };
+  }
+  if (value === "OLDER") {
+    const firstYear = now.getFullYear() - (ORDER_YEAR_OPTIONS - 1);
+    return { endDate: new Date(new Date(firstYear, 0, 1).getTime() - 1).toISOString() };
+  }
+  const year = Number(value);
+  if (!Number.isInteger(year)) return {};
+  return {
+    startDate: new Date(year, 0, 1).toISOString(),
+    endDate: new Date(new Date(year + 1, 0, 1).getTime() - 1).toISOString(),
+  };
+}
+
+export async function listBuyerOrders(token?: string | null, params: BuyerOrderListParams = {}) {
+  const query = new URLSearchParams();
+  if (params.page && params.page > 1) query.set("page", String(params.page));
+  if (params.statuses?.length) query.set("status", params.statuses.join(","));
+  if (params.startDate) query.set("startDate", params.startDate);
+  if (params.endDate) query.set("endDate", params.endDate);
+  const qs = query.toString();
+  return apiRequest<BuyerOrderListResponse>(`/v1/orders${qs ? `?${qs}` : ""}`, {
     method: "GET",
     token,
   });

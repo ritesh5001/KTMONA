@@ -5,6 +5,7 @@ import type {
     BuyerOrderDetailResponse,
     SellerOrderListResponse,
     SellerOrderDetailResponse,
+    BuyerOrderFilter,
 } from '../types/order.types.js';
 import { CACHE_KEYS, getFromCache, setCache } from '../utils/cache.util.js';
 
@@ -31,7 +32,13 @@ export class OrderService {
      */
     async listBuyerOrders(
         userId: string,
-        params?: { page?: number; limit?: number; startDate?: Date; endDate?: Date }
+        params?: {
+            page?: number;
+            limit?: number;
+            startDate?: Date;
+            endDate?: Date;
+            statuses?: BuyerOrderFilter[];
+        }
     ): Promise<BuyerOrderListResponse> {
         const page = Math.max(1, Math.trunc(params?.page ?? 1));
         const limit = Math.min(20, Math.max(1, Math.trunc(params?.limit ?? 20)));
@@ -41,6 +48,7 @@ export class OrderService {
             limit,
             dateSegment(params?.startDate),
             dateSegment(params?.endDate),
+            [...(params?.statuses ?? [])].sort().join(','),
         );
         const cached = await getFromCache<BuyerOrderListResponse>(cacheKey);
         if (cached) return cached;

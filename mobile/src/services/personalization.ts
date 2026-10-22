@@ -50,3 +50,28 @@ export async function getRecentlyViewed(
   );
   return data.products ?? [];
 }
+
+export interface RecommendedProduct {
+  id: string;
+  title: string;
+  description: string | null;
+  images: string[];
+  sellerPrice: number;
+  adminListingPrice: number | null;
+  category: { id: string; name: string } | null;
+  recommendationScore: number;
+}
+
+/**
+ * Fetch "Recommended for you" for the authenticated user (from wishlist,
+ * orders and viewed products; newest products when there is no history yet).
+ */
+export async function getRecommendations(
+  signal?: AbortSignal
+): Promise<RecommendedProduct[]> {
+  const data = await apiRequest<{ products: RecommendedProduct[] }>(
+    "/v1/personalization/recommendations",
+    { signal }
+  );
+  return data.products ?? [];
+}

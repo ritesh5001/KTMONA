@@ -19,6 +19,7 @@ const SHOPPING: Row[] = [
   { icon: "heart", label: "My Wishlist", href: "/wishlist" },
   { icon: "share-2", label: "Shared Products", href: "/account/shared" },
   { icon: "eye", label: "Recently Viewed", href: "/account/recently-viewed" },
+  { icon: "star", label: "Recommended For You", href: "/account/recommended" },
   { icon: "map-pin", label: "My Addresses", href: "/profile/addresses" },
   { icon: "credit-card", label: "Bank & UPI Details", href: "/account/refund-details" },
   { icon: "video", label: "Video Calls", href: "/account/appointments" },

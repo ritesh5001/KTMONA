@@ -5,10 +5,21 @@ import {
   FlatList,
   Pressable,
   Modal,
+  ScrollView,
+  ActivityIndicator,
   type ListRenderItemInfo,
 } from "react-native";
 import { colors, radius, spacing, typography, shadow } from "../../../src/theme/tokens";
-import { listBuyerOrders, type BuyerOrder } from "../../../src/services/orders";
+import {
+  listBuyerOrders,
+  orderTimeFilterOptions,
+  orderTimeFilterRange,
+  BUYER_ORDERS_PAGE_SIZE,
+  ORDER_STATUS_FILTERS,
+  type BuyerOrder,
+  type BuyerOrderListParams,
+  type BuyerOrderStatusFilter,
+} from "../../../src/services/orders";
 import { retryPayment } from "../../../src/services/payments";
 import { confirmRazorpayPayment, openRazorpayCheckout } from "../../../src/services/razorpay-sdk";
 import { listMyCancellations, requestCancellation } from "../../../src/services/cancellations";
@@ -284,18 +295,63 @@ export default function OrdersScreen() {
     return () => { mountedRef.current = false; };
   }, []);
 
+  // ---- Filters (applied) and the filter sheet's draft selection ----
+  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>([]);
+  const [timeFilter, setTimeFilter] = React.useState("");
+  const [filterSheetOpen, setFilterSheetOpen] = React.useState(false);
+  const [draftStatuses, setDraftStatuses] = React.useState<BuyerOrderStatusFilter[]>([]);
+  const [draftTime, setDraftTime] = React.useState("");
+  const timeOptions = React.useMemo(() => orderTimeFilterOptions(new Date()), []);
+  const activeFilterCount = statusFilters.length + (timeFilter ? 1 : 0);
+  const hasFilters = activeFilterCount > 0;
+
+  const filterParams = React.useCallback(
+    (page = 1): BuyerOrderListParams => ({
+      page,
+      statuses: statusFilters,
+      ...(timeFilter ? orderTimeFilterRange(timeFilter, new Date()) : {}),
+    }),
+    [statusFilters, timeFilter]
+  );
+
+  const openFilterSheet = React.useCallback(() => {
+    setDraftStatuses(statusFilters);
+    setDraftTime(timeFilter);
+    setFilterSheetOpen(true);
+  }, [statusFilters, timeFilter]);
+  const applyFilters = React.useCallback(() => {
+    setStatusFilters(draftStatuses);
+    setTimeFilter(draftTime);
+    setFilterSheetOpen(false);
+  }, [draftStatuses, draftTime]);
+  const clearFilters = React.useCallback(() => {
+    setStatusFilters([]);
+    setTimeFilter("");
+    setDraftStatuses([]);
+    setDraftTime("");
+    setFilterSheetOpen(false);
+  }, []);
+
+  // ---- Pagination ("load more" on scroll) ----
+  const [page, setPage] = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+
   const loadOrders = React.useCallback(async () => {
     if (!token) return;
 
-    const cachedOrders = ordersScreenCache;
+    // The module cache only holds the unfiltered first page.
+    const cachedOrders = hasFilters ? null : ordersScreenCache;
 
     const isCacheValid =
       cachedOrders !== null &&
       cachedOrders.token === token &&
       Date.now() - cachedOrders.cachedAt < ORDERS_CACHE_TTL_MS;
 
+    setPage(1);
     if (isCacheValid && cachedOrders) {
       setOrders(cachedOrders.orders);
+      setHasMore(cachedOrders.orders.length >= BUYER_ORDERS_PAGE_SIZE);
       setPaymentStatus(cachedOrders.paymentStatus);
       setCancellationByOrder(cachedOrders.cancellationByOrder);
       setReturnByOrder(cachedOrders.returnByOrder);
@@ -311,7 +367,7 @@ export default function OrdersScreen() {
       // fetched wholesale and keyed by order id afterwards. Firing them together
       // rather than after the orders response removes a full round trip from the
       // time-to-first-render, which on a cold backend was seconds.
-      const ordersPromise = listBuyerOrders(token);
+      const ordersPromise = listBuyerOrders(token, filterParams());
       const sideDataPromise = Promise.allSettled([
         listMyCancellations(token),
         listMyReturns(token),
@@ -321,6 +377,7 @@ export default function OrdersScreen() {
       if (!mountedRef.current) return;
       const nextOrders = result.orders ?? [];
       setOrders(nextOrders);
+      setHasMore(nextOrders.length >= BUYER_ORDERS_PAGE_SIZE);
       setLoading(false);
 
       const now = Date.now();
@@ -388,14 +445,16 @@ export default function OrdersScreen() {
       setReturnByOrder(returnMap);
       setPaymentStatus((prev) => ({ ...prev, ...statusMap }));
 
-      ordersScreenCache = {
-        token,
-        cachedAt: Date.now(),
-        orders: nextOrders,
-        paymentStatus: statusMap,
-        cancellationByOrder: cancellationMap,
-        returnByOrder: returnMap,
-      };
+      if (!hasFilters) {
+        ordersScreenCache = {
+          token,
+          cachedAt: Date.now(),
+          orders: nextOrders,
+          paymentStatus: statusMap,
+          cancellationByOrder: cancellationMap,
+          returnByOrder: returnMap,
+        };
+      }
     } catch (err) {
       if (!isAbortError(err) && mountedRef.current) {
         setOrders([]);
@@ -406,7 +465,38 @@ export default function OrdersScreen() {
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [token]);
+  }, [token, hasFilters, filterParams]);
+
+  const loadMoreOrders = React.useCallback(async () => {
+    if (!token || !hasMore || loadingMore || loading) return;
+    const nextPage = page + 1;
+    setLoadingMore(true);
+    try {
+      const result = await listBuyerOrders(token, filterParams(nextPage));
+      if (!mountedRef.current) return;
+      const more = result.orders ?? [];
+      setOrders((prev) => {
+        const seen = new Set(prev.map((o) => o.id));
+        return [...prev, ...more.filter((o) => !seen.has(o.id))];
+      });
+      setPaymentStatus((prev) => {
+        const next = { ...prev };
+        for (const order of more) {
+          const status = (order as any).paymentStatus;
+          if (status && next[order.id] === undefined) next[order.id] = status;
+        }
+        return next;
+      });
+      setPage(nextPage);
+      setHasMore(more.length >= BUYER_ORDERS_PAGE_SIZE);
+    } catch (err) {
+      if (!isAbortError(err) && mountedRef.current) {
+        showToast(err instanceof Error ? err.message : "Unable to load more orders", "error");
+      }
+    } finally {
+      if (mountedRef.current) setLoadingMore(false);
+    }
+  }, [token, hasMore, loadingMore, loading, page, filterParams, showToast]);
 
   React.useEffect(() => {
     if (authLoading) return;
@@ -667,6 +757,37 @@ export default function OrdersScreen() {
     <SafeAreaView style={styles.safeArea}>
       <AppHeader title="Orders" subtitle="Track purchases" showBack />
 
+      <View style={styles.filterBar}>
+        <Pressable
+          style={[styles.filterButton, hasFilters && styles.filterButtonActive]}
+          onPress={openFilterSheet}
+          accessibilityRole="button"
+          accessibilityLabel={hasFilters ? `Filters, ${activeFilterCount} applied` : "Filters"}
+        >
+          <Icon name="funnel-outline" size={15} color={hasFilters ? colors.background : colors.charcoal} />
+          <Text style={[styles.filterButtonText, hasFilters && styles.filterButtonTextActive]}>
+            {hasFilters ? `Filters (${activeFilterCount})` : "Filters"}
+          </Text>
+        </Pressable>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterSummary}>
+          {statusFilters.map((value) => (
+            <Text key={value} style={styles.filterSummaryChip}>
+              {ORDER_STATUS_FILTERS.find((f) => f.value === value)?.label ?? value}
+            </Text>
+          ))}
+          {timeFilter ? (
+            <Text style={styles.filterSummaryChip}>
+              {timeOptions.find((f) => f.value === timeFilter)?.label ?? timeFilter}
+            </Text>
+          ) : null}
+        </ScrollView>
+        {hasFilters ? (
+          <Pressable onPress={clearFilters} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear filters">
+            <Text style={styles.filterClearText}>Clear</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
       {loading || authLoading ? (
         <View style={styles.listContent}>
           <SkeletonOrderRow />
@@ -687,6 +808,24 @@ export default function OrdersScreen() {
             accessibilityLabel="Retry loading orders"
           >
             <Text style={styles.retryButtonText}>Retry</Text>
+          </Pressable>
+        </View>
+      ) : orders.length === 0 && hasFilters ? (
+        <View style={styles.emptyCard}>
+          <View style={styles.emptyIconWrap}>
+            <Icon name="funnel-outline" size={34} color={colors.brownSoft} />
+          </View>
+          <Text style={styles.emptyTitle}>No matching orders</Text>
+          <Text style={styles.emptySubtitle}>
+            No orders match these filters.
+          </Text>
+          <Pressable
+            style={styles.retryButton}
+            onPress={clearFilters}
+            accessibilityRole="button"
+            accessibilityLabel="Clear filters"
+          >
+            <Text style={styles.retryButtonText}>Clear filters</Text>
           </Pressable>
         </View>
       ) : orders.length === 0 ? (
@@ -717,8 +856,95 @@ export default function OrdersScreen() {
           windowSize={5}
           removeClippedSubviews
           renderItem={renderOrderItem}
+          onEndReached={loadMoreOrders}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? <ActivityIndicator style={{ paddingVertical: spacing.md }} color={colors.gold} /> : null
+          }
         />
       )}
+
+      <Modal
+        visible={filterSheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFilterSheetOpen(false)}
+      >
+        <View style={styles.sheetOverlay}>
+          <Pressable style={{ flex: 1 }} onPress={() => setFilterSheetOpen(false)} accessibilityLabel="Close filters" />
+          <View style={styles.sheetCard} accessibilityViewIsModal>
+            <View style={styles.sheetHeader}>
+              <Text style={styles.modalTitle}>Filters</Text>
+              <Pressable onPress={() => setFilterSheetOpen(false)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close filters">
+                <Icon name="close" size={20} color={colors.charcoal} />
+              </Pressable>
+            </View>
+            <ScrollView style={{ maxHeight: 420 }}>
+              <Text style={styles.sheetSectionTitle}>ORDER STATUS</Text>
+              {ORDER_STATUS_FILTERS.map((f) => {
+                const selected = draftStatuses.includes(f.value);
+                return (
+                  <Pressable
+                    key={f.value}
+                    style={styles.sheetOption}
+                    onPress={() =>
+                      setDraftStatuses((cur) =>
+                        cur.includes(f.value) ? cur.filter((v) => v !== f.value) : [...cur, f.value]
+                      )
+                    }
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected }}
+                  >
+                    <View style={[styles.checkbox, selected && styles.checkboxOn]}>
+                      {selected ? <Icon name="checkmark" size={13} color={colors.background} /> : null}
+                    </View>
+                    <Text style={styles.sheetOptionText}>{f.label}</Text>
+                  </Pressable>
+                );
+              })}
+              <Text style={styles.sheetSectionTitle}>ORDER TIME</Text>
+              {timeOptions.map((f) => {
+                const selected = draftTime === f.value;
+                return (
+                  <Pressable
+                    key={f.value}
+                    style={styles.sheetOption}
+                    onPress={() => setDraftTime((cur) => (cur === f.value ? "" : f.value))}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                  >
+                    <View style={[styles.radio, selected && styles.radioOn]}>
+                      {selected ? <View style={styles.radioDot} /> : null}
+                    </View>
+                    <Text style={styles.sheetOptionText}>{f.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setDraftStatuses([]);
+                  setDraftTime("");
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Clear all filters"
+              >
+                <Text style={styles.modalCancelText}>Clear all</Text>
+              </Pressable>
+              <Pressable
+                style={styles.modalConfirmButton}
+                onPress={applyFilters}
+                accessibilityRole="button"
+                accessibilityLabel="Apply filters"
+              >
+                <Text style={styles.modalConfirmText}>Apply</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={cancelModalOrderId !== null}
@@ -1186,5 +1412,122 @@ const styles = StyleSheet.create({
     fontFamily: typography.sansMedium,
     color: colors.background,
     fontSize: 12,
+  },
+  filterBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.pageHorizontal,
+    paddingVertical: spacing.sm,
+  },
+  filterButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
+    backgroundColor: colors.surfaceElevated,
+  },
+  filterButtonActive: {
+    backgroundColor: colors.charcoal,
+    borderColor: colors.charcoal,
+  },
+  filterButtonText: {
+    fontFamily: typography.sansMedium,
+    fontSize: 12,
+    color: colors.charcoal,
+  },
+  filterButtonTextActive: {
+    color: colors.background,
+  },
+  filterSummary: {
+    gap: spacing.xs,
+    alignItems: "center",
+  },
+  filterSummaryChip: {
+    fontFamily: typography.sans,
+    fontSize: 11,
+    color: colors.charcoal,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    overflow: "hidden",
+  },
+  filterClearText: {
+    fontFamily: typography.sansMedium,
+    fontSize: 12,
+    color: colors.gold,
+  },
+  sheetOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  sheetCard: {
+    backgroundColor: colors.surfaceElevated,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
+  sheetSectionTitle: {
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    fontFamily: typography.sansMedium,
+    fontSize: 11,
+    letterSpacing: 1,
+    color: colors.brownSoft,
+  },
+  sheetOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 44,
+  },
+  sheetOptionText: {
+    fontFamily: typography.sans,
+    fontSize: 14,
+    color: colors.charcoal,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.brownSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxOn: {
+    backgroundColor: colors.gold,
+    borderColor: colors.gold,
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.brownSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOn: {
+    borderColor: colors.gold,
+  },
+  radioDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.gold,
   },
 });

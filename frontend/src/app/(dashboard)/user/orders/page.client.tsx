@@ -3,9 +3,17 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { listBuyerOrders, downloadInvoice } from "@/services/orders";
+import { cn } from "@/lib/utils";
+import {
+  listBuyerOrders,
+  downloadInvoice,
+  BUYER_ORDERS_PAGE_SIZE,
+  type BuyerOrderListParams,
+  type BuyerOrderStatusFilter,
+} from "@/services/orders";
 import { retryPayment, verifyRazorpayPayment } from "@/services/payments";
 import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { listMyCancellations, requestCancellation } from "@/services/cancellations";
@@ -44,6 +52,75 @@ const getStatusStyle = (status: string) => {
   }
 };
 
+const STATUS_FILTERS: { value: BuyerOrderStatusFilter; label: string }[] = [
+  { value: "ON_THE_WAY", label: "On the way" },
+  { value: "DELIVERED", label: "Delivered" },
+  { value: "CANCELLED", label: "Cancelled" },
+  { value: "RETURN", label: "Return" },
+];
+
+/** How many calendar years get their own chip (this year and the three before). */
+const YEAR_CHIPS = 4;
+
+/** "Last 30 days", the recent years, then "Older" for everything before them. */
+function timeFilterOptions(now: Date) {
+  const year = now.getFullYear();
+  return [
+    { value: "LAST_30", label: "Last 30 days" },
+    ...Array.from({ length: YEAR_CHIPS }, (_, i) => ({
+      value: String(year - i),
+      label: String(year - i),
+    })),
+    { value: "OLDER", label: "Older" },
+  ];
+}
+
+/** Date range for a time chip, as ISO strings for GET /v1/orders. */
+function timeFilterRange(value: string, now: Date): Pick<BuyerOrderListParams, "startDate" | "endDate"> {
+  if (value === "LAST_30") {
+    // Start of the day 30 days ago, so the request (and its server cache key) is stable all day.
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+    return { startDate: start.toISOString() };
+  }
+  if (value === "OLDER") {
+    const firstChipYear = now.getFullYear() - (YEAR_CHIPS - 1);
+    return { endDate: new Date(new Date(firstChipYear, 0, 1).getTime() - 1).toISOString() };
+  }
+  const year = Number(value);
+  if (!Number.isInteger(year)) return {};
+  return {
+    startDate: new Date(year, 0, 1).toISOString(),
+    endDate: new Date(new Date(year + 1, 0, 1).getTime() - 1).toISOString(),
+  };
+}
+
+function FilterChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-9 items-center gap-1.5 rounded-full border px-4 text-xs font-medium transition-colors",
+        active
+          ? "border-ink bg-ink text-paper"
+          : "border-border-soft bg-card text-foreground hover:bg-mist"
+      )}
+    >
+      {active ? <Check className="h-3.5 w-3.5" strokeWidth={2.2} /> : null}
+      {children}
+    </button>
+  );
+}
+
 export interface UserOrdersInitialData {
   orders: Array<any>;
   cancellationByOrderId: Record<string, { id: string; status: string }>;
@@ -64,8 +141,33 @@ export default function UserOrdersClient({
   const [requestingReturnIds, setRequestingReturnIds] = React.useState<Set<string>>(new Set());
   const [downloadingInvoiceId, setDownloadingInvoiceId] = React.useState<string | null>(null);
 
+  // ---- Filters ----
+  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>([]);
+  const [timeFilter, setTimeFilter] = React.useState("");
+  const timeOptions = React.useMemo(() => timeFilterOptions(new Date()), []);
+  const hasFilters = statusFilters.length > 0 || timeFilter !== "";
+  const filterKey = `${[...statusFilters].sort().join(",")}|${timeFilter}`;
+
+  const filterParams = React.useCallback(
+    (page = 1): BuyerOrderListParams => ({
+      page,
+      statuses: statusFilters,
+      ...(timeFilter ? timeFilterRange(timeFilter, new Date()) : {}),
+    }),
+    [statusFilters, timeFilter]
+  );
+
+  const toggleStatusFilter = (value: BuyerOrderStatusFilter) =>
+    setStatusFilters((cur) =>
+      cur.includes(value) ? cur.filter((v) => v !== value) : [...cur, value]
+    );
+  const clearFilters = () => {
+    setStatusFilters([]);
+    setTimeFilter("");
+  };
+
   const fetchUserOrdersData = React.useCallback(async () => {
-    const result = await listBuyerOrders();
+    const result = await listBuyerOrders(undefined, filterParams());
     const nextOrders = result.orders ?? [];
 
     let cancellationByOrderId: Record<string, { id: string; status: string }> = {};
@@ -107,12 +209,13 @@ export default function UserOrdersClient({
       returnByOrderId,
       paymentStatusByOrder,
     } satisfies UserOrdersInitialData;
-  }, []);
+  }, [filterParams]);
 
   const { data: ordersData, isLoading, mutate } = useHydratedSWR<UserOrdersInitialData>({
-    key: "user-orders:hydrated",
+    // The server-rendered first page is the unfiltered list.
+    key: hasFilters ? `user-orders:hydrated:${filterKey}` : "user-orders:hydrated",
     fetcher: fetchUserOrdersData,
-    fallbackData: initialData ?? undefined,
+    fallbackData: hasFilters ? undefined : initialData ?? undefined,
     onError: (error) => {
       toast.error(
         error instanceof Error ? error.message : "Unable to load orders"
@@ -120,7 +223,45 @@ export default function UserOrdersClient({
     },
   });
 
-  const orders = React.useMemo(() => ordersData?.orders ?? [], [ordersData]);
+  // ---- Pages after the first ("Load more"), kept per filter combination ----
+  const [morePages, setMorePages] = React.useState<{
+    key: string;
+    orders: any[];
+    pages: number;
+    lastCount: number;
+  }>({ key: "", orders: [], pages: 1, lastCount: 0 });
+  const [loadingMore, setLoadingMore] = React.useState(false);
+  const extra = morePages.key === filterKey ? morePages : null;
+
+  const firstPage = React.useMemo(() => ordersData?.orders ?? [], [ordersData]);
+  const orders = React.useMemo(() => {
+    if (!extra?.orders.length) return firstPage;
+    const seen = new Set(firstPage.map((o: any) => o.id));
+    return [...firstPage, ...extra.orders.filter((o: any) => !seen.has(o.id))];
+  }, [firstPage, extra]);
+  const hasMoreOrders =
+    (extra ? extra.lastCount : firstPage.length) >= BUYER_ORDERS_PAGE_SIZE;
+
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    const page = (extra?.pages ?? 1) + 1;
+    setLoadingMore(true);
+    try {
+      const result = await listBuyerOrders(undefined, filterParams(page));
+      const next = result.orders ?? [];
+      setMorePages({
+        key: filterKey,
+        orders: [...(extra?.orders ?? []), ...next],
+        pages: page,
+        lastCount: next.length,
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to load more orders");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   const cancellationByOrderId = ordersData?.cancellationByOrderId ?? {};
   const returnByOrderId = ordersData?.returnByOrderId ?? {};
   const paymentStatusByOrder = React.useMemo(
@@ -128,6 +269,8 @@ export default function UserOrdersClient({
     [ordersData]
   );
   const loading = isLoading && !ordersData;
+  // A new filter is loading while the previous list is still shown.
+  const refreshing = isLoading && !!ordersData;
 
   const liveRefreshBlockRef = React.useRef<number>(0);
 
@@ -353,11 +496,76 @@ export default function UserOrdersClient({
           </p>
         </div>
 
+        {/* Filters */}
+        <section
+          aria-label="Filter orders"
+          className="space-y-4 border border-border-soft bg-card p-4 sm:p-5"
+        >
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+              Filters
+            </p>
+            {hasFilters ? (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="text-xs font-medium text-brand-strong hover:underline"
+              >
+                Clear all
+              </button>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground">
+              Order Status
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {STATUS_FILTERS.map((f) => (
+                <FilterChip
+                  key={f.value}
+                  active={statusFilters.includes(f.value)}
+                  onClick={() => toggleStatusFilter(f.value)}
+                >
+                  {f.label}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-foreground">
+              Order Time
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {timeOptions.map((f) => (
+                <FilterChip
+                  key={f.value}
+                  active={timeFilter === f.value}
+                  onClick={() => setTimeFilter((cur) => (cur === f.value ? "" : f.value))}
+                >
+                  {f.label}
+                </FilterChip>
+              ))}
+            </div>
+          </div>
+        </section>
+
         {/* Orders List */}
-        <section className="space-y-6">
+        <section
+          aria-busy={loading || refreshing}
+          className={cn("space-y-6 transition-opacity", refreshing && "opacity-60")}
+        >
           {loading ? (
             <div className="border border-border-soft bg-card p-12 text-center">
               <p className="text-sm text-muted-foreground">Loading your orders...</p>
+            </div>
+          ) : orders.length === 0 && hasFilters ? (
+            <div className="border border-border-soft bg-card p-12 text-center space-y-4">
+              <p className="text-sm text-muted-foreground">
+                No orders match these filters.
+              </p>
+              <Button variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
             </div>
           ) : orders.length === 0 ? (
             <div className="border border-border-soft bg-card p-12 text-center space-y-4">
@@ -370,7 +578,7 @@ export default function UserOrdersClient({
             </div>
           ) : (
             orders.map((order, index) => {
-              const paymentStatus = paymentStatusByOrder[order.id];
+              const paymentStatus = paymentStatusByOrder[order.id] ?? order.paymentStatus;
               const saleSubtotal = (order.items ?? []).reduce(
                 (sum: number, item: any) =>
                   sum + (item.priceSnapshot ?? 0) * (item.quantity ?? 0),
@@ -418,7 +626,7 @@ export default function UserOrdersClient({
                   key={order.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.05, duration: 0.5 }}
+                  transition={{ delay: 0.1 + (index % BUYER_ORDERS_PAGE_SIZE) * 0.05, duration: 0.5 }}
                   className="border border-border-soft bg-card"
                 >
                   {/* Order Header */}
@@ -573,6 +781,13 @@ export default function UserOrdersClient({
               );
             })
           )}
+          {!loading && hasMoreOrders ? (
+            <div className="flex justify-center">
+              <Button variant="outline" disabled={loadingMore} onClick={handleLoadMore}>
+                {loadingMore ? "Loading..." : "Load more orders"}
+              </Button>
+            </div>
+          ) : null}
         </section>
       </motion.div>
     </div>
