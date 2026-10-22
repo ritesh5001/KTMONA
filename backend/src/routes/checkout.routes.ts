@@ -4,7 +4,7 @@ import { codEligibilityService } from '../services/cod-eligibility.service.js';
 import { checkoutController } from '../controllers/checkout.controller.js';
 import { authenticate, authorize } from '../middlewares/auth.middleware.js';
 import { validateRequest } from '../middlewares/validateRequest.js';
-import { checkoutSchema } from '../validators/checkout.validation.js';
+import { checkoutSchema, checkoutQuoteSchema } from '../validators/checkout.validation.js';
 
 /**
  * Checkout Routes
@@ -21,6 +21,13 @@ checkoutRouter.post(
 	'/',
 	validateRequest(checkoutSchema),
 	(req, res, next) => checkoutController.checkout(req, res, next)
+);
+
+// POST /v1/checkout/quote - Price breakup before placing the order
+checkoutRouter.post(
+	'/quote',
+	validateRequest(checkoutQuoteSchema),
+	(req, res, next) => checkoutController.quote(req, res, next)
 );
 
 // GET /v1/checkout/cod-eligibility[?variantIds=a,b] - Can this cart (or buy-now

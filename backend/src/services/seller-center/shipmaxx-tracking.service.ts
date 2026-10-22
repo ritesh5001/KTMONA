@@ -11,6 +11,7 @@ import { invalidateSellerPrivateCaches } from '../../utils/cache.util.js';
 import { shipmentService } from '../shipment.service.js';
 import { sellerOrdersService } from './orders.service.js';
 import { isShipmaxxShippingEnabled, trackShipment } from './shipmaxx.client.js';
+import { alertOnCourierStatus } from '../delivery-alerts.service.js';
 
 const log = logger.child({ module: 'shipmaxx-tracking' });
 
@@ -81,6 +82,9 @@ export async function syncShipmaxxTracking(): Promise<number> {
                 data: { courier_status: text, tracking_synced_at: new Date() },
             });
             if (moved || text !== shipment.courier_status) await invalidateSellerPrivateCaches(shipment.seller_id);
+            if (text && text !== shipment.courier_status) {
+                await alertOnCourierStatus(shipment, text).catch(() => undefined);
+            }
             if (moved) changed += 1;
         } catch (err) {
             log.warn({ err: err instanceof Error ? err.message : String(err), shipmentId: shipment.id }, 'tracking_sync_failed');

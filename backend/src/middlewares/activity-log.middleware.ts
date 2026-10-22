@@ -17,7 +17,7 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 /** Not "changes": token plumbing and live-connection chatter. */
 const SKIP_PATHS = [
-    /^\/v1\/auth\/(refresh|login|request-otp|verify-otp|resend-signup-otp|forgot-password|reset-password)/,
+    /^\/v1\/auth\/(refresh|login|request-otp|guest-otp|verify-otp|resend-signup-otp|forgot-password|reset-password)/,
     /^\/v1\/live(\/|$)/,
     /^\/v1\/imagekit\/auth/,
     /^\/v1\/notifications\/.*read/,

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { listMyReturns, type ReturnRequestRecord } from "@/services/returns";
+import { listMyReturns, RETURN_REASONS, type ReturnRequestRecord } from "@/services/returns";
 import { toast } from "sonner";
 
 const currency = new Intl.NumberFormat("en-IN", {
@@ -22,6 +23,7 @@ const getReturnStatusStyle = (status: string) => {
     case "REJECTED":
       return "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5";
     case "REFUNDED":
+    case "REPLACED":
       return "border-[#7B9971]/40 text-[#5A7352] bg-[#7B9971]/10";
     default:
       return "border-border-soft text-muted-foreground bg-mist/30";
@@ -91,7 +93,7 @@ export default function UserReturnsPage() {
                 <div className="flex flex-col gap-4 p-6 border-b border-border-soft sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <p className="font-serif text-lg font-normal text-foreground">
-                      Return {item.id.slice(0, 8).toUpperCase()}
+                      {item.type === "REPLACEMENT" ? "Replacement" : "Return"} {item.id.slice(0, 8).toUpperCase()}
                     </p>
                     <p className="text-xs text-muted-foreground font-mono">
                       Order: {item.orderId}
@@ -104,6 +106,9 @@ export default function UserReturnsPage() {
                   >
                     {item.status}
                   </span>
+                  <Link href={`/user/orders/${item.orderId}`} className="text-xs font-medium text-brand-strong hover:underline">
+                    Track & details →
+                  </Link>
                 </div>
 
                 <div className="grid gap-px bg-border-soft sm:grid-cols-4">
@@ -139,7 +144,14 @@ export default function UserReturnsPage() {
                     <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
                       Reason
                     </p>
-                    <p className="text-sm text-foreground line-clamp-2">{item.reason}</p>
+                    <p className="text-sm text-foreground line-clamp-2">
+                      {RETURN_REASONS.find((r) => r.code === item.reasonCode)?.label ?? item.reason}
+                    </p>
+                    {item.pickupStatus ? (
+                      <p className="text-xs text-muted-foreground">
+                        Pickup: {item.pickupStatus === "SCHEDULED" ? "scheduled" : item.pickupStatus === "PICKED_UP" ? "picked up" : "received"}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 

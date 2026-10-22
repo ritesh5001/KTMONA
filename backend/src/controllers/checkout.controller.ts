@@ -16,13 +16,15 @@ export class CheckoutController {
     async checkout(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user!.userId;
-            const { couponCode, variantIds, paymentMethod, ...shipping } = req.body ?? {};
+            const { couponCode, variantIds, paymentMethod, checkoutKey, ...shipping } = req.body ?? {};
             const method = paymentMethod === 'COD' ? 'COD' : 'ONLINE';
-            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds, method);
+            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds, method, checkoutKey);
 
             const withPayment = req.query.withPayment === '1';
-            // COD orders are already confirmed: there is nothing to pay now.
-            if (!withPayment || method === 'COD') {
+            // COD orders are already confirmed: there is nothing to pay now. A repeat
+            // submit of an order that is already paid has nothing to pay either.
+            const alreadySettled = result.duplicate && result.order.status !== 'PLACED';
+            if (!withPayment || result.paymentMethod === 'COD' || alreadySettled) {
                 res.status(201).json(result);
                 return;
             }
@@ -46,6 +48,27 @@ export class CheckoutController {
                         paymentError instanceof Error ? paymentError.message : 'Payment initialization failed',
                 });
             }
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * Full price breakup for the cart (or buy-now selection) without placing
+     * anything: items, MRP savings, coupon, GST, delivery, free-delivery progress,
+     * payable total and any stock/availability problems.
+     * POST /v1/checkout/quote
+     */
+    async quote(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { couponCode, variantIds, paymentMethod } = req.body ?? {};
+            const result = await checkoutService.quote(req.user!.userId, {
+                couponCode,
+                variantIds,
+                paymentMethod: paymentMethod === 'COD' ? 'COD' : 'ONLINE',
+            });
+            res.set('Cache-Control', 'no-store');
+            res.json(result);
         } catch (error) {
             next(error);
         }

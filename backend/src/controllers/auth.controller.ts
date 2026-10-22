@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AuthService, authService } from '../services/auth.service.js';
-import { registerUserSchema, registerSellerSchema, registerAdminSchema, loginSchema, refreshTokenSchema, logoutSchema, requestOtpSchema, verifyOtpSchema, resendSignupOtpSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validation.js';
+import { registerUserSchema, registerSellerSchema, registerAdminSchema, loginSchema, refreshTokenSchema, logoutSchema, requestOtpSchema, verifyOtpSchema, guestOtpSchema, resendSignupOtpSchema, forgotPasswordSchema, resetPasswordSchema } from '../validators/auth.validation.js';
 import { ApiError } from '../errors/ApiError.js';
 import { ZodError } from 'zod';
 import { authLogger } from '../config/logger.js';
@@ -126,6 +126,24 @@ export class AuthController {
      * POST /v1/auth/request-otp
      * Request mobile verification OTP
      */
+    /**
+     * POST /v1/auth/guest-otp
+     * Guest checkout: email a sign-in/sign-up code (verify with /verify-otp).
+     */
+    requestGuestOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const validatedData = guestOtpSchema.parse(req.body);
+            const result = await this.service.requestGuestOtp(validatedData);
+            res.status(200).json(result);
+        } catch (error) {
+            if (error instanceof ZodError) {
+                next(ApiError.badRequest(error.errors[0]?.message ?? 'Validation failed'));
+                return;
+            }
+            next(error);
+        }
+    };
+
     requestOtp = async (
         req: Request,
         res: Response,

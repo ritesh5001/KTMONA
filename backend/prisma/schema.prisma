@@ -34,6 +34,11 @@ model User {
   /// Cash on Delivery switched off by an admin. On a customer: they cannot
   /// pay by COD. On a seller: COD is off for every product they sell.
   codDisabled                  Boolean                 @default(false) @map("cod_disabled")
+  /// Razorpay customer id; saved cards/UPI live with Razorpay as tokens under it.
+  razorpayCustomerId           String?                 @unique @map("razorpay_customer_id")
+  /// Customer asked for their account to be deleted (handled by an admin).
+  deletionRequestedAt          DateTime?               @map("deletion_requested_at")
+  deletionReason               String?                 @map("deletion_reason")
   createdAt                    DateTime                @default(now()) @map("created_at")
   updatedAt                    DateTime                @updatedAt @map("updated_at")
   adminProfile                 AdminProfile?
@@ -236,6 +241,8 @@ model Product {
   pausedForVacation    Boolean                  @default(false) @map("paused_for_vacation")
   /// Admin switched Cash on Delivery off for this product.
   codDisabled          Boolean                  @default(false) @map("cod_disabled")
+  /// False for products that cannot be returned or replaced (innerwear, perishables…).
+  isReturnable         Boolean                  @default(true) @map("is_returnable")
   deletedByAdmin       Boolean                  @default(false) @map("deleted_by_admin")
   deletedByAdminAt     DateTime?                @map("deleted_by_admin_at")
   deletedByAdminReason String?                  @map("deleted_by_admin_reason")
@@ -432,6 +439,8 @@ model CartItem {
   variantId     String   @map("variant_id")
   quantity      Int
   priceSnapshot Float    @map("price_snapshot")
+  /// "Save for later": kept with the cart but left out of checkout and totals.
+  savedForLater Boolean  @default(false) @map("saved_for_later")
   createdAt     DateTime @default(now()) @map("created_at")
   cart          Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
 
@@ -463,6 +472,9 @@ model Order {
   shippingCity         String?                @map("shipping_city")
   shippingPincode      String?                @map("shipping_pincode")
   shippingNotes        String?                @map("shipping_notes")
+  /// Client-generated key for one Place Order attempt. A retried or double-clicked
+  /// submit with the same key returns the same order instead of creating another.
+  checkoutKey          String?                @unique @map("checkout_key")
   createdAt            DateTime               @default(now()) @map("created_at")
   movements            InventoryMovement[]
   items                OrderItem[]
@@ -537,17 +549,33 @@ model CancellationRequest {
 
 /// Return / RMA requests for delivered orders (partial returns supported)
 model ReturnRequest {
-  id              String       @id @default(cuid())
-  orderId         String       @map("order_id")
-  userId          String       @map("user_id")
-  reason          String
-  status          ReturnStatus @default(REQUESTED)
-  refundAmount    Float?       @map("refund_amount")
-  reviewedBy      String?      @map("reviewed_by")
-  reviewedAt      DateTime?    @map("reviewed_at")
-  rejectionReason String?      @map("rejection_reason")
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  id                  String       @id @default(cuid())
+  orderId             String       @map("order_id")
+  userId              String       @map("user_id")
+  reason              String
+  /// Refund (RETURN) or exchange for the same item (REPLACEMENT).
+  type                ReturnType   @default(RETURN)
+  /// WRONG_PRODUCT | DAMAGED | DEFECTIVE | MISSING_ITEM | SIZE_ISSUE | NOT_AS_DESCRIBED | NO_LONGER_NEEDED | OTHER
+  reasonCode          String?      @map("reason_code")
+  /// Customer photos of the problem (required for damaged/defective/wrong item).
+  images              String[]     @default([])
+  status              ReturnStatus @default(REQUESTED)
+  refundAmount        Float?       @map("refund_amount")
+  reviewedBy          String?      @map("reviewed_by")
+  reviewedAt          DateTime?    @map("reviewed_at")
+  rejectionReason     String?      @map("rejection_reason")
+  /// SCHEDULED | PICKED_UP | RECEIVED — reverse pickup progress, set by admin/seller.
+  pickupStatus        String?      @map("pickup_status")
+  pickupDate          DateTime?    @map("pickup_date")
+  pickupCarrier       String?      @map("pickup_carrier")
+  pickupTracking      String?      @map("pickup_tracking")
+  /// Replacement shipment details once the new item is sent.
+  replacementTracking String?      @map("replacement_tracking")
+  /// Customer's appeal after a rejection.
+  appealNote          String?      @map("appeal_note")
+  appealedAt          DateTime?    @map("appealed_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
 
   order    Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   user     User         @relation("UserReturnRequests", fields: [userId], references: [id], onDelete: Cascade)
@@ -960,6 +988,8 @@ model shipments {
   rto_initiated_at       DateTime?
   rto_delivered_at       DateTime?
   rto_reason             String?
+  /// When the buyer was told this shipment is running late (sent once).
+  delay_notified_at      DateTime?
   created_at             DateTime          @default(now())
   updated_at             DateTime
   shipment_events        shipment_events[]
@@ -993,13 +1023,16 @@ model user_addresses {
 }
 
 model user_preferences {
-  user_id             String   @id
-  language            String   @default("en")
-  email_notifications Boolean  @default(true)
-  sms_notifications   Boolean  @default(true)
-  created_at          DateTime @default(now())
-  updated_at          DateTime
-  users               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user_id                 String   @id
+  language                String   @default("en")
+  email_notifications     Boolean  @default(true)
+  sms_notifications       Boolean  @default(true)
+  whatsapp_notifications  Boolean  @default(false)
+  /// Offers and promotional messages (order updates are always sent in-app).
+  marketing_notifications Boolean  @default(false)
+  created_at              DateTime @default(now())
+  updated_at              DateTime
+  users                   User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 }
 
 model user_profiles {
@@ -1054,6 +1087,12 @@ enum ReturnStatus {
   INSPECTING
   REJECTED
   REFUNDED
+  REPLACED
+}
+
+enum ReturnType {
+  RETURN
+  REPLACEMENT
 }
 
 enum InventoryMovementType {
@@ -1251,6 +1290,8 @@ enum NotificationType {
   SELLER_PRODUCT_APPROVED
   SELLER_PRODUCT_REJECTED
   ADMIN_ALERT
+  /// Customer order update without its own template (out for delivery, delay, return pickup…).
+  ORDER_UPDATE
 }
 
 enum NotificationChannel {

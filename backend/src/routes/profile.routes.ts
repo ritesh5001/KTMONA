@@ -5,6 +5,12 @@ import type { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { ApiError } from '../errors/ApiError.js';
 import { profileService, refundDetailsSchema, updateProfileSchema } from '../services/profile.service.js';
+import {
+    accountSettingsService,
+    deletionRequestSchema,
+    notificationPreferencesSchema,
+} from '../services/account-settings.service.js';
+import { savedPaymentsService } from '../services/saved-payments.service.js';
 
 const h = (fn: (req: Request) => Promise<unknown>) => async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -43,5 +49,18 @@ profileRouter.patch('/', h((req) => profileService.updateProfile(req.user!.userI
 profileRouter.get('/refund-details', h((req) => profileService.getRefundDetails(req.user!.userId)));
 profileRouter.put('/refund-details', h((req) => profileService.saveRefundDetails(req.user!.userId, refundDetailsSchema.parse(req.body))));
 profileRouter.delete('/refund-details', h((req) => profileService.deleteRefundDetails(req.user!.userId)));
+
+/** Notification consent: email / SMS / WhatsApp order updates, and offers. */
+profileRouter.get('/notification-preferences', h((req) => accountSettingsService.getNotificationPreferences(req.user!.userId)));
+profileRouter.put('/notification-preferences', h((req) => accountSettingsService.updateNotificationPreferences(req.user!.userId, notificationPreferencesSchema.parse(req.body))));
+
+/** Account deletion request (completed by an admin), and withdrawing it. */
+profileRouter.get('/deletion-request', h((req) => accountSettingsService.getDeletionRequest(req.user!.userId)));
+profileRouter.post('/deletion-request', h((req) => accountSettingsService.requestDeletion(req.user!.userId, deletionRequestSchema.parse(req.body ?? {}).reason)));
+profileRouter.delete('/deletion-request', h((req) => accountSettingsService.cancelDeletion(req.user!.userId)));
+
+/** Cards / UPI saved with Razorpay (tokens only — no card data is stored here). */
+profileRouter.get('/saved-payment-methods', h((req) => savedPaymentsService.list(req.user!.userId)));
+profileRouter.delete('/saved-payment-methods/:tokenId', h((req) => savedPaymentsService.remove(req.user!.userId, req.params.tokenId as string)));
 
 export { profileRouter };

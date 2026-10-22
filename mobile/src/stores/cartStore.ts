@@ -6,6 +6,8 @@ import {
   addCartItem as apiAddCartItem,
   updateCartItem as apiUpdateCartItem,
   removeCartItem as apiRemoveCartItem,
+  setCartItemSavedForLater as apiSetSavedForLater,
+  changeCartItemVariant as apiChangeVariant,
   type AddCartItemPayload,
   type CartItemDetails,
 } from "../services/cart";
@@ -13,6 +15,8 @@ import {
 interface CartState {
   token: string | null;
   cartItems: CartItemDetails[];
+  /** Lines saved for later (left out of checkout). */
+  savedItems: CartItemDetails[];
   isLoading: boolean;
   fetchError: string | null;
   mutatingIds: ReadonlySet<string>;
@@ -21,6 +25,10 @@ interface CartState {
   addToCart: (payload: AddCartItemPayload) => Promise<void>;
   updateQuantity: (itemId: string, nextQty: number) => Promise<void>;
   removeFromCart: (itemId: string) => Promise<void>;
+  /** Move a line to "Saved for later" (true) or back to the cart (false). */
+  setSavedForLater: (itemId: string, saved: boolean) => Promise<void>;
+  /** Change a line to another size/colour of the same product. */
+  changeVariant: (itemId: string, variantId: string) => Promise<void>;
   clearCart: () => void;
   bindAppState: () => () => void;
 }
@@ -72,6 +80,7 @@ async function resolveToken(explicit?: string | null): Promise<string | null> {
 export const useCartStore = create<CartState>((set, get) => ({
   token: null,
   cartItems: [],
+  savedItems: [],
   isLoading: false,
   fetchError: null,
   mutatingIds: new Set(),
@@ -79,11 +88,31 @@ export const useCartStore = create<CartState>((set, get) => ({
   setToken: (token) => {
     if (!token) {
       mutationLocks.clear();
-      set({ token: null, cartItems: [], isLoading: false, fetchError: null, mutatingIds: new Set() });
+      set({ token: null, cartItems: [], savedItems: [], isLoading: false, fetchError: null, mutatingIds: new Set() });
       return;
     }
     set((state) => ({ ...state, token }));
     get().refreshCart();
+  },
+
+  setSavedForLater: async (itemId, saved) => {
+    if (!lockItem(itemId, set)) return;
+    try {
+      await apiSetSavedForLater(itemId, saved);
+      await get().refreshCart();
+    } finally {
+      unlockItem(itemId, set);
+    }
+  },
+
+  changeVariant: async (itemId, variantId) => {
+    if (!lockItem(itemId, set)) return;
+    try {
+      await apiChangeVariant(itemId, variantId);
+      await get().refreshCart();
+    } finally {
+      unlockItem(itemId, set);
+    }
   },
 
   refreshCart: async () => {
@@ -92,7 +121,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     set((state) => ({ ...state, isLoading: true, fetchError: null }));
     try {
       const result = await getCart(token);
-      set((state) => ({ ...state, cartItems: result.cart.items ?? [] }));
+      set((state) => ({ ...state, cartItems: result.cart.items ?? [], savedItems: result.cart.savedItems ?? [] }));
     } catch (err) {
       set((state) => ({
         ...state,

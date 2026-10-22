@@ -164,7 +164,7 @@ function canRedirectCrossDomain(host: string | null): boolean {
  * portal subdomain is forwarded to the main domain by app/not-found.tsx.
  */
 const MAIN_ONLY_PREFIXES = [
-  "/marketplace", "/product", "/collections", "/blog", "/cart", "/checkout",
+  "/marketplace", "/product", "/collections", "/blog", "/cart", "/checkout", "/order-confirmation",
   "/search", "/vendors", "/occasion", "/sale", "/user",
   "/about", "/contact", "/disclaimer", "/privacy", "/refund-policy", "/return-policy",
   "/seller-terms", "/shipping-policy", "/terms", "/vendor-agreement",

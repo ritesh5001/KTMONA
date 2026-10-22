@@ -171,8 +171,9 @@ export function QuickBuySheet({
     if (!productId || !selectedVariant || submitting) return;
 
     if (!session?.accessToken) {
+      // Guest checkout: verify an email with a one-time code, then the item is added.
       onClose();
-      router.push("/login?returnTo=%2Fcart");
+      router.push(`/guest-checkout?productId=${encodeURIComponent(productId)}&variantId=${encodeURIComponent(selectedVariant.id)}&intent=${intent}`);
       return;
     }
 

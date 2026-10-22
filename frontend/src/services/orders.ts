@@ -10,6 +10,12 @@ export interface OrderItem {
   adminPriceSnapshot?: number;
   productTitle?: string;
   variantSku?: string;
+  image?: string | null;
+  size?: string | null;
+  color?: string | null;
+  /** False = only a wrong/damaged/defective/missing item can come back. */
+  isReturnable?: boolean;
+  sellerId?: string;
 }
 
 export interface BuyerOrder {
@@ -170,4 +176,109 @@ export async function downloadInvoice(orderId: string): Promise<void> {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// ---------------------------------------------------------------------------
+// Buyer order detail (GET /v1/orders/:id)
+// ---------------------------------------------------------------------------
+
+export type TrackingStageKey =
+  | "PLACED"
+  | "CONFIRMED"
+  | "PACKED"
+  | "SHIPPED"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "DELIVERY_FAILED";
+
+export interface TrackingStage {
+  key: TrackingStageKey;
+  label: string;
+  at: string | null;
+  done: boolean;
+  current: boolean;
+}
+
+export interface BuyerOrderShipment {
+  id: string;
+  sellerId: string;
+  carrier: string;
+  trackingNumber: string;
+  trackingUrl: string | null;
+  status: string;
+  courierStatus: string | null;
+  deliveryAttempt: { failed: true; note: string } | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  estimatedDelivery: { from: string; to: string } | null;
+  stages: TrackingStage[];
+  events: Array<{ status: string; note: string | null; at: string }>;
+  itemIds: string[];
+}
+
+export interface BuyerOrderReturn {
+  id: string;
+  type: "RETURN" | "REPLACEMENT";
+  status: string;
+  reason: string;
+  reasonCode: string | null;
+  images: string[];
+  refundAmount: number | null;
+  rejectionReason: string | null;
+  pickupStatus: string | null;
+  pickupDate: string | null;
+  pickupCarrier: string | null;
+  pickupTracking: string | null;
+  replacementTracking: string | null;
+  appealNote: string | null;
+  appealedAt: string | null;
+  createdAt: string;
+  items: Array<{ orderItemId: string; quantity: number }>;
+}
+
+export interface BuyerOrderDetail extends BuyerOrder {
+  paymentMethod?: "ONLINE" | "COD";
+  invoiceNumber?: string | null;
+  couponCode?: string | null;
+  shippingName?: string | null;
+  shippingPhone?: string | null;
+  shippingEmail?: string | null;
+  shippingAddressLine1?: string | null;
+  shippingAddressLine2?: string | null;
+  shippingCity?: string | null;
+  shippingPincode?: string | null;
+  shippingNotes?: string | null;
+  timeline: TrackingStage[];
+  estimatedDelivery: { from: string; to: string } | null;
+  shipments: BuyerOrderShipment[];
+  charges: {
+    itemsTotal: number;
+    mrpTotal: number;
+    productDiscount: number;
+    couponCode: string | null;
+    couponDiscount: number;
+    tax: number;
+    shipping: number;
+    total: number;
+  };
+  refunds: Array<{ id: string; amount: number; status: string; reference: string | null; createdAt: string; updatedAt: string }>;
+  returns: BuyerOrderReturn[];
+  cancellation: { status: string; reason: string; rejectionReason: string | null; createdAt: string } | null;
+  eligibility: {
+    cancel: { allowed: boolean; reason: string | null };
+    return: { allowed: boolean; reason: string | null; windowEndsAt: string | null };
+  };
+}
+
+export async function getBuyerOrder(orderId: string, token?: string | null) {
+  return apiRequest<{ order: BuyerOrderDetail }>(`/v1/orders/${orderId}`, { method: "GET", token });
+}
+
+/** Buy again: put the order's items back in the cart. */
+export async function reorder(orderId: string) {
+  return apiRequest<{ added: number; skipped: Array<{ variantId: string; reason: string }>; message: string }>(
+    `/v1/orders/${orderId}/reorder`,
+    { method: "POST" }
+  );
 }

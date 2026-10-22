@@ -35,3 +35,24 @@ export const updateCartItemSchema = z.object({
 });
 
 export type UpdateCartItemInput = z.infer<typeof updateCartItemSchema>;
+
+/**
+ * PATCH /v1/cart/items/:id/save-for-later
+ */
+export const saveForLaterSchema = z.object({
+    saved: z.boolean(),
+});
+
+/**
+ * PATCH /v1/cart/items/:id/variant — change size/colour
+ */
+export const changeCartVariantSchema = z.object({
+    variantId: z.string().min(1, 'Variant ID is required'),
+});
+
+/**
+ * POST /v1/cart/merge — a guest's on-device cart, added after they sign in.
+ */
+export const mergeCartSchema = z.object({
+    items: z.array(addCartItemSchema).max(50),
+});

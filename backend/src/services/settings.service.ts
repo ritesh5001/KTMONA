@@ -24,6 +24,8 @@ export const SETTING_KEYS = {
     SHIPPING_CHARGE_ENABLED: 'shipping_charge_enabled',
     GST_CHARGE_ENABLED: 'gst_charge_enabled',
     COD_ENABLED: 'cod_enabled',
+    /** Orders whose subtotal (after coupon) reaches this ship free. 0 = no offer. */
+    FREE_SHIPPING_MIN_ORDER: 'free_shipping_min_order',
 } as const;
 
 /** Orders above this total cannot be paid cash on delivery (courier cash limit). */
@@ -91,6 +93,32 @@ export const settingsService = {
         return enabled ? DEFAULT_SHIPPING_FEE_INR : 0;
     },
 
+    /** Free-delivery threshold in INR (0 = no free-delivery offer). */
+    async getFreeShippingMinOrder(): Promise<number> {
+        const raw = await readRaw(SETTING_KEYS.FREE_SHIPPING_MIN_ORDER);
+        const value = raw === null ? 0 : Number(raw);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    },
+
+    async setFreeShippingMinOrder(amount: number): Promise<number> {
+        const value = Number.isFinite(amount) && amount > 0 ? Math.round(amount) : 0;
+        await writeRaw(SETTING_KEYS.FREE_SHIPPING_MIN_ORDER, String(value));
+        settingsLogger.info({ event: 'free_shipping_threshold_set', value }, 'Free delivery threshold updated by admin');
+        return value;
+    },
+
+    /**
+     * Everything needed to price delivery: the flat fee (0 when switched off) and
+     * the free-delivery threshold.
+     */
+    async getShippingRules(): Promise<{ fee: number; freeAbove: number }> {
+        const [enabled, freeAbove] = await Promise.all([
+            this.isShippingChargeEnabled(),
+            this.getFreeShippingMinOrder(),
+        ]);
+        return { fee: enabled ? DEFAULT_SHIPPING_FEE_INR : 0, freeAbove };
+    },
+
     /** Enable or disable the flat shipping charge for new orders. */
     async setShippingChargeEnabled(enabled: boolean): Promise<boolean> {
         await writeRaw(SETTING_KEYS.SHIPPING_CHARGE_ENABLED, enabled ? 'true' : 'false');
@@ -152,3 +180,10 @@ export const settingsService = {
         return enabled;
     },
 };
+
+/** Delivery charge for an order whose subtotal (after coupon, before tax) is `subtotal`. */
+export function shippingFeeFor(subtotal: number, rules: { fee: number; freeAbove: number }): number {
+    if (rules.fee <= 0) return 0;
+    if (rules.freeAbove > 0 && subtotal >= rules.freeAbove) return 0;
+    return rules.fee;
+}

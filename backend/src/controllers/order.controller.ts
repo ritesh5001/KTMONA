@@ -58,6 +58,18 @@ export class OrderController {
     }
 
     /**
+     * Buy again — add the order's items to the cart
+     * POST /v1/orders/:id/reorder
+     */
+    async reorder(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            res.json(await orderService.reorder(req.params.id as string, req.user!.userId));
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Get buyer's order detail
      * GET /v1/orders/:id
      */

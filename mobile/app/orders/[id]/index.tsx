@@ -26,6 +26,7 @@ import { impactLight } from "../../../src/utils/haptics";
 import { AppText as Text, ScreenContainer as SafeAreaView } from "../../../src/components";
 import { AppHeader } from "../../../src/components/AppHeader";
 import { translate } from "../../../src/i18n";
+import { OrderExtras } from "../../../src/ui/OrderExtras";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -120,7 +121,7 @@ function normalizeStatusForTimeline(status: string) {
 export default function OrderDetailScreen() {
   const router = useRouter();
   const pathname = usePathname();
-  const { id: orderId } = useLocalSearchParams<{ id: string }>();
+  const { id: orderId, placed } = useLocalSearchParams<{ id: string; placed?: string }>();
   const { session, isLoading: authLoading } = useAuth();
   const token = session?.accessToken ?? null;
   const { showToast } = useToast();
@@ -313,7 +314,7 @@ export default function OrderDetailScreen() {
           </View>
         ) : null}
 
-        {showPaymentWarning && (
+        {showPaymentWarning && !order.timeline && (
           <View style={styles.warningBanner}>
             <Text style={styles.warningText}>
               {paymentStatus === "FAILED"
@@ -323,8 +324,13 @@ export default function OrderDetailScreen() {
           </View>
         )}
 
-        {/* Status timeline */}
-        {timelineStatus === "CANCELLED" ? (
+        {/* Tracking, actions, returns, refunds and charges from the order view */}
+        {order.timeline ? (
+          <OrderExtras order={order} token={token} placed={placed === "1"} onChanged={() => void fetchOrder({ silent: true })} />
+        ) : null}
+
+        {/* Status timeline (older API without the order view) */}
+        {order.timeline ? null : timelineStatus === "CANCELLED" ? (
           <View style={styles.cancelledBanner}>
             <Text style={styles.cancelledTitle}>Order cancelled</Text>
             <Text style={styles.cancelledCopy}>

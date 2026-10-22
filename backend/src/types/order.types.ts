@@ -116,6 +116,13 @@ export interface OrderWithDetails extends OrderEntity {
 export interface OrderItemWithProduct extends OrderItemEntity {
     productTitle?: string;
     variantSku?: string;
+    image?: string | null;
+    size?: string | null;
+    color?: string | null;
+    /** False = only a wrong/damaged/defective/missing item can come back. */
+    isReturnable?: boolean;    productImage?: string | null;
+    variantSize?: string | null;
+    variantColor?: string | null;
 }
 
 /**
@@ -227,6 +234,8 @@ export interface CheckoutResponse {
     order: OrderEntity;
     /** COD orders are confirmed at once and need no payment step. */
     paymentMethod?: 'ONLINE' | 'COD';
+    /** True when this checkout key had already placed the order (repeat submit). */
+    duplicate?: boolean;
 }
 
 /**

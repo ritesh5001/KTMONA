@@ -4,6 +4,7 @@ import {
   StyleSheet,
   FlatList,
   Pressable,
+  ScrollView,
 } from "react-native";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useRouter } from "expo-router";
@@ -15,13 +16,12 @@ import { useToast } from "../../../src/providers/ToastProvider";
 import { SkeletonCartRow } from "../../../src/components/Skeleton";
 import { AnimatedPressable } from "../../../src/components/AnimatedPressable";
 import { impactLight } from "../../../src/utils/haptics";
-import type { CartItemDetails } from "../../../src/services/cart";
+import { getCheckoutQuote, type CartItemDetails, type CheckoutQuote } from "../../../src/services/cart";
 import { AppHeader } from "../../../src/components/AppHeader";
 import { Icon } from "../../../src/components/Icon";
 import { Image } from "../../../src/components/CompatImage";
 import { MotionView } from "../../../src/components/motion";
 import { AppText as Text, ScreenContainer as SafeAreaView } from "../../../src/components";
-import { getShippingConfig, getGstConfig } from "../../../src/services/shipping";
 
 /** Thumbnail is 96dp square; ask the CDN for that rather than the original. */
 const CART_THUMB_WIDTH = 96;
@@ -41,6 +41,9 @@ export default function CartScreen() {
   const { showToast } = useToast();
   const {
     cartItems,
+    savedItems,
+    setSavedForLater,
+    changeVariant,
     isLoading,
     isMutating,
     mutatingIds,
@@ -86,48 +89,30 @@ export default function CartScreen() {
     router.push("/checkout");
   }, [isConnected, isMutating, cartItems.length, router, showToast]);
 
-  // Admin-controlled shipping / GST charges. Default to the flat fees until
-  // resolved; the backend order total is always the source of truth.
-  const [shippingConfig, setShippingConfig] = React.useState<{
-    enabled: boolean;
-    amount: number;
-  }>({ enabled: true, amount: 180 });
-  const [gstConfig, setGstConfig] = React.useState<{
-    enabled: boolean;
-    amount: number;
-  }>({ enabled: true, amount: 180 });
-
+  // Every charge comes from the server quote — the same maths Place Order uses.
+  const [quote, setQuote] = React.useState<CheckoutQuote | null>(null);
+  const cartKey = cartItems.map((i) => `${i.variantId}:${i.quantity}`).join("|");
   React.useEffect(() => {
-    const controller = new AbortController();
+    if (!token || !cartKey) {
+      setQuote(null);
+      return;
+    }
     let active = true;
-    getShippingConfig(controller.signal)
-      .then((config) => {
-        if (active) setShippingConfig(config);
-      })
-      .catch(() => {
-        /* Non-fatal: keep the default estimate. */
-      });
-    getGstConfig(controller.signal)
-      .then((config) => {
-        if (active) setGstConfig(config);
-      })
-      .catch(() => {
-        /* Non-fatal: keep the default estimate. */
-      });
+    const t = setTimeout(() => {
+      getCheckoutQuote()
+        .then((q) => {
+          if (active) setQuote(q);
+        })
+        .catch(() => {
+          if (active) setQuote(null);
+        });
+    }, 500);
     return () => {
       active = false;
-      controller.abort();
+      clearTimeout(t);
     };
-  }, []);
-
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.priceSnapshot * item.quantity,
-    0
-  );
-  const shipping =
-    cartItems.length && shippingConfig.enabled ? shippingConfig.amount : 0;
-  const gst = cartItems.length && gstConfig.enabled ? gstConfig.amount : 0;
-  const total = subtotal + shipping + gst;
+  }, [token, cartKey]);
+  const blocked = quote ? !quote.canPlaceOrder : false;
 
   // The store prepends new items, so index 0 is the one that just arrived. The
   // gold wash fades out on its own — a marker, not a permanent state.
@@ -151,7 +136,8 @@ export default function CartScreen() {
         ? Math.round(((compareAt - item.priceSnapshot) / compareAt) * 100)
         : 0;
       const lineTotal = item.priceSnapshot * item.quantity;
-      const stock = item.variant?.inventory?.stock;
+      const maxQty = item.availability?.maxQuantity;
+      const options = item.options ?? [];
 
       return (
         // Fade, not slide. SlideInUp starts the row off-screen, and a row that is
@@ -226,9 +212,7 @@ export default function CartScreen() {
                   </Text>
                 </Text>
 
-                {typeof stock === "number" && stock > 0 && stock <= 5 ? (
-                  <Text style={styles.stockWarning}>Only {stock} left</Text>
-                ) : null}
+                <CartBadges item={item} />
               </View>
 
               <Pressable
@@ -260,9 +244,9 @@ export default function CartScreen() {
                 </Pressable>
                 <Text style={styles.qtyValue}>{item.quantity}</Text>
                 <Pressable
-                  style={[styles.qtyButton, locked && styles.qtyButtonDisabled]}
+                  style={[styles.qtyButton, (locked || (maxQty != null && item.quantity >= maxQty)) && styles.qtyButtonDisabled]}
                   onPress={() => handleQty(item.id, item.quantity + 1)}
-                  disabled={locked}
+                  disabled={locked || (maxQty != null && item.quantity >= maxQty)}
                   accessibilityRole="button"
                   accessibilityLabel={`Increase quantity of ${item.product?.title ?? "item"}`}
                   accessibilityState={{ disabled: locked }}
@@ -270,13 +254,46 @@ export default function CartScreen() {
                   <Text style={styles.qtyButtonText}>+</Text>
                 </Pressable>
               </View>
-              {locked ? <Text style={styles.updatingText}>Updating…</Text> : null}
+              {locked ? (
+                <Text style={styles.updatingText}>Updating…</Text>
+              ) : (
+                <Pressable
+                  onPress={() => void setSavedForLater(item.id, true)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Save ${item.product?.title ?? "item"} for later`}
+                >
+                  <Text style={styles.linkText}>Save for later</Text>
+                </Pressable>
+              )}
             </View>
+            {options.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.optionRow}>
+                {options.map((o) => {
+                  const active = o.id === item.variantId;
+                  const soldOut = o.stock <= 0 && !active;
+                  return (
+                    <Pressable
+                      key={o.id}
+                      disabled={active || soldOut || locked}
+                      onPress={() => void changeVariant(item.id, o.id)}
+                      style={[styles.optionChip, active && styles.optionChipActive, soldOut && { opacity: 0.4 }]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active, disabled: soldOut }}
+                    >
+                      <Text style={[styles.optionChipText, active && styles.optionChipTextActive]}>
+                        {[o.color, o.size !== "Default" ? o.size : null].filter(Boolean).join(" / ") || "Default"}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : null}
           </View>
         </MotionView>
       );
     },
-    [mutatingIds, handleQty, handleRemove, isFreshArrival]
+    [mutatingIds, handleQty, handleRemove, isFreshArrival, setSavedForLater, changeVariant]
   );
 
   const keyExtractor = React.useCallback(
@@ -296,7 +313,7 @@ export default function CartScreen() {
           </View>
           <Text style={styles.emptyTitle}>Sign in to view your cart</Text>
           <Text style={styles.emptySubtitle}>
-            Access your saved bag and continue securely to checkout.
+            Or shop as a guest — add items and verify your email with a one-time code at checkout. No password needed.
           </Text>
           <Pressable
             style={styles.primaryButton}
@@ -342,7 +359,7 @@ export default function CartScreen() {
             <Text style={styles.primaryButtonText}>Retry</Text>
           </Pressable>
         </View>
-      ) : cartItems.length === 0 ? (
+      ) : cartItems.length === 0 && savedItems.length === 0 ? (
         <View style={styles.emptyCard}>
           <View style={styles.emptyIconWrap}>
             <Icon name="cart-outline" size={36} color={colors.brownSoft} />
@@ -376,56 +393,119 @@ export default function CartScreen() {
             maxToRenderPerBatch={4}
             windowSize={7}
             showsVerticalScrollIndicator={false}
+            ListHeaderComponent={
+              quote?.issues.length ? (
+                <View style={styles.issueBox}>
+                  <Text style={styles.issueTitle}>{"Some items can't be ordered right now"}</Text>
+                  {quote.issues.map((i) => (
+                    <Text key={i.itemId} style={styles.issueText}>• {i.message}</Text>
+                  ))}
+                  <Text style={styles.issueText}>Reduce the quantity, remove them or save them for later.</Text>
+                </View>
+              ) : cartItems.length === 0 ? (
+                <Text style={styles.emptySubtitle}>{'No items in your cart. Move something from "Saved for later" below.'}</Text>
+              ) : null
+            }
+            ListFooterComponent={
+              savedItems.length ? (
+                <View style={{ marginTop: spacing.lg }}>
+                  <Text style={styles.savedHeading}>Saved for later ({savedItems.length})</Text>
+                  {savedItems.map((item) => {
+                    const thumb = item.variant?.images?.[0] ?? item.product?.images?.[0] ?? null;
+                    const locked = mutatingIds.has(item.id);
+                    return (
+                      <View key={item.id} style={[styles.itemCard, { marginTop: spacing.sm }]}>
+                        <View style={styles.itemRow}>
+                          {thumb ? (
+                            <Image source={{ uri: thumb }} style={styles.savedImage} contentFit="cover" width={CART_THUMB_WIDTH} />
+                          ) : (
+                            <View style={[styles.savedImage, styles.itemImageFallback]} />
+                          )}
+                          <View style={styles.itemInfo}>
+                            <Text style={styles.itemTitle} numberOfLines={2}>{item.product?.title ?? "Item"}</Text>
+                            <Text style={styles.itemPrice}>{currency.format(item.variant?.price ?? item.priceSnapshot)}</Text>
+                            <CartBadges item={item} />
+                            <View style={{ flexDirection: "row", gap: spacing.lg, marginTop: spacing.xs }}>
+                              <Pressable disabled={locked} onPress={() => void setSavedForLater(item.id, false)} hitSlop={8} accessibilityRole="button">
+                                <Text style={styles.linkText}>Move to cart</Text>
+                              </Pressable>
+                              <Pressable disabled={locked} onPress={() => handleRemove(item.id)} hitSlop={8} accessibilityRole="button">
+                                <Text style={[styles.linkText, { color: colors.brownSoft }]}>Remove</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null
+            }
           />
 
+          {cartItems.length > 0 ? (
           <View style={[styles.summaryFooter, { paddingBottom: tabBarHeight }]}>
           <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>
-                {currency.format(subtotal)}
+            {quote?.freeDelivery ? (
+              <Text style={styles.freeDelivery}>
+                {quote.freeDelivery.eligible
+                  ? "Yay! FREE delivery on this order"
+                  : `Add ${currency.format(quote.freeDelivery.remaining)} more for FREE delivery`}
               </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Shipping</Text>
-              <Text
-                style={[
-                  styles.summaryValue,
-                  shipping === 0 ? { color: colors.gold } : null,
-                ]}
-              >
-                {shipping === 0 ? "FREE" : currency.format(shipping)}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>GST</Text>
-              <Text
-                style={[
-                  styles.summaryValue,
-                  gst === 0 ? { color: colors.gold } : null,
-                ]}
-              >
-                {gst === 0 ? "FREE" : currency.format(gst)}
-              </Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryTotal}>Total</Text>
-              <Text style={styles.summaryTotal}>
-                {currency.format(total)}
-              </Text>
-            </View>
+            ) : null}
+            {quote ? (
+              <>
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Price ({quote.itemCount} item{quote.itemCount === 1 ? "" : "s"})</Text>
+                  <Text style={styles.summaryValue}>{currency.format(quote.mrpTotal)}</Text>
+                </View>
+                {quote.productDiscount > 0 ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Discount on MRP</Text>
+                    <Text style={[styles.summaryValue, { color: colors.success ?? "#15803d" }]}>−{currency.format(quote.productDiscount)}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>Delivery</Text>
+                  <Text style={[styles.summaryValue, quote.shipping === 0 ? { color: colors.gold } : null]}>
+                    {quote.shipping === 0 ? "FREE" : currency.format(quote.shipping)}
+                  </Text>
+                </View>
+                {quote.gst > 0 ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>GST</Text>
+                    <Text style={styles.summaryValue}>{currency.format(quote.gst)}</Text>
+                  </View>
+                ) : null}
+                {quote.gstFee > 0 ? (
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>GST charges</Text>
+                    <Text style={styles.summaryValue}>{currency.format(quote.gstFee)}</Text>
+                  </View>
+                ) : null}
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryTotal}>Total</Text>
+                  <Text style={styles.summaryTotal}>{currency.format(quote.total)}</Text>
+                </View>
+                {quote.savings > 0 ? (
+                  <Text style={styles.savingsText}>You save {currency.format(quote.savings)} on this order</Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.summaryLabel}>Calculating total…</Text>
+            )}
             <AnimatedPressable
               style={[
                 styles.primaryButton,
-                (isMutating || cartItems.length === 0 || !isConnected) &&
+                (isMutating || cartItems.length === 0 || !isConnected || blocked) &&
                   styles.buttonDisabled,
               ]}
               onPress={handleCheckout}
-              disabled={isMutating || cartItems.length === 0 || !isConnected}
+              disabled={isMutating || cartItems.length === 0 || !isConnected || blocked}
               accessibilityRole="button"
               accessibilityLabel="Proceed to checkout"
               accessibilityState={{
-                disabled: isMutating || cartItems.length === 0 || !isConnected,
+                disabled: isMutating || cartItems.length === 0 || !isConnected || blocked,
                 busy: isMutating,
               }}
             >
@@ -439,13 +519,128 @@ export default function CartScreen() {
             </AnimatedPressable>
           </View>
           </View>
+          ) : null}
         </>
       )}
     </SafeAreaView>
   );
 }
 
+/** Stock, availability and price-change notes for a cart line. */
+function CartBadges({ item }: { item: CartItemDetails }) {
+  const a = item.availability;
+  if (!a) return null;
+  const notes: { text: string; tone: "bad" | "warn" | "good" }[] = [];
+  if (a.status === "UNAVAILABLE") notes.push({ text: "Currently unavailable", tone: "bad" });
+  else if (a.status === "OUT_OF_STOCK") notes.push({ text: "Out of stock", tone: "bad" });
+  else if (a.quantityTooHigh) notes.push({ text: `Only ${a.stock} available — reduce quantity`, tone: "bad" });
+  else if (a.status === "LOW_STOCK") notes.push({ text: `Only ${a.stock} left`, tone: "warn" });
+  if (a.priceChange > 0) notes.push({ text: `Price increased by ${currency.format(a.priceChange)}`, tone: "warn" });
+  if (a.priceChange < 0) notes.push({ text: `Price dropped by ${currency.format(-a.priceChange)}`, tone: "good" });
+  if (!notes.length) return null;
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+      {notes.map((n) => (
+        <Text
+          key={n.text}
+          style={[
+            styles.badge,
+            n.tone === "bad" ? styles.badgeBad : n.tone === "warn" ? styles.badgeWarn : styles.badgeGood,
+          ]}
+        >
+          {n.text}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  linkText: {
+    fontFamily: typography.sansMedium,
+    fontSize: 12,
+    color: colors.gold,
+  },
+  optionRow: {
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+  },
+  optionChip: {
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+  },
+  optionChipActive: {
+    borderColor: colors.charcoal,
+    backgroundColor: colors.charcoal,
+  },
+  optionChipText: {
+    fontFamily: typography.sans,
+    fontSize: 12,
+    color: colors.charcoal,
+  },
+  optionChipTextActive: {
+    color: colors.background,
+  },
+  badge: {
+    fontFamily: typography.sansMedium,
+    fontSize: 11,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  badgeBad: { backgroundColor: "#FEF2F2", color: "#B91C1C" },
+  badgeWarn: { backgroundColor: "#FFFBEB", color: "#92400E" },
+  badgeGood: { backgroundColor: "#ECFDF5", color: "#065F46" },
+  issueBox: {
+    borderWidth: 1,
+    borderColor: "#FCD34D",
+    backgroundColor: "#FFFBEB",
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 2,
+  },
+  issueTitle: {
+    fontFamily: typography.sansMedium,
+    fontSize: 13,
+    color: "#92400E",
+  },
+  issueText: {
+    fontFamily: typography.sans,
+    fontSize: 12,
+    color: "#92400E",
+  },
+  savedHeading: {
+    fontFamily: typography.sansMedium,
+    fontSize: 13,
+    color: colors.charcoal,
+    letterSpacing: 0.5,
+  },
+  savedImage: {
+    width: 64,
+    height: 64,
+    borderRadius: radius.sm,
+  },
+  freeDelivery: {
+    fontFamily: typography.sansMedium,
+    fontSize: 12,
+    color: colors.charcoal,
+    backgroundColor: colors.surface,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    overflow: "hidden",
+    marginBottom: spacing.xs,
+  },
+  savingsText: {
+    fontFamily: typography.sansMedium,
+    fontSize: 12,
+    color: "#065F46",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,

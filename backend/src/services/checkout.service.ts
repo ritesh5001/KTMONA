@@ -1,5 +1,5 @@
 import { prisma } from '../config/db.js';
-import { CartRepository, cartRepository } from '../repositories/cart.repository.js';
+import { CartRepository, cartRepository, type CheckoutCartRow } from '../repositories/cart.repository.js';
 import {
     invalidateCache,
     invalidateCacheByPattern,
@@ -19,7 +19,7 @@ import {
 } from '../config/metrics.js';
 import { recordReserveAttempt, recordReserveFailure } from '../monitoring/alerts.js';
 import { couponService } from './coupon.service.js';
-import { settingsService, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
+import { settingsService, shippingFeeFor, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
 import { codEligibilityService } from './cod-eligibility.service.js';
 import { generateInvoiceNumber } from '../utils/invoice.util.js';
 import { sellerAdsService } from './seller-center/ads.service.js';
@@ -29,6 +29,233 @@ import { CACHE_TAGS, orderTag, productTag } from '../live/cache-tags.js';
 
 const round2 = (value: Prisma.Decimal) => value.toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
 const MAX_CHECKOUT_ITEMS = 20;
+
+/** One cart line validated and priced for checkout (internal: carries seller cost). */
+export interface CheckoutLine {
+    itemId: string;
+    variantId: string;
+    productId: string;
+    sellerId: string;
+    title: string;
+    image: string | null;
+    size: string | null;
+    color: string | null;
+    quantity: number;
+    stock: number;
+    /** Price the buyer pays per unit (before coupon and tax). */
+    priceSnapshot: number;
+    /** Struck-through MRP per unit, when higher than the price. */
+    compareAtPrice: number | null;
+    sellerPriceSnapshot: number;
+    adminPriceSnapshot: number;
+    platformMargin: number;
+    taxRate: number;
+    sellerState: string;
+    buyerState: string;
+    lineSubtotal: Prisma.Decimal;
+}
+
+/** Why a cart line cannot be checked out right now. */
+export interface CheckoutLineIssue {
+    itemId: string;
+    variantId: string;
+    title: string;
+    kind: 'NOT_FOUND' | 'UNAVAILABLE' | 'PENDING_APPROVAL' | 'PRICING' | 'OUT_OF_STOCK' | 'INSUFFICIENT_STOCK';
+    message: string;
+    /** For stock problems: how many can still be bought. */
+    available?: number;
+}
+
+/** Price breakup returned by POST /v1/checkout/quote (buyer-safe: no seller costs). */
+export interface CheckoutQuote {
+    lines: Array<{
+        itemId: string;
+        variantId: string;
+        productId: string;
+        title: string;
+        image: string | null;
+        size: string | null;
+        color: string | null;
+        quantity: number;
+        stock: number;
+        unitPrice: number;
+        /** MRP per unit when it is above the price. */
+        unitMrp: number | null;
+        /** unitPrice × quantity, before coupon and tax. */
+        lineTotal: number;
+        taxRate: number;
+    }>;
+    /** Lines left out because they cannot be ordered right now. */
+    issues: CheckoutLineIssue[];
+    /** Units across all lines. */
+    itemCount: number;
+    mrpTotal: number;
+    /** MRP minus selling price. */
+    productDiscount: number;
+    /** Selling price total, before coupon. */
+    itemsTotal: number;
+    coupon: { code: string; discount: number } | null;
+    couponError: string | null;
+    /** Items total after the coupon (GST is charged on this). */
+    taxableAmount: number;
+    /** Product GST. */
+    gst: number;
+    /** Flat per-unit GST fee, when the admin has it on. */
+    gstFee: number;
+    /** Delivery charge for this order (0 when free). */
+    shipping: number;
+    /** The normal delivery charge (0 = delivery is always free). */
+    shippingFee: number;
+    freeDelivery: { threshold: number; eligible: boolean; remaining: number } | null;
+    /** What the buyer pays. */
+    total: number;
+    /** MRP discount + coupon + waived delivery. */
+    savings: number;
+    cod: { available: boolean; reason: string | null; maxOrderAmount: number };
+    /** Every line is orderable (and there is at least one). */
+    canPlaceOrder: boolean;
+}
+
+/** Validate cart rows (availability, approval, pricing, stock) and price each line. */
+export function buildCheckoutLines(
+    rows: CheckoutCartRow[],
+    buyerState: string,
+): { items: CheckoutLine[]; errors: CheckoutLineIssue[] } {
+    const items: CheckoutLine[] = [];
+    const errors: CheckoutLineIssue[] = [];
+
+    for (const row of rows) {
+        const title = row.productTitle ?? 'this item';
+        const issue = (kind: CheckoutLineIssue['kind'], message: string, available?: number) =>
+            errors.push({ itemId: row.itemId, variantId: row.variantId, title, kind, message, ...(available !== undefined ? { available } : {}) });
+
+        if (row.sellerId == null || row.variantStatus == null || row.variantPrice == null) {
+            issue('NOT_FOUND', `Product or variant not found for item ${row.itemId}`);
+            continue;
+        }
+        if (row.productDeleted || row.productPaused || row.productStatus !== 'APPROVED') {
+            issue('UNAVAILABLE', `${title} is no longer available for purchase`);
+            continue;
+        }
+        if (row.variantStatus !== 'APPROVED') {
+            issue('PENDING_APPROVAL', `Selected variant is pending approval for ${title}`);
+            continue;
+        }
+
+        const price = Number(row.variantPrice);
+        const sellerPrice = Number(row.variantSellerPrice ?? 0);
+        const margin = price - sellerPrice;
+        if (margin < 0) {
+            issue('PRICING', `Invalid pricing state for ${title}`);
+            continue;
+        }
+
+        if (row.stock <= 0) {
+            issue('OUT_OF_STOCK', `${title} is out of stock`, 0);
+            continue;
+        }
+        if (row.quantity > row.stock) {
+            issue('INSUFFICIENT_STOCK', `Insufficient stock for ${title}: Available ${row.stock}, Requested ${row.quantity}`, row.stock);
+            continue;
+        }
+
+        const compareAt = row.variantCompareAtPrice == null ? null : Number(row.variantCompareAtPrice);
+        items.push({
+            itemId: row.itemId,
+            variantId: row.variantId,
+            productId: row.productId,
+            sellerId: row.sellerId,
+            title,
+            image: row.variantImage ?? row.productImage ?? null,
+            size: row.variantSize,
+            color: row.variantColor,
+            quantity: row.quantity,
+            stock: row.stock,
+            priceSnapshot: price,
+            compareAtPrice: compareAt != null && compareAt > price ? compareAt : null,
+            sellerPriceSnapshot: sellerPrice,
+            adminPriceSnapshot: price,
+            platformMargin: margin,
+            taxRate: row.taxRate ?? 0,
+            sellerState: row.sellerState,
+            buyerState,
+            lineSubtotal: new Prisma.Decimal(price).mul(row.quantity),
+        });
+    }
+
+    return { items, errors };
+}
+
+/**
+ * Spread a coupon discount across lines in proportion to their value, then add
+ * GST per line (CGST+SGST within the seller's state, IGST across states).
+ */
+export function priceCheckoutLines(items: CheckoutLine[], totalDiscount: Prisma.Decimal) {
+    const orderSubtotal = items.reduce((sum, item) => sum.add(item.lineSubtotal), new Prisma.Decimal(0));
+
+    let allocatedDiscount = new Prisma.Decimal(0);
+    const discountedLines = items.map((item, index) => {
+        const isLast = index === items.length - 1;
+
+        let itemDiscount = new Prisma.Decimal(0);
+        if (totalDiscount.gt(0)) {
+            if (isLast) {
+                itemDiscount = totalDiscount.sub(allocatedDiscount);
+            } else {
+                itemDiscount = round2(totalDiscount.mul(item.lineSubtotal).div(orderSubtotal));
+                allocatedDiscount = allocatedDiscount.add(itemDiscount);
+            }
+
+            if (itemDiscount.gt(item.lineSubtotal)) {
+                itemDiscount = item.lineSubtotal;
+            }
+        }
+
+        const discountedTaxable = round2(item.lineSubtotal.sub(itemDiscount));
+        const taxRate = new Prisma.Decimal(item.taxRate);
+        const taxAmount = round2(discountedTaxable.mul(taxRate).div(100));
+
+        const intraState =
+            !item.buyerState || item.sellerState.toLowerCase().trim() === item.buyerState.toLowerCase().trim();
+
+        let cgst = new Prisma.Decimal(0);
+        let sgst = new Prisma.Decimal(0);
+        let igst = new Prisma.Decimal(0);
+
+        if (taxAmount.gt(0)) {
+            if (intraState) {
+                cgst = round2(taxAmount.div(2));
+                sgst = round2(taxAmount.sub(cgst));
+            } else {
+                igst = taxAmount;
+            }
+        }
+
+        const lineTotal = round2(discountedTaxable.add(cgst).add(sgst).add(igst));
+
+        return {
+            ...item,
+            discountedTaxable,
+            itemDiscount,
+            cgst,
+            sgst,
+            igst,
+            lineTotal,
+        };
+    });
+
+    const orderSubTotal = round2(
+        discountedLines.reduce((sum, item) => sum.add(item.discountedTaxable), new Prisma.Decimal(0)),
+    );
+    const orderTaxTotal = round2(
+        discountedLines.reduce((sum, item) => sum.add(item.cgst).add(item.sgst).add(item.igst), new Prisma.Decimal(0)),
+    );
+    const orderGrandTotal = round2(
+        discountedLines.reduce((sum, item) => sum.add(item.lineTotal), new Prisma.Decimal(0)),
+    );
+
+    return { discountedLines, orderSubTotal, orderTaxTotal, orderGrandTotal };
+}
 
 /**
  * Checkout Service
@@ -79,6 +306,179 @@ export class CheckoutService {
          * (default): the order waits as PLACED for the Razorpay payment.
          */
         paymentMethod: 'ONLINE' | 'COD' = 'ONLINE',
+        /**
+         * Client-generated key for this Place Order attempt. A repeat with the same
+         * key (double click, network retry, Back + resubmit) returns the order it
+         * already created instead of placing a second one.
+         */
+        checkoutKey?: string,
+    ): Promise<CheckoutResponse> {
+        if (checkoutKey) {
+            const existing = await this.findByCheckoutKey(userId, checkoutKey);
+            if (existing) return existing;
+        }
+
+        try {
+            return await this.placeOrder(userId, shipping, couponCode, variantIds, paymentMethod, checkoutKey);
+        } catch (error) {
+            // Two submits with the same key raced: the loser's transaction hit the
+            // unique key and rolled back (stock, coupon and all). Hand back the winner.
+            if (checkoutKey && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                const existing = await this.findByCheckoutKey(userId, checkoutKey);
+                if (existing) return existing;
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Price the cart (or a buy-now selection) exactly as checkout would, without
+     * reserving stock or redeeming the coupon. Lines that cannot be ordered are
+     * reported in `issues` and left out of the totals instead of failing.
+     */
+    async quote(
+        userId: string,
+        input: { variantIds?: string[]; couponCode?: string; paymentMethod?: 'ONLINE' | 'COD' },
+    ): Promise<CheckoutQuote> {
+        const [cartRows, buyer, shippingRules, gstChargeEnabled] = await Promise.all([
+            this.cartRepo.getCartForCheckout(userId),
+            prisma.user.findUnique({ where: { id: userId }, select: { state: true } }),
+            settingsService.getShippingRules(),
+            settingsService.isGstChargeEnabled(),
+        ]);
+
+        const selected = input.variantIds?.length
+            ? cartRows.filter((row) => input.variantIds!.includes(row.variantId))
+            : cartRows;
+        const { items, errors } = buildCheckoutLines(selected, buyer?.state ?? '');
+
+        const itemsTotal = items.reduce((sum, item) => sum.add(item.lineSubtotal), new Prisma.Decimal(0));
+
+        let coupon: CheckoutQuote['coupon'] = null;
+        let couponError: string | null = null;
+        if (input.couponCode?.trim() && items.length > 0) {
+            try {
+                const applied = await couponService.applyCouponToOrder({
+                    userId,
+                    couponCode: input.couponCode,
+                    orderSubtotal: itemsTotal,
+                    sellerIds: Array.from(new Set(items.map((item) => item.sellerId))),
+                    preview: true,
+                });
+                coupon = { code: applied.couponCode, discount: Number(applied.discountAmount.toString()) };
+            } catch (error) {
+                couponError = error instanceof Error ? error.message : 'This coupon cannot be applied';
+            }
+        }
+
+        const { orderSubTotal, orderTaxTotal, orderGrandTotal } = priceCheckoutLines(
+            items,
+            new Prisma.Decimal(coupon?.discount ?? 0),
+        );
+        const units = items.reduce((sum, item) => sum + item.quantity, 0);
+        const gstFee = gstChargeEnabled ? FLAT_GST_FEE_INR * units : 0;
+        const taxable = Number(orderSubTotal.toString());
+        const shipping = items.length > 0 ? shippingFeeFor(taxable, shippingRules) : 0;
+        const total = Number(round2(orderGrandTotal.add(gstFee).add(shipping)).toString());
+
+        const mrpTotal = items.reduce(
+            (sum, item) => sum + (item.compareAtPrice ?? item.priceSnapshot) * item.quantity,
+            0,
+        );
+        const itemsTotalNum = Number(itemsTotal.toString());
+        const productDiscount = Math.max(0, Math.round((mrpTotal - itemsTotalNum) * 100) / 100);
+        const shippingWaived = items.length > 0 && shippingRules.fee > 0 && shipping === 0 ? shippingRules.fee : 0;
+
+        const codCheck = items.length > 0
+            ? await codEligibilityService.check(userId, selected)
+            : { available: false, reason: null, blocked: false };
+        const codTooBig = total > COD_MAX_ORDER_INR;
+
+        return {
+            lines: items.map((item) => ({
+                itemId: item.itemId,
+                variantId: item.variantId,
+                productId: item.productId,
+                title: item.title,
+                image: item.image,
+                size: item.size,
+                color: item.color,
+                quantity: item.quantity,
+                stock: item.stock,
+                unitPrice: item.priceSnapshot,
+                unitMrp: item.compareAtPrice,
+                lineTotal: Number(item.lineSubtotal.toString()),
+                taxRate: item.taxRate,
+            })),
+            issues: errors,
+            itemCount: units,
+            mrpTotal: Math.round(mrpTotal * 100) / 100,
+            productDiscount,
+            itemsTotal: itemsTotalNum,
+            coupon,
+            couponError,
+            taxableAmount: taxable,
+            gst: Number(orderTaxTotal.toString()),
+            gstFee,
+            shipping,
+            shippingFee: shippingRules.fee,
+            freeDelivery: shippingRules.fee > 0 && shippingRules.freeAbove > 0
+                ? {
+                    threshold: shippingRules.freeAbove,
+                    eligible: taxable >= shippingRules.freeAbove,
+                    remaining: Math.max(0, Math.round((shippingRules.freeAbove - taxable) * 100) / 100),
+                }
+                : null,
+            total,
+            savings: Math.round((productDiscount + (coupon?.discount ?? 0) + shippingWaived) * 100) / 100,
+            cod: {
+                available: codCheck.available && !codTooBig,
+                reason: codTooBig
+                    ? `Cash on Delivery is available for orders up to ₹${COD_MAX_ORDER_INR.toLocaleString('en-IN')}`
+                    : codCheck.reason,
+                maxOrderAmount: COD_MAX_ORDER_INR,
+            },
+            canPlaceOrder: items.length > 0 && errors.length === 0,
+        };
+    }
+
+    /** The order a checkout key already placed, shaped like a checkout response. */
+    private async findByCheckoutKey(userId: string, checkoutKey: string): Promise<CheckoutResponse | null> {
+        const order = await prisma.order.findUnique({
+            where: { checkoutKey },
+            include: { payment: { select: { provider: true } } },
+        });
+        if (!order) return null;
+        if (order.userId !== userId) {
+            throw ApiError.conflict('This checkout was already used. Please refresh and try again.');
+        }
+        checkoutLogger.info({ event: 'checkout_duplicate_submit', userId, orderId: order.id }, 'Repeat checkout returned existing order');
+        return {
+            message: 'Order already placed',
+            order: {
+                id: order.id,
+                userId: order.userId,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                subTotalAmount: order.subTotalAmount,
+                totalTaxAmount: order.totalTaxAmount,
+                grandTotal: order.grandTotal,
+                couponCode: order.couponCode,
+                discountAmount: Number(order.discountAmount),
+                createdAt: order.createdAt,
+            },
+            paymentMethod: order.payment?.provider === 'COD' ? 'COD' : 'ONLINE',
+            duplicate: true,
+        };
+    }
+
+    private async placeOrder(
+        userId: string,
+        shipping: Parameters<CheckoutService['checkout']>[1],
+        couponCode: string | undefined,
+        variantIds: string[] | undefined,
+        paymentMethod: 'ONLINE' | 'COD',
+        checkoutKey: string | undefined,
     ): Promise<CheckoutResponse> {
         // =====================================================================
         // PHASE 1 — Read-only validation (outside transaction)
@@ -88,13 +488,13 @@ export class CheckoutService {
         // taxRate, the seller's state and the exact variants with pricing + stock.
         // The buyer's state and the two app settings are independent of all of it, so
         // they ride along in the same round-trip instead of being awaited in series.
-        const [cartRows, buyer, shippingFee, gstChargeEnabled] = await Promise.all([
+        const [cartRows, buyer, shippingRules, gstChargeEnabled] = await Promise.all([
             this.cartRepo.getCartForCheckout(userId),
             prisma.user.findUnique({
                 where: { id: userId },
                 select: { state: true },
             }),
-            settingsService.getShippingFee(true),
+            settingsService.getShippingRules(),
             settingsService.isGstChargeEnabled(),
         ]);
         if (cartRows.length === 0) {
@@ -127,82 +527,9 @@ export class CheckoutService {
             if (blocked) throw ApiError.badRequest(blocked);
         }
 
-        const validationErrors: string[] = [];
-        const itemsWithStock: Array<{
-            variantId: string;
-            productId: string;
-            sellerId: string;
-            quantity: number;
-            priceSnapshot: number;
-            sellerPriceSnapshot: number;
-            adminPriceSnapshot: number;
-            platformMargin: number;
-            taxRate: number;
-            sellerState: string;
-            buyerState: string;
-            lineSubtotal: Prisma.Decimal;
-        }> = [];
-
-        const buyerState = buyer?.state ?? '';
-
-        // Each row already carries its product, variant, stock and seller state from the
-        // single JOIN above — no further queries, no lookup maps needed.
-        for (const item of selectedRows) {
-            const title = item.productTitle ?? 'this item';
-
-            if (item.sellerId == null || item.variantStatus == null || item.variantPrice == null) {
-                validationErrors.push(`Product or variant not found for item ${item.itemId}`);
-                continue;
-            }
-
-            const availableStock = item.stock;
-
-            if (item.productDeleted || item.productPaused || item.productStatus !== 'APPROVED') {
-                validationErrors.push(`${title} is no longer available for purchase`);
-                continue;
-            }
-
-            if (item.variantStatus !== 'APPROVED') {
-                validationErrors.push(`Selected variant is pending approval for ${title}`);
-                continue;
-            }
-
-            const adminListingPrice = Number(item.variantPrice);
-            const sellerPrice = Number(item.variantSellerPrice ?? 0);
-            const margin = adminListingPrice - sellerPrice;
-
-            if (margin < 0) {
-                validationErrors.push(`Invalid pricing state for ${title}`);
-                continue;
-            }
-
-            const productTaxRate = item.taxRate ?? 0;
-            const sellerState = item.sellerState;
-
-            if (item.quantity > availableStock) {
-                validationErrors.push(
-                    `Insufficient stock for ${title}: Available ${availableStock}, Requested ${item.quantity}`
-                );
-            } else {
-                itemsWithStock.push({
-                    variantId: item.variantId,
-                    productId: item.productId,
-                    sellerId: item.sellerId,
-                    quantity: item.quantity,
-                    priceSnapshot: adminListingPrice,
-                    sellerPriceSnapshot: sellerPrice,
-                    adminPriceSnapshot: adminListingPrice,
-                    platformMargin: margin,
-                    taxRate: productTaxRate,
-                    sellerState,
-                    buyerState,
-                    lineSubtotal: new Prisma.Decimal(adminListingPrice).mul(item.quantity),
-                });
-            }
-        }
-
-        if (validationErrors.length > 0) {
-            throw ApiError.badRequest(validationErrors.join('; '));
+        const { items: itemsWithStock, errors } = buildCheckoutLines(selectedRows, buyer?.state ?? '');
+        if (errors.length > 0) {
+            throw ApiError.badRequest(errors.map((e) => e.message).join('; '));
         }
 
         // Calculate pre-tax subtotal only. GST is calculated after coupon discount allocation.
@@ -210,7 +537,7 @@ export class CheckoutService {
             (sum, item) => sum.add(item.lineSubtotal),
             new Prisma.Decimal(0),
         );
-        // shippingFee and gstChargeEnabled were resolved in the batched load above —
+        // shippingRules and gstChargeEnabled were resolved in the batched load above —
         // outside the transaction, so no DB reads happen while holding row locks.
 
         // =====================================================================
@@ -301,79 +628,22 @@ export class CheckoutService {
 
             const totalDiscount = appliedCoupon?.discountAmount ?? new Prisma.Decimal(0);
 
-            let allocatedDiscount = new Prisma.Decimal(0);
-            const discountedLines = itemsWithStock.map((item, index) => {
-                const isLast = index === itemsWithStock.length - 1;
-
-                let itemDiscount = new Prisma.Decimal(0);
-                if (totalDiscount.gt(0)) {
-                    if (isLast) {
-                        itemDiscount = totalDiscount.sub(allocatedDiscount);
-                    } else {
-                        itemDiscount = round2(
-                            totalDiscount.mul(item.lineSubtotal).div(orderSubtotal),
-                        );
-                        allocatedDiscount = allocatedDiscount.add(itemDiscount);
-                    }
-
-                    if (itemDiscount.gt(item.lineSubtotal)) {
-                        itemDiscount = item.lineSubtotal;
-                    }
-                }
-
-                const discountedTaxable = round2(item.lineSubtotal.sub(itemDiscount));
-                const taxRate = new Prisma.Decimal(item.taxRate);
-                const taxAmount = round2(discountedTaxable.mul(taxRate).div(100));
-
-                const intraState =
-                    !item.buyerState || item.sellerState.toLowerCase().trim() === item.buyerState.toLowerCase().trim();
-
-                let cgst = new Prisma.Decimal(0);
-                let sgst = new Prisma.Decimal(0);
-                let igst = new Prisma.Decimal(0);
-
-                if (taxAmount.gt(0)) {
-                    if (intraState) {
-                        cgst = round2(taxAmount.div(2));
-                        sgst = round2(taxAmount.sub(cgst));
-                    } else {
-                        igst = taxAmount;
-                    }
-                }
-
+            const { discountedLines, orderSubTotal, orderTaxTotal, orderGrandTotal } =
+                priceCheckoutLines(itemsWithStock, totalDiscount);
+            for (const line of discountedLines) {
                 gstCalculationTotal.inc();
-                if (igst.gt(0)) {
+                if (line.igst.gt(0)) {
                     igstAppliedTotal.inc();
-                } else if (cgst.gt(0) || sgst.gt(0)) {
+                } else if (line.cgst.gt(0) || line.sgst.gt(0)) {
                     intraStateOrderTotal.inc();
                 }
-
-                const lineTotal = round2(discountedTaxable.add(cgst).add(sgst).add(igst));
-
-                return {
-                    ...item,
-                    discountedTaxable,
-                    itemDiscount,
-                    cgst,
-                    sgst,
-                    igst,
-                    lineTotal,
-                };
-            });
-
+            }
             const totalQty = itemsWithStock.reduce((sum, item) => sum + item.quantity, 0);
             const flatGstFee = gstChargeEnabled
                 ? new Prisma.Decimal(FLAT_GST_FEE_INR).mul(totalQty)
                 : new Prisma.Decimal(0);
-            const orderSubTotal = round2(
-                discountedLines.reduce((sum, item) => sum.add(item.discountedTaxable), new Prisma.Decimal(0)),
-            );
-            const orderTaxTotal = round2(
-                discountedLines.reduce((sum, item) => sum.add(item.cgst).add(item.sgst).add(item.igst), new Prisma.Decimal(0)),
-            );
-            const orderGrandTotal = round2(
-                discountedLines.reduce((sum, item) => sum.add(item.lineTotal), new Prisma.Decimal(0)),
-            );
+            // Free delivery is judged on the subtotal after the coupon.
+            const shippingFee = shippingFeeFor(Number(orderSubTotal.toString()), shippingRules);
             const orderTaxTotalWithFlat = round2(orderTaxTotal.add(flatGstFee));
             const orderGrandTotalWithFlat = round2(orderGrandTotal.add(flatGstFee));
             const grandTotalWithShipping = round2(orderGrandTotalWithFlat.add(shippingFee));
@@ -404,6 +674,7 @@ export class CheckoutService {
                     shippingCity: shipping?.shippingCity ?? null,
                     shippingPincode: shipping?.shippingPincode ?? null,
                     shippingNotes: shipping?.shippingNotes ?? null,
+                    checkoutKey: checkoutKey ?? null,
                     // COD needs no payment step: the order is confirmed (and
                     // invoiced) at once; cash is collected on delivery.
                     status: isCod ? 'CONFIRMED' : 'PLACED',
@@ -472,7 +743,8 @@ export class CheckoutService {
             if (selectedVariantIds) {
                 await tx.$executeRaw`DELETE FROM "cart_items" WHERE "cart_id" = ${cartId} AND "variant_id" = ANY(${Array.from(selectedVariantIds)}::text[])`;
             } else {
-                await tx.$executeRaw`DELETE FROM "cart_items" WHERE "cart_id" = ${cartId}`;
+                // Saved-for-later lines stay behind.
+                await tx.$executeRaw`DELETE FROM "cart_items" WHERE "cart_id" = ${cartId} AND "saved_for_later" = false`;
             }
 
             if (isCod) {

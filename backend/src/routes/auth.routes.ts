@@ -38,6 +38,12 @@ authRouter.post('/login', authController.login);
 authRouter.post('/request-otp', authController.requestOtp);
 
 /**
+ * POST /v1/auth/guest-otp
+ * Guest checkout: email a one-time code (verify with /verify-otp)
+ */
+authRouter.post('/guest-otp', authController.requestGuestOtp);
+
+/**
  * POST /v1/auth/verify-otp
  * Verify mobile OTP
  */

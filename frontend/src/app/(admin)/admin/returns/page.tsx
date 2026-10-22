@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import {
   approveReturn,
   listAdminReturns,
+  markReturnReplaced,
   processReturnRefund,
   rejectReturn,
+  RETURN_REASONS,
+  updateReturnPickup,
   type ReturnRequestRecord,
 } from "@/services/returns";
 import { toast } from "sonner";
@@ -29,13 +32,14 @@ const getStatusStyle = (status: string) => {
     case "REJECTED":
       return "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5";
     case "REFUNDED":
+    case "REPLACED":
       return "border-[#7B9971]/40 text-[#5A7352] bg-[#7B9971]/10";
     default:
       return "border-border-soft text-muted-foreground bg-mist/30";
   }
 };
 
-type FilterStatus = "REQUESTED" | "APPROVED" | "ALL";
+type FilterStatus = "REQUESTED" | "APPROVED" | "REJECTED" | "ALL";
 
 export default function AdminReturnsPage() {
   const [loading, setLoading] = React.useState(true);
@@ -82,12 +86,17 @@ export default function AdminReturnsPage() {
 
   const handleReject = React.useCallback(
     async (id: string) => {
-      if (!window.confirm("Reject this return request?")) return;
+      // The customer sees this reason and can appeal it.
+      const reason = window.prompt("Reason for rejecting (shown to the customer):")?.trim();
+      if (!reason || reason.length < 3) {
+        if (reason !== undefined) toast.error("Please give a reason of at least 3 characters.");
+        return;
+      }
       const previous = returns;
       setMutatingId(id);
       setReturns((prev) => prev.filter((item) => item.id !== id));
       try {
-        await rejectReturn(id);
+        await rejectReturn(id, reason);
         toast.success("Return rejected");
       } catch (error) {
         setReturns(previous);
@@ -119,6 +128,22 @@ export default function AdminReturnsPage() {
     [returns, load],
   );
 
+  const runAction = React.useCallback(
+    async (id: string, action: () => Promise<unknown>, success: string) => {
+      setMutatingId(id);
+      try {
+        await action();
+        toast.success(success);
+        load();
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Action failed");
+      } finally {
+        setMutatingId(null);
+      }
+    },
+    [load],
+  );
+
   return (
     <div className="min-h-[calc(100vh-160px)] bg-background">
       <motion.div
@@ -138,7 +163,7 @@ export default function AdminReturnsPage() {
 
         {/* Filter Tabs */}
         <div className="flex gap-2">
-          {(["REQUESTED", "APPROVED", "ALL"] as FilterStatus[]).map((status) => (
+          {(["REQUESTED", "APPROVED", "REJECTED", "ALL"] as FilterStatus[]).map((status) => (
             <Button
               key={status}
               size="sm"
@@ -197,13 +222,52 @@ export default function AdminReturnsPage() {
                       {item.items?.length ?? 0} item(s)
                     </p>
                   </div>
-                  <div className="sm:col-span-2 lg:col-span-3">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reason</p>
-                    <p className="font-medium text-foreground">{item.reason}</p>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Type</p>
+                    <p className="font-medium text-foreground">{item.type === "REPLACEMENT" ? "Replacement" : "Return / refund"}</p>
                   </div>
+                  <div className="sm:col-span-2">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Reason</p>
+                    <p className="font-medium text-foreground">
+                      {RETURN_REASONS.find((r) => r.code === item.reasonCode)?.label ?? "—"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{item.reason}</p>
+                  </div>
+                  {item.images?.length ? (
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <p className="mb-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Customer photos</p>
+                      <div className="flex flex-wrap gap-2">
+                        {item.images.map((src) => (
+                          <a key={src} href={src} target="_blank" rel="noopener noreferrer">
+                            <img src={src} alt="Return evidence" className="h-20 w-20 rounded-lg object-cover" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {item.pickupStatus ? (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Pickup</p>
+                      <p className="font-medium text-foreground">
+                        {item.pickupStatus.replace("_", " ").toLowerCase()}
+                        {item.pickupTracking ? ` · ${item.pickupCarrier ?? ""} ${item.pickupTracking}` : ""}
+                      </p>
+                    </div>
+                  ) : null}
+                  {item.status === "REJECTED" ? (
+                    <div className="sm:col-span-2 lg:col-span-3">
+                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Rejected because</p>
+                      <p className="text-sm">{item.rejectionReason ?? "—"}</p>
+                      {item.appealedAt ? (
+                        <p className="mt-1 rounded-lg bg-amber-50 p-2 text-sm text-amber-900">
+                          <strong>Customer appealed:</strong> {item.appealNote}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="mt-4 flex gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
                   {item.status === "REQUESTED" && (
                     <>
                       <Button
@@ -224,13 +288,56 @@ export default function AdminReturnsPage() {
                     </>
                   )}
                   {(item.status === "APPROVED" || item.status === "INSPECTING") && (
-                    <Button
-                      size="sm"
-                      onClick={() => handleRefund(item.id)}
-                      disabled={mutatingId === item.id}
-                    >
-                      {mutatingId === item.id ? "Processing..." : "Process Refund"}
-                    </Button>
+                    <>
+                      <select
+                        aria-label="Pickup status"
+                        className="h-9 rounded-md border border-border-soft bg-background px-2 text-xs"
+                        value={item.pickupStatus ?? ""}
+                        disabled={mutatingId === item.id}
+                        onChange={(e) => {
+                          const status = e.target.value as "SCHEDULED" | "PICKED_UP" | "RECEIVED";
+                          if (!status) return;
+                          const tracking = status === "SCHEDULED" ? window.prompt("Pickup courier and AWB (optional), e.g. Delhivery 1234567890:") ?? "" : "";
+                          const [carrier, ...awb] = tracking.trim().split(/\s+/);
+                          void runAction(
+                            item.id,
+                            () => updateReturnPickup(item.id, {
+                              status,
+                              ...(carrier && awb.length ? { carrier, tracking: awb.join(" ") } : carrier ? { tracking: carrier } : {}),
+                            }),
+                            "Pickup updated — customer notified",
+                          );
+                        }}
+                      >
+                        <option value="">Pickup: not scheduled</option>
+                        <option value="SCHEDULED">Pickup scheduled</option>
+                        <option value="PICKED_UP">Picked up</option>
+                        <option value="RECEIVED">Received by seller</option>
+                      </select>
+                      {item.type === "REPLACEMENT" ? (
+                        <Button
+                          size="sm"
+                          disabled={mutatingId === item.id}
+                          onClick={() => {
+                            const tracking = window.prompt("Replacement shipment tracking number (optional):") ?? undefined;
+                            void runAction(item.id, () => markReturnReplaced(item.id, tracking), "Marked as replaced — customer notified");
+                          }}
+                        >
+                          Replacement sent
+                        </Button>
+                      ) : null}
+                      <Button
+                        size="sm"
+                        variant={item.type === "REPLACEMENT" ? "outline" : "primary"}
+                        onClick={() => handleRefund(item.id)}
+                        disabled={mutatingId === item.id}
+                      >
+                        {mutatingId === item.id ? "Processing..." : item.type === "REPLACEMENT" ? "Refund instead" : "Process Refund"}
+                      </Button>
+                    </>
+                  )}
+                  {item.status === "REPLACED" && (
+                    <span className="text-xs text-[#5A7352]">Replacement sent{item.replacementTracking ? ` · ${item.replacementTracking}` : ""}</span>
                   )}
                   {item.status === "REFUNDED" && (
                     <span className="text-xs text-[#5A7352]">Refund completed</span>

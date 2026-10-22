@@ -109,12 +109,7 @@ export default function ProductScreen({ id }: { id: string }) {
   const sizeY = React.useRef(0);
   const [busy, setBusy] = React.useState<"cart" | "buy" | null>(null);
 
-  const ensureReady = (): ProductVariant | null => {
-    if (!session?.accessToken) {
-      showToast("Please sign in to continue", "info");
-      router.push("/login");
-      return null;
-    }
+  const ensureReady = (intent: "cart" | "buy"): ProductVariant | null => {
     if (!product) return null;
     const v = selected ?? (sizeOptions.length === 1 ? sizeOptions[0]! : null);
     if (!v) {
@@ -124,6 +119,11 @@ export default function ProductScreen({ id }: { id: string }) {
     }
     if (v.inventory && v.inventory.stock <= 0) {
       showToast("This size is out of stock", "info");
+      return null;
+    }
+    if (!session?.accessToken) {
+      // Guest checkout: verify an email with a one-time code, then the item is added.
+      router.push(`/guest-checkout?productId=${encodeURIComponent(product.id)}&variantId=${encodeURIComponent(v.id)}&intent=${intent}`);
       return null;
     }
     return v;
@@ -140,7 +140,7 @@ export default function ProductScreen({ id }: { id: string }) {
   });
 
   const onAddToCart = async () => {
-    const v = ensureReady();
+    const v = ensureReady("cart");
     if (!v) return;
     setBusy("cart");
     try {
@@ -154,7 +154,7 @@ export default function ProductScreen({ id }: { id: string }) {
   };
 
   const onBuyNow = () => {
-    const v = ensureReady();
+    const v = ensureReady("buy");
     if (!v) return;
     const write = addToCart({ productId: product!.id, variantId: v.id, quantity: 1, preview: preview(v) });
     trackPendingCartWrite(write);

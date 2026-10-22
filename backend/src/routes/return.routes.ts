@@ -32,3 +32,14 @@ returnRouter.patch('/:id/reject', authorize('ADMIN'), (req, res, next) =>
 returnRouter.post('/:id/refund', authorize('ADMIN'), (req, res, next) =>
     returnController.processRefund(req, res, next),
 );
+returnRouter.patch('/:id/pickup', authorize('ADMIN'), (req, res, next) =>
+    returnController.updatePickup(req, res, next),
+);
+returnRouter.patch('/:id/replaced', authorize('ADMIN'), (req, res, next) =>
+    returnController.markReplaced(req, res, next),
+);
+
+// Buyer: dispute a rejected return/replacement
+returnRouter.post('/:id/appeal', authorize('USER'), (req, res, next) =>
+    returnController.appeal(req, res, next),
+);

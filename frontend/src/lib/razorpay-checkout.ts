@@ -67,6 +67,7 @@ export async function openRazorpayCheckout(payment: RazorpayPaymentInit): Promis
       name: "KTMONA",
       description: "Order payment",
       prefill: payment.prefill ?? {},
+      ...(payment.customerId ? { customer_id: payment.customerId, remember_customer: true } : {}),
       notes: { orderId: payment.orderId },
       theme: { color: "#0C1B42" },
       handler: (response: RazorpaySuccess) =>

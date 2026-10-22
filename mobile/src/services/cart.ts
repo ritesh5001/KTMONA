@@ -26,6 +26,17 @@ export interface CartItemDetails {
       stock: number;
     } | null;
   };
+  savedForLater?: boolean;
+  availability?: {
+    status: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "UNAVAILABLE";
+    stock: number;
+    maxQuantity: number;
+    /** Current price minus the price when added (0 = unchanged). */
+    priceChange: number;
+    quantityTooHigh: boolean;
+  };
+  /** Other sizes/colours of the product. */
+  options?: { id: string; size: string; color: string | null; colorHex: string | null; price: number; stock: number }[];
 }
 
 export interface CartResponse {
@@ -34,6 +45,8 @@ export interface CartResponse {
     userId: string;
     updatedAt: string;
     items: CartItemDetails[];
+    /** Lines saved for later (not checked out). */
+    savedItems?: CartItemDetails[];
   };
 }
 
@@ -202,12 +215,15 @@ export async function checkoutWithPayment(
     variantIds?: string[];
     /** COD = Cash on Delivery: the order is confirmed with no payment step. */
     paymentMethod?: "ONLINE" | "COD";
+    /** One key per Place Order attempt: a repeat returns the same order. */
+    checkoutKey?: string;
   },
   token?: string | null
 ) {
   return apiRequest<{
     message: string;
     paymentMethod?: "ONLINE" | "COD";
+    duplicate?: boolean;
     order: {
       id: string;
       totalAmount: number;
@@ -225,4 +241,74 @@ export async function checkoutWithPayment(
     data: payload ?? {},
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
+}
+
+export async function setCartItemSavedForLater(itemId: string, saved: boolean) {
+  return apiRequest<CartItemMutationResponse>({
+    url: `/v1/cart/items/${itemId}/save-for-later`,
+    method: "PATCH",
+    data: { saved },
+  });
+}
+
+/** Change a line to another size/colour of the same product. */
+export async function changeCartItemVariant(itemId: string, variantId: string) {
+  return apiRequest<CartItemMutationResponse>({
+    url: `/v1/cart/items/${itemId}/variant`,
+    method: "PATCH",
+    data: { variantId },
+  });
+}
+
+export interface CheckoutLineIssue {
+  itemId: string;
+  variantId: string;
+  title: string;
+  kind: string;
+  message: string;
+  available?: number;
+}
+
+/** Full price breakup from the server — exactly what Place Order will charge. */
+export interface CheckoutQuote {
+  lines: {
+    itemId: string;
+    variantId: string;
+    productId: string;
+    title: string;
+    image: string | null;
+    size: string | null;
+    color: string | null;
+    quantity: number;
+    stock: number;
+    unitPrice: number;
+    unitMrp: number | null;
+    lineTotal: number;
+    taxRate: number;
+  }[];
+  issues: CheckoutLineIssue[];
+  itemCount: number;
+  mrpTotal: number;
+  productDiscount: number;
+  itemsTotal: number;
+  coupon: { code: string; discount: number } | null;
+  couponError: string | null;
+  taxableAmount: number;
+  gst: number;
+  gstFee: number;
+  shipping: number;
+  shippingFee: number;
+  freeDelivery: { threshold: number; eligible: boolean; remaining: number } | null;
+  total: number;
+  savings: number;
+  cod: { available: boolean; reason: string | null; maxOrderAmount: number };
+  canPlaceOrder: boolean;
+}
+
+export async function getCheckoutQuote(input: {
+  couponCode?: string;
+  paymentMethod?: "ONLINE" | "COD";
+  variantIds?: string[];
+} = {}) {
+  return apiRequest<CheckoutQuote>({ url: "/v1/checkout/quote", method: "POST", data: input });
 }

@@ -120,6 +120,22 @@ export async function requestOtp(
   });
 }
 
+/**
+ * POST /v1/auth/guest-otp — guest checkout. Emails a one-time code (verify with
+ * verifyOtp / signInWithOtp). Returning customers get a sign-in code instead.
+ */
+export async function requestGuestOtp(payload: {
+  email: string;
+  phone?: string;
+  fullName: string;
+}): Promise<OtpSentResponse & { existingAccount: boolean }> {
+  return apiRequest<OtpSentResponse & { existingAccount: boolean }>({
+    url: "/v1/auth/guest-otp",
+    method: "POST",
+    data: payload,
+  });
+}
+
 /** POST /v1/auth/resend-signup-otp — re-send the code for a pending sign-up. */
 export async function resendSignupOtp(payload: OtpVerifyWith): Promise<OtpSentResponse> {
   return apiRequest<OtpSentResponse>({

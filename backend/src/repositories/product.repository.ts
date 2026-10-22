@@ -539,6 +539,7 @@ export class ProductRepository {
                 ...(data.images !== undefined && { images: data.images }),
                 ...(data.sellerPrice !== undefined && { sellerPrice: data.sellerPrice }),
                 ...(data.isPublished !== undefined && { isPublished: data.isPublished }),
+                ...(data.isReturnable !== undefined && { isReturnable: data.isReturnable }),
             },
         });
 

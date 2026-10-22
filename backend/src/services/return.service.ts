@@ -21,8 +21,37 @@ import { notificationService } from '../notifications/notification.service.js';
 import { refundService } from './refund.service.js';
 import { CACHE_KEYS, getFromCache, invalidateCacheByPattern, setCache } from '../utils/cache.util.js';
 
-/** Maximum days after delivery that a return can be requested. */
-const RETURN_WINDOW_DAYS = 7;
+/** Maximum days after delivery that a return or replacement can be requested. */
+export const RETURN_WINDOW_DAYS = 7;
+
+/** Why the buyer is sending it back. */
+export const RETURN_REASON_CODES = [
+    'WRONG_PRODUCT',
+    'DAMAGED',
+    'DEFECTIVE',
+    'MISSING_ITEM',
+    'SIZE_ISSUE',
+    'NOT_AS_DESCRIBED',
+    'NO_LONGER_NEEDED',
+    'OTHER',
+] as const;
+export type ReturnReasonCode = (typeof RETURN_REASON_CODES)[number];
+
+/** Reasons that need a photo of the problem. */
+export const RETURN_REASONS_NEEDING_PHOTOS: ReadonlySet<ReturnReasonCode> = new Set(['WRONG_PRODUCT', 'DAMAGED', 'DEFECTIVE']);
+
+/** Faults that are accepted even on a non-returnable product. */
+const SELLER_FAULT_REASONS: ReadonlySet<ReturnReasonCode> = new Set(['WRONG_PRODUCT', 'DAMAGED', 'DEFECTIVE', 'MISSING_ITEM']);
+
+export const RETURN_PICKUP_STATUSES = ['SCHEDULED', 'PICKED_UP', 'RECEIVED'] as const;
+
+export interface ReturnRequestDetails {
+    reason: string;
+    items: ReturnItemInput[];
+    type?: 'RETURN' | 'REPLACEMENT' | undefined;
+    reasonCode?: ReturnReasonCode | undefined;
+    images?: string[] | undefined;
+}
 const RETURN_CACHE_TTL_SECONDS = 30;
 
 interface ReturnItemInput {
@@ -36,13 +65,20 @@ export class ReturnService {
     // Buyer: Request Return
     // ------------------------------------------------------------------
 
-    async requestReturn(userId: string, orderId: string, reason: string, items: ReturnItemInput[]) {
+    async requestReturn(userId: string, orderId: string, details: ReturnRequestDetails) {
+        const { reason, items } = details;
+        const type = details.type ?? 'RETURN';
+        const reasonCode = details.reasonCode ?? 'OTHER';
+        const images = (details.images ?? []).filter(Boolean);
         const normalizedReason = reason.trim();
         if (!normalizedReason) {
             throw ApiError.badRequest('Return reason is required');
         }
         if (!items.length) {
             throw ApiError.badRequest('At least one item must be specified for return');
+        }
+        if (RETURN_REASONS_NEEDING_PHOTOS.has(reasonCode) && images.length === 0) {
+            throw ApiError.badRequest('Please add at least one photo showing the problem');
         }
 
         const order = await prisma.order.findFirst({
@@ -54,6 +90,7 @@ export class ReturnService {
                 items: {
                     select: {
                         id: true,
+                        productId: true,
                         variantId: true,
                         quantity: true,
                         priceSnapshot: true,
@@ -122,6 +159,20 @@ export class ReturnService {
             });
         }
 
+        // Non-returnable products only come back for a seller fault.
+        if (!SELLER_FAULT_REASONS.has(reasonCode)) {
+            const productIds = returnItemsData.map((ri) => orderItemMap.get(ri.orderItemId)!.productId);
+            const blocked = await prisma.product.findMany({
+                where: { id: { in: productIds }, isReturnable: false },
+                select: { title: true },
+            });
+            if (blocked.length > 0) {
+                throw ApiError.badRequest(
+                    `${blocked.map((p) => p.title).join(', ')} cannot be returned or replaced for this reason. Non-returnable items are accepted back only if they arrive wrong, damaged, defective or incomplete.`,
+                );
+            }
+        }
+
         // Check for existing open return request on same order
         const existingOpen = await prisma.returnRequest.findFirst({
             where: {
@@ -150,6 +201,9 @@ export class ReturnService {
                 orderId,
                 userId,
                 reason: normalizedReason,
+                type,
+                reasonCode,
+                images,
                 status: ReturnStatus.REQUESTED,
                 refundAmount,
                 items: {
@@ -167,8 +221,8 @@ export class ReturnService {
         });
 
         await notificationService.notifyAdmin(
-            'Return request raised',
-            `Buyer ${userId} requested return for order ${orderId} (${items.length} item(s), refund ₹${refundAmount})`,
+            type === 'REPLACEMENT' ? 'Replacement request raised' : 'Return request raised',
+            `Buyer ${userId} requested a ${type === 'REPLACEMENT' ? 'replacement' : 'return'} for order ${orderId} (${items.length} item(s), reason ${reasonCode}${type === 'RETURN' ? `, refund ₹${refundAmount}` : ''})`,
         );
 
         returnRequestTotal.inc();
@@ -554,6 +608,141 @@ export class ReturnService {
             orderId: existing.order.id,
             alreadyRejected: false,
         };
+    }
+
+    // ------------------------------------------------------------------
+    // Buyer: Appeal a rejected return
+    // ------------------------------------------------------------------
+
+    async appealReturn(userId: string, returnId: string, note: string) {
+        const existing = await prisma.returnRequest.findFirst({ where: { id: returnId, userId } });
+        if (!existing) {
+            throw ApiError.notFound('Return request not found');
+        }
+        if (existing.status !== ReturnStatus.REJECTED) {
+            throw ApiError.badRequest('Only a rejected request can be appealed');
+        }
+        if (existing.appealedAt) {
+            throw ApiError.conflict('You have already appealed this decision. Our team will get back to you.');
+        }
+
+        const updated = await prisma.returnRequest.update({
+            where: { id: returnId },
+            data: { appealNote: note.trim(), appealedAt: new Date() },
+        });
+        await notificationService.notifyAdmin(
+            'Return rejection appealed',
+            `Buyer ${userId} appealed the rejected ${existing.type === 'REPLACEMENT' ? 'replacement' : 'return'} ${returnId} (order ${existing.orderId}): ${note.trim()}`,
+        );
+        await Promise.allSettled([
+            invalidateCacheByPattern(`returns:user:${userId}*`),
+            invalidateCacheByPattern('returns:admin:*'),
+            invalidateCacheByPattern(`orders:buyer:${userId}:*`),
+        ]);
+        return updated;
+    }
+
+    // ------------------------------------------------------------------
+    // Admin: Reverse pickup progress
+    // ------------------------------------------------------------------
+
+    async updatePickup(
+        returnId: string,
+        input: { status: (typeof RETURN_PICKUP_STATUSES)[number]; date?: Date | undefined; carrier?: string | undefined; tracking?: string | undefined },
+    ) {
+        const existing = await prisma.returnRequest.findUnique({ where: { id: returnId } });
+        if (!existing) {
+            throw ApiError.notFound('Return request not found');
+        }
+        if (existing.status === ReturnStatus.REJECTED) {
+            throw ApiError.badRequest('This request was rejected');
+        }
+        const updated = await prisma.returnRequest.update({
+            where: { id: returnId },
+            data: {
+                pickupStatus: input.status,
+                ...(input.date ? { pickupDate: input.date } : {}),
+                ...(input.carrier !== undefined ? { pickupCarrier: input.carrier.trim() || null } : {}),
+                ...(input.tracking !== undefined ? { pickupTracking: input.tracking.trim() || null } : {}),
+            },
+        });
+        const label = input.status === 'SCHEDULED' ? 'Pickup scheduled' : input.status === 'PICKED_UP' ? 'Item picked up' : 'Returned item received';
+        await notificationService.create({
+            userId: existing.userId,
+            role: Role.USER,
+            type: NotificationType.ORDER_UPDATE,
+            channel: NotificationChannel.EMAIL,
+            content: `${label} for your ${existing.type === 'REPLACEMENT' ? 'replacement' : 'return'} (order #${existing.orderId.slice(0, 8).toUpperCase()})`,
+            metadata: { orderId: existing.orderId, returnId, pickupStatus: input.status, title: label },
+            eventKey: `RETURN_PICKUP:${returnId}:${input.status}`,
+        });
+        await Promise.allSettled([
+            invalidateCacheByPattern(`returns:user:${existing.userId}*`),
+            invalidateCacheByPattern('returns:admin:*'),
+            invalidateCacheByPattern(`orders:buyer:${existing.userId}:*`),
+        ]);
+        return updated;
+    }
+
+    // ------------------------------------------------------------------
+    // Admin: Replacement sent
+    // ------------------------------------------------------------------
+
+    /**
+     * Ship the replacement for an approved REPLACEMENT request: takes the units
+     * from stock (approval put the returned ones back) and closes it as REPLACED.
+     * If the item is out of stock, refund it instead.
+     */
+    async markReplaced(adminId: string, returnId: string, input: { tracking?: string | undefined }) {
+        const result = await prisma.$transaction(async (tx) => {
+            const existing = await tx.returnRequest.findUnique({ where: { id: returnId }, include: { items: true } });
+            if (!existing) {
+                throw ApiError.notFound('Return request not found');
+            }
+            if (existing.type !== 'REPLACEMENT') {
+                throw ApiError.badRequest('This is a return, not a replacement. Refund it instead.');
+            }
+            if (existing.status === ReturnStatus.REPLACED) {
+                return existing;
+            }
+            if (existing.status !== ReturnStatus.APPROVED && existing.status !== ReturnStatus.INSPECTING) {
+                throw ApiError.badRequest('Approve the replacement request first');
+            }
+            for (const item of existing.items) {
+                const taken = await tx.inventory.updateMany({
+                    where: { variantId: item.variantId, stock: { gte: item.quantity } },
+                    data: { stock: { decrement: item.quantity } },
+                });
+                if (taken.count === 0) {
+                    throw ApiError.conflict('Not enough stock to send a replacement. Refund this request instead.');
+                }
+            }
+            return tx.returnRequest.update({
+                where: { id: returnId },
+                data: {
+                    status: ReturnStatus.REPLACED,
+                    replacementTracking: input.tracking?.trim() || null,
+                    reviewedBy: adminId,
+                    reviewedAt: new Date(),
+                },
+            });
+        });
+
+        await notificationService.create({
+            userId: result.userId,
+            role: Role.USER,
+            type: NotificationType.ORDER_UPDATE,
+            channel: NotificationChannel.EMAIL,
+            content: `Your replacement for order #${result.orderId.slice(0, 8).toUpperCase()} has been sent${result.replacementTracking ? ` (tracking ${result.replacementTracking})` : ''}`,
+            metadata: { orderId: result.orderId, returnId, status: 'REPLACED', title: 'Replacement sent' },
+            eventKey: `RETURN_REPLACED:${returnId}`,
+        });
+        await Promise.allSettled([
+            invalidateCacheByPattern(`returns:user:${result.userId}*`),
+            invalidateCacheByPattern('returns:admin:*'),
+            invalidateCacheByPattern(`orders:buyer:${result.userId}:*`),
+        ]);
+        return result;
     }
 
     // ------------------------------------------------------------------

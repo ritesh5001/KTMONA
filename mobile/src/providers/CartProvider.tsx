@@ -6,6 +6,9 @@ import type { AddCartItemPayload, CartItemDetails } from "../services/cart";
 
 interface CartContextValue {
   cartItems: CartItemDetails[];
+  savedItems: CartItemDetails[];
+  setSavedForLater: (itemId: string, saved: boolean) => Promise<void>;
+  changeVariant: (itemId: string, variantId: string) => Promise<void>;
   cartCount: number;
   isLoading: boolean;
   isMutating: boolean;
@@ -20,6 +23,9 @@ interface CartContextValue {
 
 const CartContext = React.createContext<CartContextValue>({
   cartItems: [],
+  savedItems: [],
+  setSavedForLater: async () => {},
+  changeVariant: async () => {},
   cartCount: 0,
   isLoading: true,
   isMutating: false,
@@ -43,6 +49,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const {
     cartItems,
+    savedItems,
+    setSavedForLater,
+    changeVariant,
     isLoading,
     fetchError,
     mutatingIds,
@@ -107,6 +116,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     [removeFromCart, showToast]
   );
 
+  const setSavedForLaterSafe = React.useCallback(
+    async (itemId: string, saved: boolean) => {
+      try {
+        await setSavedForLater(itemId, saved);
+        showToast(saved ? "Saved for later" : "Moved to cart", "success");
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : "Could not update the item", "error");
+      }
+    },
+    [setSavedForLater, showToast]
+  );
+
+  const changeVariantSafe = React.useCallback(
+    async (itemId: string, variantId: string) => {
+      try {
+        await changeVariant(itemId, variantId);
+      } catch (err) {
+        showToast(err instanceof Error ? err.message : "Could not change the size/colour", "error");
+      }
+    },
+    [changeVariant, showToast]
+  );
+
   const cartCount = React.useMemo(
     () => cartItems.reduce((sum, item) => sum + item.quantity, 0),
     [cartItems]
@@ -115,6 +147,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo(
     () => ({
       cartItems,
+      savedItems,
+      setSavedForLater: setSavedForLaterSafe,
+      changeVariant: changeVariantSafe,
       cartCount,
       isLoading,
       isMutating: mutatingIds.size > 0,
@@ -128,6 +163,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       cartItems,
+      savedItems,
+      setSavedForLaterSafe,
+      changeVariantSafe,
       cartCount,
       isLoading,
       mutatingIds,

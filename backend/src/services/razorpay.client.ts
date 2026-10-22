@@ -50,7 +50,7 @@ export function toPaise(amount: number): number {
     return Math.round(amount * 100);
 }
 
-async function razorpayRequest<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
+async function razorpayRequest<T>(method: 'GET' | 'POST' | 'DELETE', path: string, body?: unknown): Promise<T> {
     if (!isRazorpayConfigured()) {
         throw new ApiError(503, 'Online payments are not available right now. Please try again later.');
     }
@@ -137,4 +137,49 @@ export function isValidWebhookSignature(rawBody: Buffer | string, signature: str
     if (!env.RAZORPAY_WEBHOOK_SECRET || !signature) return false;
     const expected = createHmac('sha256', env.RAZORPAY_WEBHOOK_SECRET).update(rawBody).digest('hex');
     return safeEqualHex(expected, signature);
+}
+
+// ---------------------------------------------------------------------------
+// Customers and saved payment tokens.
+//
+// Razorpay keeps the card/UPI details; we only hold the customer id. Checkout
+// opened with `customer_id` lists the customer's saved methods and offers to
+// save new ones (needs Saved Cards / tokenisation enabled on the account).
+// ---------------------------------------------------------------------------
+
+export interface RazorpayCustomer {
+    id: string;
+    name: string | null;
+    email: string | null;
+    contact: string | null;
+}
+
+export interface RazorpayToken {
+    id: string;
+    method: string;
+    card?: { last4?: string; network?: string; issuer?: string | null; type?: string; name?: string | null; expiry_month?: number | string; expiry_year?: number | string } | null;
+    vpa?: { username?: string; handle?: string; name?: string | null } | null;
+    bank?: string | null;
+    wallet?: string | null;
+    created_at?: number;
+    expired_at?: number | null;
+}
+
+/** Create the customer, or return the existing one for the same email/phone. */
+export function createRazorpayCustomer(input: { name?: string | undefined; email?: string | undefined; contact?: string | undefined }) {
+    return razorpayRequest<RazorpayCustomer>('POST', '/customers', {
+        ...(input.name ? { name: input.name.slice(0, 50) } : {}),
+        ...(input.email ? { email: input.email } : {}),
+        ...(input.contact ? { contact: input.contact } : {}),
+        fail_existing: '0',
+    });
+}
+
+export async function listRazorpayTokens(customerId: string): Promise<RazorpayToken[]> {
+    const res = await razorpayRequest<{ items?: RazorpayToken[] }>('GET', `/customers/${encodeURIComponent(customerId)}/tokens`);
+    return res.items ?? [];
+}
+
+export function deleteRazorpayToken(customerId: string, tokenId: string) {
+    return razorpayRequest<{ deleted?: boolean }>('DELETE', `/customers/${encodeURIComponent(customerId)}/tokens/${encodeURIComponent(tokenId)}`);
 }

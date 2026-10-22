@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { addGuestCartLine } from "@/lib/guest-cart";
 import { PriceLockBadge } from "@/components/storefront/ProductTile";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -311,6 +312,18 @@ export default function ProductDetailClient({
     ? Math.round(((compareAtPrice - salePrice) / compareAtPrice) * 100)
     : 0;
 
+  /** Display snapshot for the on-device guest cart. */
+  const guestLineFor = (variant: NonNullable<typeof selectedVariant>) => ({
+    productId: product.id,
+    variantId: variant.id,
+    title: product.title,
+    image: variant.images?.[0] ?? product.images?.[0] ?? null,
+    price: typeof salePrice === "number" ? salePrice : null,
+    mrp: typeof compareAtPrice === "number" ? compareAtPrice : null,
+    size: variant.size ?? null,
+    color: variant.color ?? null,
+  });
+
   const handleAddToCart = async () => {
     if (!selectedVariant) {
       toast.error("Please choose a variant first.");
@@ -318,9 +331,11 @@ export default function ProductDetailClient({
     }
 
     if (!hasSession()) {
-      toast.error("Please sign in to add items to cart.");
-      startNavigationFeedback();
-      router.push(loginUrlWithReturn());
+      // Guest checkout: keep the cart on this device until they verify at checkout.
+      addGuestCartLine(guestLineFor(selectedVariant));
+      toast.success("Added to cart.", {
+        action: { label: "View cart", onClick: () => router.push("/cart") },
+      });
       return;
     }
 
@@ -374,9 +389,9 @@ export default function ProductDetailClient({
     }
 
     if (!hasSession()) {
-      toast.error("Please sign in to continue.");
+      addGuestCartLine(guestLineFor(selectedVariant));
       startNavigationFeedback();
-      router.push(loginUrlWithReturn());
+      router.push("/checkout");
       return;
     }
 

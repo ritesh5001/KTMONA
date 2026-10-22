@@ -17,6 +17,8 @@ interface ApplyCouponInput {
     orderSubtotal: Prisma.Decimal | number | string;
     sellerIds: string[];
     tx?: TxClient;
+    /** Price check only (checkout quote): no row lock, no metrics. */
+    preview?: boolean;
 }
 
 interface RedeemCouponInput {
@@ -51,23 +53,27 @@ export class CouponService {
         couponCode: string;
         discountAmount: Prisma.Decimal;
     }> {
-        return this.withTx(input.tx, async (tx) => {
+        const run = async (tx: TxClient) => {
             const code = this.normalizeCode(input.couponCode);
             const orderSubtotal = round2(toDecimal(input.orderSubtotal));
 
-            couponLogger.info({ event: 'coupon_apply_attempt', code, userId: input.userId }, 'Coupon apply attempt');
+            if (!input.preview) {
+                couponLogger.info({ event: 'coupon_apply_attempt', code, userId: input.userId }, 'Coupon apply attempt');
+            }
 
             if (orderSubtotal.lte(0)) {
                 couponRejectedTotal.inc();
                 throw ApiError.badRequest('Order subtotal must be greater than 0 for coupon application');
             }
 
-            await tx.$queryRaw`
-                SELECT id
-                FROM "coupons"
-                WHERE code = ${code}
-                FOR UPDATE
-            `;
+            if (!input.preview) {
+                await tx.$queryRaw`
+                    SELECT id
+                    FROM "coupons"
+                    WHERE code = ${code}
+                    FOR UPDATE
+                `;
+            }
 
             const coupon = await tx.coupon.findUnique({ where: { code } });
             if (!coupon) {
@@ -154,21 +160,27 @@ export class CouponService {
 
             discount = round2(discount);
 
-            couponAppliedTotal.inc();
-            couponDiscountAmountTotal.inc(Number(discount.toString()));
-            couponLogger.info({
-                event: 'coupon_apply_success',
-                code,
-                userId: input.userId,
-                discountAmount: discount.toString(),
-            }, 'Coupon applied successfully');
+            if (!input.preview) {
+                couponAppliedTotal.inc();
+                couponDiscountAmountTotal.inc(Number(discount.toString()));
+                couponLogger.info({
+                    event: 'coupon_apply_success',
+                    code,
+                    userId: input.userId,
+                    discountAmount: discount.toString(),
+                }, 'Coupon applied successfully');
+            }
 
             return {
                 couponId: coupon.id,
                 couponCode: coupon.code,
                 discountAmount: discount,
             };
-        });
+        };
+
+        // A preview only reads, so it needs no transaction.
+        if (input.preview && !input.tx) return run(prisma as unknown as TxClient);
+        return this.withTx(input.tx, run);
     }
 
     async redeemCouponAfterOrderCreated(input: RedeemCouponInput): Promise<void> {

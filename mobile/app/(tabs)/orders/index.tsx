@@ -25,7 +25,7 @@ import { confirmRazorpayPayment, openRazorpayCheckout } from "../../../src/servi
 import { listMyCancellations, requestCancellation } from "../../../src/services/cancellations";
 import { listMyReturns, requestReturn } from "../../../src/services/returns";
 import { useAuth } from "../../../src/hooks/useAuth";
-import { usePathname, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import { isAbortError } from "../../../src/services/api";
 import { SkeletonOrderRow } from "../../../src/components/Skeleton";
 import { AnimatedPressable } from "../../../src/components/AnimatedPressable";
@@ -296,7 +296,19 @@ export default function OrdersScreen() {
   }, []);
 
   // ---- Filters (applied) and the filter sheet's draft selection ----
-  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>([]);
+  // ?status=CANCELLED (Account → Cancelled Orders) opens pre-filtered.
+  const routeParams = useLocalSearchParams<{ status?: string }>();
+  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>(() =>
+    String(routeParams.status ?? "")
+      .split(",")
+      .filter((v): v is BuyerOrderStatusFilter => ORDER_STATUS_FILTERS.some((f) => f.value === v))
+  );
+  React.useEffect(() => {
+    const next = String(routeParams.status ?? "")
+      .split(",")
+      .filter((v): v is BuyerOrderStatusFilter => ORDER_STATUS_FILTERS.some((f) => f.value === v));
+    if (next.length) setStatusFilters(next);
+  }, [routeParams.status]);
   const [timeFilter, setTimeFilter] = React.useState("");
   const [filterSheetOpen, setFilterSheetOpen] = React.useState(false);
   const [draftStatuses, setDraftStatuses] = React.useState<BuyerOrderStatusFilter[]>([]);

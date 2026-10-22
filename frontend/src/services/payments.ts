@@ -13,6 +13,8 @@ export interface RazorpayPaymentInit {
   currency: string;
   provider: string;
   prefill?: { name?: string; email?: string; contact?: string };
+  /** Razorpay customer: Checkout shows (and can save) the buyer's cards/UPI. */
+  customerId?: string;
 }
 
 export interface InitiatePaymentResponse {

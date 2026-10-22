@@ -23,7 +23,32 @@ export interface CartItemEntity {
     variantId: string;
     quantity: number;
     priceSnapshot: number;
+    /** "Save for later" rows stay with the cart but are not checked out. */
+    savedForLater: boolean;
     createdAt: Date;
+}
+
+/** Another size/colour of the same product, for changing it in the cart. */
+export interface CartVariantOption {
+    id: string;
+    size: string;
+    color: string | null;
+    colorHex: string | null;
+    price: number;
+    stock: number;
+}
+
+/** Live state of a cart line, so the cart can warn before checkout does. */
+export interface CartItemAvailability {
+    /** UNAVAILABLE = listing removed, paused or not approved. */
+    status: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'UNAVAILABLE';
+    stock: number;
+    /** Largest quantity the buyer can order right now. */
+    maxQuantity: number;
+    /** Current price minus the price when the item was added (0 = unchanged). */
+    priceChange: number;
+    /** True when the cart quantity is above what is in stock. */
+    quantityTooHigh: boolean;
 }
 
 // ============================================================================
@@ -34,7 +59,10 @@ export interface CartItemEntity {
  * Cart with items included
  */
 export interface CartWithItems extends CartEntity {
+    /** Lines going to checkout. */
     items: CartItemWithDetails[];
+    /** Lines the buyer saved for later. */
+    savedItems: CartItemWithDetails[];
 }
 
 /**
@@ -62,6 +90,9 @@ export interface CartItemWithDetails extends CartItemEntity {
             stock: number;
         } | null;
     } | undefined;
+    availability: CartItemAvailability;
+    /** Other in-stock sizes/colours of this product. */
+    options: CartVariantOption[];
 }
 
 // ============================================================================

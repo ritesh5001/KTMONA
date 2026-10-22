@@ -12,10 +12,11 @@ import { useT } from "../../i18n";
 type Row = { icon: React.ComponentProps<typeof Feather>["name"]; label: string; href?: string; url?: string };
 
 /** Rows that need a signed-in account. */
-const NEEDS_LOGIN = new Set(["My Orders", "My Addresses", "Notifications", "Bank & UPI Details", "Video Calls", "Edit Profile", "Change Password"]);
+const NEEDS_LOGIN = new Set(["My Orders", "Cancelled Orders", "Settings & Privacy", "My Addresses", "Notifications", "Bank & UPI Details", "Video Calls", "Edit Profile", "Change Password"]);
 
 const SHOPPING: Row[] = [
   { icon: "package", label: "My Orders", href: "/orders" },
+  { icon: "x-circle", label: "Cancelled Orders", href: "/orders?status=CANCELLED" },
   { icon: "heart", label: "My Wishlist", href: "/wishlist" },
   { icon: "share-2", label: "Shared Products", href: "/account/shared" },
   { icon: "eye", label: "Recently Viewed", href: "/account/recently-viewed" },
@@ -34,6 +35,7 @@ const SETTINGS: Row[] = [
   { icon: "user", label: "Edit Profile", href: "/account/edit-profile" },
   { icon: "globe", label: "Language", href: "/account/language" },
   { icon: "key", label: "Change Password", href: "/forgot-password" },
+  { icon: "shield", label: "Settings & Privacy", href: "/account/settings" },
 ];
 const HELP: Row[] = [
   { icon: "message-circle", label: "Help & Support", href: "/support" },

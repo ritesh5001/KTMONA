@@ -318,6 +318,28 @@ export async function requestAuthOtp(payload: RequestAuthOtpPayload): Promise<Ot
   return data as OtpRequestResponse;
 }
 
+/**
+ * POST /v1/auth/guest-otp — guest checkout. Emails a one-time code; verify it with
+ * verifyAuthOtp(verifyWith + otp). Returning customers get a sign-in code.
+ */
+export async function requestGuestOtp(payload: {
+  email: string;
+  phone?: string;
+  fullName: string;
+}): Promise<OtpRequestResponse & { existingAccount: boolean }> {
+  if (!API_BASE_URL) throw new Error("API base URL is not configured");
+  const response = await fetch(`${API_BASE_URL}/v1/auth/guest-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    throw buildApiError(data as ApiErrorResponse | null, "Could not send the code");
+  }
+  return data as OtpRequestResponse & { existingAccount: boolean };
+}
+
 /** POST /v1/auth/resend-signup-otp — re-send the code for a pending registration. */
 export async function resendSignupOtp(
   payload: { phone: string } | { email: string }

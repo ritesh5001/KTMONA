@@ -393,22 +393,34 @@ export class OrderRepository {
         const [products, variants] = await Promise.all([
             prisma.product.findMany({
                 where: { id: { in: productIds } },
-                select: { id: true, title: true },
+                select: { id: true, title: true, images: true, isReturnable: true },
             }),
             prisma.productVariant.findMany({
                 where: { id: { in: variantIds } },
-                select: { id: true, sku: true },
+                select: { id: true, sku: true, size: true, color: true, images: true },
             }),
         ]);
 
-        const productMap = new Map(products.map((p) => [p.id, p.title]));
-        const variantMap = new Map(variants.map((v) => [v.id, v.sku]));
+        const productMap = new Map(products.map((p) => [p.id, p]));
+        const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-        return items.map((item) => ({
-            ...item,
-            productTitle: productMap.get(item.productId),
-            variantSku: variantMap.get(item.variantId),
-        } as OrderItemWithProduct));
+        return items.map((item) => {
+            const product = productMap.get(item.productId);
+            const variant = variantMap.get(item.variantId);
+            return {
+                ...item,
+                productTitle: product?.title,
+                variantSku: variant?.sku,
+                image: variant?.images?.[0] ?? product?.images?.[0] ?? null,
+                size: variant?.size ?? null,
+                color: variant?.color ?? null,
+                // Same fields under the names the order list (and the app) use.
+                productImage: variant?.images?.[0] ?? product?.images?.[0] ?? null,
+                variantSize: variant?.size ?? null,
+                variantColor: variant?.color ?? null,
+                isReturnable: product?.isReturnable ?? true,
+            } as OrderItemWithProduct;
+        });
     }
 }
 

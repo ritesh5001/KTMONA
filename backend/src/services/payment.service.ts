@@ -1,5 +1,6 @@
 
 import { paymentRepository } from '../repositories/payment.repository.js';
+import { savedPaymentsService } from './saved-payments.service.js';
 import { PaymentStatus, PaymentEventType, PaymentProvider, OrderStatus } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import { ApiError } from '../errors/ApiError.js';
@@ -209,10 +210,18 @@ export class PaymentService {
                 );
             });
 
+        // Lets Checkout show (and offer to save) the buyer's cards/UPI.
+        const customerId = await savedPaymentsService.ensureCustomerId(userId, {
+            name: order.shippingName,
+            email: order.shippingEmail,
+            phone: order.shippingPhone,
+        });
+
         return {
             paymentId: payment.id,
             orderId,
             razorpayOrderId,
+            ...(customerId ? { customerId } : {}),
             /** Public key id; Checkout needs it to open. */
             keyId: env.RAZORPAY_KEY_ID!,
             /** In paise, as Checkout expects. */

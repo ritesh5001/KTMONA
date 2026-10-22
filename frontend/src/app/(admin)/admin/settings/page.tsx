@@ -9,9 +9,10 @@ import {
   updateGstSetting,
   getCodSetting,
   updateCodSetting,
+  updateFreeDeliveryThreshold,
 } from "@/services/admin";
 import { toast } from "sonner";
-import { Truck, Receipt, Banknote, type LucideIcon } from "lucide-react";
+import { Truck, Receipt, Banknote, Gift, type LucideIcon } from "lucide-react";
 
 interface ChargeSetting {
   enabled: boolean;
@@ -140,6 +141,79 @@ function ChargeToggleCard({
   );
 }
 
+/** Free delivery above an order value ("Add ₹X more for FREE delivery"). */
+function FreeDeliveryCard() {
+  const [value, setValue] = React.useState("");
+  const [current, setCurrent] = React.useState<number | null>(null);
+  const [saving, setSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    getShippingSetting()
+      .then((s) => {
+        setCurrent(s.freeAbove ?? 0);
+        setValue(s.freeAbove ? String(s.freeAbove) : "");
+      })
+      .catch(() => setCurrent(0));
+  }, []);
+
+  const save = async (amount: number) => {
+    setSaving(true);
+    try {
+      const s = await updateFreeDeliveryThreshold(amount);
+      setCurrent(s.freeAbove ?? 0);
+      setValue(s.freeAbove ? String(s.freeAbove) : "");
+      toast.success(s.freeAbove ? `Free delivery above ₹${s.freeAbove}` : "Free-delivery offer turned off");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-border-soft bg-card p-6">
+      <div className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand-strong">
+          <Gift className="h-5 w-5" />
+        </span>
+        <div className="flex-1 space-y-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Free delivery offer</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Orders whose value (after coupons, before GST) reaches this amount ship free. Shoppers see
+              “Add ₹X more for FREE delivery” in the cart. Leave empty or 0 to turn the offer off.
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Now: {current === null ? "…" : current > 0 ? `free above ₹${current}` : "off"}
+            </p>
+          </div>
+          <form
+            className="flex flex-wrap items-center gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save(Number(value) || 0);
+            }}
+          >
+            <span className="text-sm text-muted-foreground">₹</span>
+            <input
+              aria-label="Free delivery above (₹)"
+              inputMode="numeric"
+              value={value}
+              onChange={(e) => setValue(e.target.value.replace(/\D/g, ""))}
+              placeholder="e.g. 499"
+              className="h-10 w-32 rounded-lg border border-border-soft bg-background px-3 text-sm"
+            />
+            <Button type="submit" size="sm" disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            {current ? (
+              <Button type="button" size="sm" variant="outline" disabled={saving} onClick={() => void save(0)}>Turn off</Button>
+            ) : null}
+          </form>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AdminSettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -169,6 +243,8 @@ export default function AdminSettingsPage() {
             </>
           )}
         />
+
+        <FreeDeliveryCard />
 
         <ChargeToggleCard
           icon={Receipt}

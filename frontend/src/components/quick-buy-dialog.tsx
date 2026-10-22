@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { addGuestCartLine } from "@/lib/guest-cart";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -158,10 +159,23 @@ export function QuickBuyDialog({
         if (!productId || !selectedVariant) return;
 
         if (!hasSession()) {
-            onClose();
-            toast.error("Please sign in to add items to cart.");
-            startNavigationFeedback();
-            router.push(loginUrlWithReturn());
+            // Guest checkout: keep the cart on this device until checkout.
+            addGuestCartLine({
+                productId,
+                variantId: selectedVariant.id,
+                title: product?.title ?? "Item",
+                image: selectedVariant.images?.[0] ?? product?.images?.[0] ?? null,
+                price: selectedVariant.price ?? null,
+                mrp: selectedVariant.compareAtPrice ?? null,
+                size: selectedVariant.size ?? null,
+                color: selectedVariant.color ?? null,
+            });
+            setConfirmed(true);
+            window.setTimeout(() => {
+                onClose();
+                startNavigationFeedback();
+                router.push(intent === "buy" ? "/checkout" : "/cart");
+            }, 320);
             return;
         }
 

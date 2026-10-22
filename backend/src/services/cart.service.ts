@@ -137,6 +137,103 @@ export class CartService {
         };
     }
 
+    /** Ownership-checked load of one cart line. */
+    private async ownedItem(userId: string, itemId: string) {
+        const itemWithCart = await this.cartRepo.findItemByIdWithCart(itemId);
+        if (!itemWithCart) {
+            throw ApiError.notFound('Cart item not found');
+        }
+        if (itemWithCart.cart.userId !== userId) {
+            throw ApiError.forbidden('You do not have permission to change this item');
+        }
+        return itemWithCart;
+    }
+
+    /**
+     * Move a line to "Saved for later" (left out of checkout) or back to the cart.
+     */
+    async setSavedForLater(userId: string, itemId: string, saved: boolean): Promise<CartItemResponse> {
+        await this.ownedItem(userId, itemId);
+        const item = await this.cartRepo.setSavedForLater(itemId, saved);
+        await invalidateCache(CACHE_KEYS.CART(userId));
+        return {
+            message: saved ? 'Saved for later' : 'Moved to cart',
+            item,
+        };
+    }
+
+    /**
+     * Change a line's size/colour to another variant of the same product.
+     */
+    async changeVariant(userId: string, itemId: string, variantId: string): Promise<CartItemResponse> {
+        const current = await this.ownedItem(userId, itemId);
+        if (current.variantId === variantId) {
+            return { message: 'Cart item updated', item: current };
+        }
+
+        const variant = await this.variantRepo.findByIdWithProduct(variantId);
+        if (!variant || variant.productId !== current.productId) {
+            throw ApiError.badRequest('That size/colour is not available for this product');
+        }
+        if (variant.product.deletedByAdmin || variant.product.status !== 'APPROVED' || variant.status !== 'APPROVED') {
+            throw ApiError.badRequest('That size/colour is not available for purchase');
+        }
+        const stock = variant.inventory?.stock ?? 0;
+        if (stock <= 0) {
+            throw ApiError.badRequest('That size/colour is out of stock');
+        }
+
+        const item = await this.cartRepo.changeVariant(current, variantId, Number(variant.price), stock);
+        await invalidateCache(CACHE_KEYS.CART(userId));
+        return {
+            message: 'Cart item updated',
+            item,
+        };
+    }
+
+    /**
+     * Add a guest's on-device cart after they sign in. Lines that can no longer be
+     * bought are skipped (and reported) rather than failing the whole merge; a
+     * product already in the cart keeps the larger quantity.
+     */
+    async mergeItems(
+        userId: string,
+        items: AddCartItemRequest[],
+    ): Promise<{ added: number; skipped: Array<{ variantId: string; reason: string }> }> {
+        const cart = await this.cartRepo.findOrCreateByUserId(userId);
+        const existing = await this.cartRepo.findByUserId(userId);
+        const existingQty = new Map((existing?.items ?? []).map((i) => [i.variantId, i.quantity]));
+
+        let added = 0;
+        const skipped: Array<{ variantId: string; reason: string }> = [];
+        for (const line of items) {
+            try {
+                const variant = await this.variantRepo.findByIdWithProduct(line.variantId);
+                if (!variant || variant.productId !== line.productId) {
+                    skipped.push({ variantId: line.variantId, reason: 'Product not found' });
+                    continue;
+                }
+                if (variant.product.deletedByAdmin || variant.product.status !== 'APPROVED' || variant.status !== 'APPROVED') {
+                    skipped.push({ variantId: line.variantId, reason: 'No longer available' });
+                    continue;
+                }
+                const stock = variant.inventory?.stock ?? 0;
+                const quantity = Math.min(Math.max(line.quantity, existingQty.get(line.variantId) ?? 0), stock);
+                if (quantity <= 0) {
+                    skipped.push({ variantId: line.variantId, reason: 'Out of stock' });
+                    continue;
+                }
+                await this.cartRepo.addItem(cart.id, { ...line, quantity, priceSnapshot: Number(variant.price) });
+                added += 1;
+            } catch {
+                skipped.push({ variantId: line.variantId, reason: 'Could not be added' });
+            }
+        }
+
+        await invalidateCache(CACHE_KEYS.CART(userId));
+        return { added, skipped };
+    }
+
     /**
      * Remove item from cart
      */

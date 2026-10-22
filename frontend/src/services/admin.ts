@@ -999,6 +999,16 @@ export async function toggleAdminOccasion(id: string, token?: string | null) {
 export interface ShippingSetting {
   enabled: boolean;
   amount: number;
+  /** Orders at or above this subtotal ship free (0 = no offer). */
+  freeAbove?: number;
+}
+
+/** Set the free-delivery threshold (0 turns the offer off). */
+export async function updateFreeDeliveryThreshold(freeAbove: number) {
+  return apiRequest<ShippingSetting>("/v1/admin/settings/shipping", {
+    method: "PUT",
+    body: { freeAbove },
+  });
 }
 
 export async function getShippingSetting(token?: string | null) {

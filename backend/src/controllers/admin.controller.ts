@@ -738,8 +738,11 @@ export const adminController = {
      */
     async getShippingSetting(_req: Request, res: Response, next: NextFunction) {
         try {
-            const enabled = await settingsService.isShippingChargeEnabled();
-            res.json({ enabled, amount: DEFAULT_SHIPPING_FEE_INR });
+            const [enabled, freeAbove] = await Promise.all([
+                settingsService.isShippingChargeEnabled(),
+                settingsService.getFreeShippingMinOrder(),
+            ]);
+            res.json({ enabled, amount: DEFAULT_SHIPPING_FEE_INR, freeAbove });
         } catch (error) {
             next(error);
         }
@@ -748,16 +751,24 @@ export const adminController = {
     /**
      * PUT /v1/admin/settings/shipping
      * Start/stop the flat shipping charge for new orders.
-     * Body: { enabled: boolean }
+     * Body: { enabled?: boolean, freeAbove?: number } (freeAbove 0 = no free-delivery offer)
      */
     async updateShippingSetting(req: Request, res: Response, next: NextFunction) {
         try {
-            const { enabled } = req.body ?? {};
-            if (typeof enabled !== 'boolean') {
+            const { enabled, freeAbove } = req.body ?? {};
+            if (enabled !== undefined && typeof enabled !== 'boolean') {
                 throw ApiError.badRequest('`enabled` must be a boolean');
             }
-            await settingsService.setShippingChargeEnabled(enabled);
-            res.json({ enabled, amount: DEFAULT_SHIPPING_FEE_INR });
+            if (freeAbove !== undefined && (typeof freeAbove !== 'number' || !Number.isFinite(freeAbove) || freeAbove < 0)) {
+                throw ApiError.badRequest('`freeAbove` must be a positive amount, or 0 for no free-delivery offer');
+            }
+            if (typeof enabled === 'boolean') await settingsService.setShippingChargeEnabled(enabled);
+            if (typeof freeAbove === 'number') await settingsService.setFreeShippingMinOrder(freeAbove);
+            const [nowEnabled, nowFreeAbove] = await Promise.all([
+                settingsService.isShippingChargeEnabled(),
+                settingsService.getFreeShippingMinOrder(),
+            ]);
+            res.json({ enabled: nowEnabled, amount: DEFAULT_SHIPPING_FEE_INR, freeAbove: nowFreeAbove });
         } catch (error) {
             next(error);
         }

@@ -20,6 +20,9 @@ import { sendEmail } from '../notifications/email/resend.client.js';
 import { sellerRegisteredTemplate } from '../notifications/email/templates/seller-application-submitted.js';
 
 /** "OTP sent to your email address" / mobile, plus what to verify with. */
+/** Guest-checkout codes one email address may request per hour. */
+const GUEST_OTP_PER_HOUR = 5;
+
 function otpSent(d: OtpDelivery, suffix = ''): { message: string; verifyWith: { email: string } | { phone: string } } {
     const where = d.channel === 'email' ? 'your email address' : 'your mobile number';
     return {
@@ -34,6 +37,7 @@ import { OtpPurpose } from '@prisma/client';
 import type { Role, UserStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { authLogger } from '../config/logger.js';
+import { redis } from '../config/redis.js';
 import { sellerSuspensionService } from './seller-suspension.service.js';
 
 
@@ -335,6 +339,56 @@ export class AuthService {
         const delivery = await otpService.sendUserOtp(user, 'login');
         this.logger.info({ userId: user.id, channel: delivery.channel }, 'request_otp_sent');
         return otpSent(delivery);
+    }
+
+    /**
+     * Guest checkout: verify the shopper's email with a one-time code, without a
+     * password. A returning customer gets a sign-in code for their account; anyone
+     * else gets a sign-up code, and verifying it creates a passwordless account
+     * (they can set a password later with Forgot Password) so the order can be
+     * tracked. Verification goes through POST /v1/auth/verify-otp as usual.
+     */
+    async requestGuestOtp(input: { email: string; phone?: string | undefined; fullName: string }): Promise<RegisterSuccessResponse & { existingAccount: boolean }> {
+        const email = input.email.trim().toLowerCase();
+
+        // Anyone can trigger this without an account, so cap the emails per address.
+        const limitKey = `otp:guest:${email}`;
+        const sent = await redis.incr(limitKey).catch(() => 0);
+        if (sent === 1) await redis.expire(limitKey, 60 * 60).catch(() => undefined);
+        if (sent > GUEST_OTP_PER_HOUR) {
+            throw new ApiError(429, 'Too many codes requested. Please try again in an hour.');
+        }
+
+        const existing = await this.repository.findUserByEmail(email);
+        if (existing) {
+            if (existing.role !== 'USER') {
+                throw ApiError.conflict('This email belongs to a seller or staff account. Please use a different email for shopping.');
+            }
+            if (existing.status !== 'ACTIVE') {
+                throw ApiError.forbidden('This account is not active. Please contact support.');
+            }
+            const delivery = await otpService.sendUserOtp(existing, 'login');
+            this.logger.info({ userId: existing.id, channel: delivery.channel }, 'guest_otp_existing_account');
+            return { ...otpSent(delivery), existingAccount: true };
+        }
+
+        // A phone already on another account stays on the order only.
+        let phone = input.phone ? normalizeIndianMobile(input.phone) : null;
+        if (phone && await this.repository.findUserByPhone(phone)) {
+            phone = null;
+        }
+
+        // Nobody knows this password: the account is reached by OTP or a reset.
+        const passwordHash = await hashPassword(`${randomUUID()}Aa1`);
+        const delivery = await otpService.sendSignupOtp({
+            email,
+            phone,
+            passwordHash,
+            role: 'USER',
+            fullName: input.fullName.trim(),
+        });
+        this.logger.info({ channel: delivery.channel }, 'guest_otp_new_account');
+        return { ...otpSent(delivery), existingAccount: false };
     }
 
     /**

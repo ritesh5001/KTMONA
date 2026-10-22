@@ -122,6 +122,28 @@ adminRouter.patch(
     adminController.setProductPrice
 );
 
+/**
+ * PATCH /v1/admin/products/:id/returnable  { isReturnable: boolean }
+ * Non-returnable products come back only when wrong, damaged, defective or incomplete.
+ */
+adminRouter.patch(
+    '/products/:id/returnable',
+    authorize('ADMIN', 'SUPER_ADMIN'),
+    async (req, res, next) => {
+        try {
+            const { isReturnable } = z.object({ isReturnable: z.boolean() }).parse(req.body);
+            const product = await prisma.product.update({
+                where: { id: req.params.id as string },
+                data: { isReturnable },
+                select: { id: true, isReturnable: true },
+            });
+            res.json({ product });
+        } catch (error) {
+            next(error);
+        }
+    }
+);
+
 adminRouter.patch(
     '/products/:id',
     authorize('ADMIN', 'SUPER_ADMIN'),

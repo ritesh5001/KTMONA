@@ -236,3 +236,23 @@ export const resetPasswordSchema = z.object({
     .refine((d) => d.identifier.length > 0, { message: 'Enter your email address or mobile number', path: ['identifier'] });
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+/**
+ * Guest Checkout OTP Schema
+ * POST /v1/auth/guest-otp
+ */
+export const guestOtpSchema = z.object({
+    email: z.string().trim().email('Enter a valid email address'),
+    phone: z
+        .string()
+        .regex(/^\d{10,15}$/, 'Phone must be 10-15 digits')
+        .optional()
+        .or(z.literal('').transform(() => undefined)),
+    fullName: z
+        .string({ required_error: 'Full name is required' })
+        .trim()
+        .min(2, 'Full name must be at least 2 characters')
+        .max(80, 'Full name must be at most 80 characters'),
+});
+
+export type GuestOtpInput = z.infer<typeof guestOtpSchema>;

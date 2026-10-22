@@ -182,8 +182,10 @@ async function run(): Promise<void> {
     const returnReq = await returnService.requestReturn(
         buyer.id,
         order.id,
-        'Race simulation return request',
-        [{ orderItemId: orderItem.id, quantity: 1 }],
+        {
+            reason: 'Race simulation return request',
+            items: [{ orderItemId: orderItem.id, quantity: 1 }],
+        },
     );
 
     console.log('Return request created:', {

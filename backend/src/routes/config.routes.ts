@@ -23,8 +23,11 @@ export const configRouter = Router();
  */
 configRouter.get('/shipping', async (_req: Request, res: Response, next: NextFunction) => {
     try {
-        const enabled = await settingsService.isShippingChargeEnabled();
-        res.json({ enabled, amount: enabled ? DEFAULT_SHIPPING_FEE_INR : 0 });
+        const [enabled, freeAbove] = await Promise.all([
+            settingsService.isShippingChargeEnabled(),
+            settingsService.getFreeShippingMinOrder(),
+        ]);
+        res.json({ enabled, amount: enabled ? DEFAULT_SHIPPING_FEE_INR : 0, freeAbove });
     } catch (error) {
         next(error);
     }

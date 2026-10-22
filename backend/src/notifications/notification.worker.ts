@@ -12,6 +12,8 @@ import { orderShippedTemplate } from './email/templates/order-shipped.js';
 import { orderDeliveredTemplate } from './email/templates/order-delivered.js';
 import { sellerNewOrderTemplate } from './email/templates/seller-new-order.js';
 import { adminAlertTemplate } from './email/templates/admin-alert.js';
+import { orderUpdateTemplate } from './email/templates/order-update.js';
+import { accountSettingsService } from '../services/account-settings.service.js';
 import { sellerApprovedTemplate } from './email/templates/seller-approved.js';
 import { sellerProductApprovedTemplate } from './email/templates/seller-product-approved.js';
 import { sellerProductRejectedTemplate } from './email/templates/seller-product-rejected.js';
@@ -19,6 +21,15 @@ import { paymentSuccessTemplate } from './email/templates/payment-success.js';
 import { paymentFailedTemplate } from './email/templates/payment-failed.js';
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
+
+/** Buyer emails that respect the "order update emails" switch (receipts always go). */
+const OPTIONAL_BUYER_EMAILS: ReadonlySet<string> = new Set([
+    'SHIPMENT_CREATED',
+    'ORDER_SHIPPED',
+    'ORDER_DELIVERED',
+    'ORDER_UPDATE',
+    'ADMIN_ALERT',
+]);
 
 export async function processNotificationJob(job: Job<NotificationJobPayload>): Promise<void> {
     console.log(`Job ${job.id} started. Notification: ${job.data.notificationId}`); // LOG START
@@ -63,6 +74,18 @@ export async function processNotificationJob(job: Job<NotificationJobPayload>): 
             throw new Error(`No recipient email found for notification ${notificationId}`);
         }
 
+        // Buyers can switch order-update emails off; the in-app notification stays.
+        if (
+            notification.role === 'USER' &&
+            notification.userId &&
+            OPTIONAL_BUYER_EMAILS.has(notification.type) &&
+            !(await accountSettingsService.allowsOrderEmails(notification.userId))
+        ) {
+            await notificationRepository.updateStatus(notificationId, 'SENT', new Date());
+            await notificationRepository.createEvent(notificationId, 'RESEND', 'SENT', undefined, 'Email skipped: customer turned order emails off');
+            return;
+        }
+
         // Generate Email Content
         let emailData: EmailTemplateResult | null = null;
 
@@ -89,7 +112,14 @@ export async function processNotificationJob(job: Job<NotificationJobPayload>): 
                 emailData = sellerProductApprovedTemplate(meta);
                 break;
             case 'ADMIN_ALERT':
-                emailData = adminAlertTemplate(meta);
+                // Several services raise buyer/seller notices with this type; only
+                // staff should ever get the admin-alert email.
+                emailData = notification.role === 'ADMIN' || notification.role === 'SUPER_ADMIN' || !notification.role
+                    ? adminAlertTemplate(meta)
+                    : orderUpdateTemplate({ ...meta, content: notification.content });
+                break;
+            case 'ORDER_UPDATE':
+                emailData = orderUpdateTemplate({ ...meta, content: notification.content });
                 break;
             case 'SELLER_PRODUCT_REJECTED':
                 emailData = sellerProductRejectedTemplate(meta);

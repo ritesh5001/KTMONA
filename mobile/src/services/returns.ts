@@ -40,7 +40,8 @@ export async function requestReturn(
   reason: string,
   items: { orderItemId: string; quantity: number; reason?: string }[],
   token?: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  details: { type?: "RETURN" | "REPLACEMENT"; reasonCode?: ReturnReasonCode; images?: string[] } = {}
 ) {
   return apiRequest<{ return: ReturnRequestRecord }>(
     `/v1/returns/${orderId}`,
@@ -48,7 +49,40 @@ export async function requestReturn(
       method: "POST",
       token,
       signal,
-      body: { reason, items },
+      body: { reason, items, ...details },
     }
   );
 }
+
+/** Dispute a rejected return/replacement. */
+export async function appealReturn(returnId: string, note: string, token?: string | null) {
+  return apiRequest<{ return: ReturnRequestRecord }>(`/v1/returns/${returnId}/appeal`, {
+    method: "POST",
+    token,
+    body: { note },
+  });
+}
+
+export type ReturnReasonCode =
+  | "WRONG_PRODUCT"
+  | "DAMAGED"
+  | "DEFECTIVE"
+  | "MISSING_ITEM"
+  | "SIZE_ISSUE"
+  | "NOT_AS_DESCRIBED"
+  | "NO_LONGER_NEEDED"
+  | "OTHER";
+
+export const RETURN_REASONS: { code: ReturnReasonCode; label: string; needsPhoto: boolean }[] = [
+  { code: "WRONG_PRODUCT", label: "Received a wrong product", needsPhoto: true },
+  { code: "DAMAGED", label: "Product arrived damaged", needsPhoto: true },
+  { code: "DEFECTIVE", label: "Product is defective / not working", needsPhoto: true },
+  { code: "MISSING_ITEM", label: "Item or part missing from the package", needsPhoto: false },
+  { code: "SIZE_ISSUE", label: "Size or fit issue", needsPhoto: false },
+  { code: "NOT_AS_DESCRIBED", label: "Different from the description or photos", needsPhoto: false },
+  { code: "NO_LONGER_NEEDED", label: "No longer needed", needsPhoto: false },
+  { code: "OTHER", label: "Other reason", needsPhoto: false },
+];
+
+/** Reasons accepted even for non-returnable products. */
+export const SELLER_FAULT_REASONS: ReadonlySet<string> = new Set(["WRONG_PRODUCT", "DAMAGED", "DEFECTIVE", "MISSING_ITEM"]);

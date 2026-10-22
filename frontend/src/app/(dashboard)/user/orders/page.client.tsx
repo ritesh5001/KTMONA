@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   listBuyerOrders,
   downloadInvoice,
+  reorder,
   BUYER_ORDERS_PAGE_SIZE,
   type BuyerOrderListParams,
   type BuyerOrderStatusFilter,
@@ -17,7 +19,7 @@ import {
 import { retryPayment, verifyRazorpayPayment } from "@/services/payments";
 import { openRazorpayCheckout } from "@/lib/razorpay-checkout";
 import { listMyCancellations, requestCancellation } from "@/services/cancellations";
-import { listMyReturns, requestReturn } from "@/services/returns";
+import { listMyReturns } from "@/services/returns";
 import { useLiveFreshness } from "@/hooks/use-live-freshness";
 import { useHydratedSWR } from "@/hooks/use-hydrated-swr";
 import { toast } from "sonner";
@@ -136,13 +138,16 @@ export default function UserOrdersClient({
   const [requestingCancellationIds, setRequestingCancellationIds] = React.useState<Set<string>>(new Set());
   const [cancelModalOrderId, setCancelModalOrderId] = React.useState<string | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
-  const [returnModalOrderId, setReturnModalOrderId] = React.useState<string | null>(null);
-  const [returnReason, setReturnReason] = React.useState("");
-  const [requestingReturnIds, setRequestingReturnIds] = React.useState<Set<string>>(new Set());
   const [downloadingInvoiceId, setDownloadingInvoiceId] = React.useState<string | null>(null);
 
   // ---- Filters ----
-  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>([]);
+  // ?status=CANCELLED (e.g. "Cancelled Orders" in the account menu) opens pre-filtered.
+  const searchParams = useSearchParams();
+  const [statusFilters, setStatusFilters] = React.useState<BuyerOrderStatusFilter[]>(() =>
+    (searchParams.get("status") ?? "")
+      .split(",")
+      .filter((v): v is BuyerOrderStatusFilter => STATUS_FILTERS.some((f) => f.value === v))
+  );
   const [timeFilter, setTimeFilter] = React.useState("");
   const timeOptions = React.useMemo(() => timeFilterOptions(new Date()), []);
   const hasFilters = statusFilters.length > 0 || timeFilter !== "";
@@ -400,66 +405,6 @@ export default function UserOrdersClient({
     }
   }, [cancelModalOrderId, cancelReason, closeCancellationModal, mutate]);
 
-  // ---- Return handlers ----
-  const openReturnModal = React.useCallback((orderId: string) => {
-    setReturnModalOrderId(orderId);
-    setReturnReason("");
-  }, []);
-
-  const closeReturnModal = React.useCallback(() => {
-    setReturnModalOrderId(null);
-    setReturnReason("");
-  }, []);
-
-  const handleRequestReturn = React.useCallback(async () => {
-    if (!returnModalOrderId) return;
-    const reason = returnReason.trim();
-    if (!reason) {
-      toast.error("Please enter a return reason");
-      return;
-    }
-
-    const order = orders.find((o: any) => o.id === returnModalOrderId);
-    if (!order?.items?.length) {
-      toast.error("No items found for this order");
-      return;
-    }
-
-    // Return all items by default (full return)
-    const items = (order.items as any[]).map((item: any) => ({
-      orderItemId: item.id,
-      quantity: item.quantity,
-    }));
-
-    setRequestingReturnIds((prev) => new Set(prev).add(returnModalOrderId));
-    try {
-      await requestReturn(returnModalOrderId, reason, items);
-      await mutate(
-        (current) => ({
-          orders: current?.orders ?? [],
-          cancellationByOrderId: current?.cancellationByOrderId ?? {},
-          returnByOrderId: {
-            ...(current?.returnByOrderId ?? {}),
-            [returnModalOrderId]: { id: `temp-${returnModalOrderId}`, status: "REQUESTED" },
-          },
-          paymentStatusByOrder: current?.paymentStatusByOrder ?? {},
-        }),
-        false
-      );
-      toast.success("Return requested successfully");
-      closeReturnModal();
-      await mutate();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to request return");
-    } finally {
-      setRequestingReturnIds((prev) => {
-        const next = new Set(prev);
-        next.delete(returnModalOrderId);
-        return next;
-      });
-    }
-  }, [returnModalOrderId, returnReason, orders, closeReturnModal, mutate]);
-
   // ---- Download Invoice handler ----
   const handleDownloadInvoice = React.useCallback(async (orderId: string) => {
     if (downloadingInvoiceId) return;
@@ -608,7 +553,6 @@ export default function UserOrdersClient({
               const hasReturnRequest = !!returnStatus && returnStatus !== "REJECTED";
               const canRequestReturn =
                 order.status === "DELIVERED" && !hasReturnRequest;
-              const requestingReturn = requestingReturnIds.has(order.id);
               // The seller has not accepted it yet: don't promise "Confirmed".
               if (order.status === "CONFIRMED" && order.awaitingSeller) {
                 label = "AWAITING SELLER";
@@ -664,13 +608,8 @@ export default function UserOrdersClient({
                         </span>
                       ) : null}
                       {canRequestReturn ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={requestingReturn}
-                          onClick={() => openReturnModal(order.id)}
-                        >
-                          {requestingReturn ? "Requesting..." : "Request Return"}
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/user/orders/${order.id}`}>Return / Replace</Link>
                         </Button>
                       ) : null}
                       {/* Retry Payment — for unpaid PLACED orders */}
@@ -694,9 +633,22 @@ export default function UserOrdersClient({
                           {downloadingInvoiceId === order.id ? "Downloading..." : "Download Invoice"}
                         </Button>
                       )}
+                      {order.status === "DELIVERED" || order.status === "CANCELLED" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            reorder(order.id)
+                              .then((r) => (r.added > 0 ? toast.success(r.message, { action: { label: "View cart", onClick: () => (window.location.href = "/cart") } }) : toast.error(r.message)))
+                              .catch((e) => toast.error(e instanceof Error ? e.message : "Unable to add to cart"))
+                          }
+                        >
+                          Buy again
+                        </Button>
+                      ) : null}
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/user/orders/${order.id}`}>
-                          Track Order
+                          View details
                         </Link>
                       </Button>
                     </div>
@@ -820,33 +772,6 @@ export default function UserOrdersClient({
         </div>
       ) : null}
 
-      {returnModalOrderId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4">
-          <div className="w-full max-w-md border border-border-soft bg-card p-6 space-y-4">
-            <h2 className="font-serif text-xl text-foreground">Request Return</h2>
-            <p className="text-sm text-muted-foreground">
-              Please share the reason for returning this order. All items will be included.
-            </p>
-            <Textarea
-              value={returnReason}
-              onChange={(event) => setReturnReason(event.target.value)}
-              placeholder="Enter your return reason (e.g., wrong size, damaged item)"
-              className="min-h-30"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={closeReturnModal}>
-                Close
-              </Button>
-              <Button
-                onClick={handleRequestReturn}
-                disabled={!returnReason.trim() || requestingReturnIds.has(returnModalOrderId)}
-              >
-                {requestingReturnIds.has(returnModalOrderId) ? "Submitting..." : "Submit Return"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

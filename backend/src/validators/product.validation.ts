@@ -82,6 +82,11 @@ export const updateProductSchema = z.object({
     occasionIds: z
         .array(z.string().min(1))
         .optional(),
+
+    /** False = only a wrong/damaged/defective/missing item can come back. */
+    isReturnable: z
+        .boolean()
+        .optional(),
 });
 
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;

@@ -244,6 +244,8 @@ export interface UpdateProductRequest {
     sellerPrice?: number | undefined;
     isPublished?: boolean | undefined;
     occasionIds?: string[] | undefined;
+    /** False = cannot be returned/replaced except for a wrong, damaged or defective item. */
+    isReturnable?: boolean | undefined;
 }
 
 /**

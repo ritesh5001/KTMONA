@@ -1,15 +1,38 @@
 import type { NextFunction, Request, Response } from 'express';
 import { ReturnStatus } from '@prisma/client';
 import { z } from 'zod';
-import { returnService } from '../services/return.service.js';
+import {
+    returnService,
+    RETURN_REASON_CODES,
+    RETURN_PICKUP_STATUSES,
+} from '../services/return.service.js';
 
 const requestReturnSchema = z.object({
     reason: z.string().min(3).max(500),
+    type: z.enum(['RETURN', 'REPLACEMENT']).optional(),
+    reasonCode: z.enum(RETURN_REASON_CODES).optional(),
+    /** Photo URLs from the image upload (ImageKit). */
+    images: z.array(z.string().url().startsWith('https://')).max(6).optional(),
     items: z.array(z.object({
         orderItemId: z.string().min(1),
         quantity: z.number().int().min(1),
         reason: z.string().max(500).optional(),
     })).min(1, 'At least one item must be specified'),
+});
+
+const appealSchema = z.object({
+    note: z.string().trim().min(10, 'Please explain in at least 10 characters').max(1000),
+});
+
+const pickupSchema = z.object({
+    status: z.enum(RETURN_PICKUP_STATUSES),
+    date: z.coerce.date().optional(),
+    carrier: z.string().max(80).optional(),
+    tracking: z.string().max(80).optional(),
+});
+
+const replacedSchema = z.object({
+    tracking: z.string().max(80).optional(),
 });
 
 const rejectReturnSchema = z.object({
@@ -31,8 +54,47 @@ export class ReturnController {
             const userId = req.user!.userId;
             const orderId = req.params.orderId as string;
             const payload = requestReturnSchema.parse(req.body);
-            const result = await returnService.requestReturn(userId, orderId, payload.reason, payload.items);
+            const result = await returnService.requestReturn(userId, orderId, payload);
             res.status(201).json({ return: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * POST /v1/returns/:id/appeal — buyer disputes a rejection
+     */
+    async appeal(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const { note } = appealSchema.parse(req.body);
+            const result = await returnService.appealReturn(req.user!.userId, req.params.id as string, note);
+            res.json({ return: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * PATCH /v1/returns/:id/pickup — admin records reverse-pickup progress
+     */
+    async updatePickup(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const payload = pickupSchema.parse(req.body);
+            const result = await returnService.updatePickup(req.params.id as string, payload);
+            res.json({ return: result });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * PATCH /v1/returns/:id/replaced — admin marks the replacement as sent
+     */
+    async markReplaced(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const payload = replacedSchema.parse(req.body ?? {});
+            const result = await returnService.markReplaced(req.user!.userId, req.params.id as string, payload);
+            res.json({ return: result });
         } catch (error) {
             next(error);
         }

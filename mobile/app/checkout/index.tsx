@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography, shadow } from "../../src/theme/tokens";
 import { FieldLabel } from "../../src/components/FieldLabel";
 import { flushPendingCartWrite } from "../../src/lib/pending-cart";
-import { checkoutWithPayment, validateCoupon, type CouponPreview } from "../../src/services/cart";
+import { checkoutWithPayment, getCheckoutQuote, validateCoupon, type CheckoutQuote, type CouponPreview } from "../../src/services/cart";
 import { initiatePayment } from "../../src/services/payments";
 import { getCodConfig } from "../../src/services/extras";
 import { useQuery } from "@tanstack/react-query";
@@ -227,12 +227,46 @@ export default function CheckoutScreen() {
     cartItems.length && gstConfig.enabled ? gstConfig.amount : 0;
   const displaySubtotal = taxSummary?.subTotalAmount ?? cartSubtotal;
   const displayDiscount = taxSummary?.discountAmount ?? 0;
-  const displayGst = gstFee;
   const computedGrandTotal = displaySubtotal - displayDiscount + shippingFee + gstFee;
+
+  // The server quote is exactly what Place Order charges (coupon, GST, delivery,
+  // free-delivery offer). The local numbers above only fill the first frame.
+  const [quote, setQuote] = React.useState<CheckoutQuote | null>(null);
+  const quoteKey = `${cartItems.map((i) => `${i.variantId}:${i.quantity}`).join("|")}#${appliedCoupon?.code ?? ""}#${buyNowVariantId ?? ""}`;
+  React.useEffect(() => {
+    if (!token || cartItems.length === 0) return;
+    let active = true;
+    const t = setTimeout(() => {
+      getCheckoutQuote({
+        ...(appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {}),
+        ...(buyNowVariantId ? { variantIds: [buyNowVariantId] } : {}),
+      })
+        .then((q) => {
+          if (!active) return;
+          setQuote(q);
+          if (appliedCoupon && q.couponError) {
+            setCouponError(q.couponError);
+            setAppliedCoupon(null);
+          }
+        })
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      active = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, quoteKey]);
+
   const displayGrandTotal =
-    typeof taxSummary?.grandTotal === "number"
+    quote?.total ??
+    (typeof taxSummary?.grandTotal === "number"
       ? Math.max(taxSummary.grandTotal, computedGrandTotal)
-      : computedGrandTotal;
+      : computedGrandTotal);
+
+  // One key per visit to checkout: a retried or double-tapped Place Order returns
+  // the same order instead of creating a second one.
+  const checkoutKey = React.useRef(`${Date.now()}-${Math.random().toString(36).slice(2, 12)}`);
 
   // ---------- Clear coupon when cart items change ----------
   React.useEffect(() => {
@@ -341,7 +375,9 @@ export default function CheckoutScreen() {
   const t = useT();
   const [paymentMethod, setPaymentMethod] = React.useState<"ONLINE" | "COD">("ONLINE");
   const codQ = useQuery({ queryKey: ["config", "cod"], queryFn: ({ signal }) => getCodConfig(signal), staleTime: 5 * 60 * 1000 });
-  const codAllowed = Boolean(codQ.data?.enabled) && displayGrandTotal <= (codQ.data?.maxOrderAmount ?? 0);
+  const codAllowed = quote
+    ? quote.cod.available
+    : Boolean(codQ.data?.enabled) && displayGrandTotal <= (codQ.data?.maxOrderAmount ?? 0);
   React.useEffect(() => {
     if (paymentMethod === "COD" && !codAllowed) setPaymentMethod("ONLINE");
   }, [codAllowed, paymentMethod]);
@@ -438,6 +474,7 @@ export default function CheckoutScreen() {
           ...shippingPayload,
           ...(buyNowVariantId ? { variantIds: [buyNowVariantId] } : {}),
           paymentMethod,
+          checkoutKey: checkoutKey.current,
         },
         token
       );
@@ -451,7 +488,7 @@ export default function CheckoutScreen() {
         notifySuccess();
         if (!buyNowVariantId) clearCart();
         showToast(t("Order placed! Pay in cash when it's delivered."), "success");
-        router.replace(`/orders/${orderId}`);
+        router.replace(`/orders/${orderId}?placed=1`);
         setTimeout(() => {
           void refreshCart();
         }, 0);
@@ -488,7 +525,7 @@ export default function CheckoutScreen() {
             clearCart();
           }
           showToast("Payment successful. Order confirmed.", "success");
-          router.replace(`/orders/${orderId}`);
+          router.replace(`/orders/${orderId}?placed=1`);
           setTimeout(() => {
             void refreshCart();
           }, 0);
@@ -497,7 +534,7 @@ export default function CheckoutScreen() {
 
         // Paid but not settled yet — the webhook will confirm it.
         showToast("Payment pending. Check your orders for the final status.", "info");
-        router.replace(`/orders/${orderId}`);
+        router.replace(`/orders/${orderId}?placed=1`);
         return;
       }
 
@@ -505,7 +542,7 @@ export default function CheckoutScreen() {
         setError(`Payment failed: ${sdkResult.error} You can retry from your orders.`);
         notifyError();
         showToast("Payment failed. Retry from orders.", "error");
-        router.replace(`/orders/${orderId}`);
+        router.replace(`/orders/${orderId}?placed=1`);
         return;
       }
 
@@ -513,7 +550,7 @@ export default function CheckoutScreen() {
       // to it so they can retry rather than leaving them on a dead spinner.
       setError("Payment was cancelled. You can retry from your orders.");
       showToast("Payment cancelled.", "info");
-      router.replace(`/orders/${orderId}`);
+      router.replace(`/orders/${orderId}?placed=1`);
     } catch (err) {
       if (!mountedRef.current) return;
       const message =
@@ -537,6 +574,7 @@ export default function CheckoutScreen() {
     isPaying ||
     !isConnected ||
     cartItems.length === 0 ||
+    (quote ? !quote.canPlaceOrder : false) ||
     (hasAddresses && !selectedAddressId);
 
   // Bottom bar is hidden on checkout, so only account for safe area + comfortable padding
@@ -879,42 +917,40 @@ export default function CheckoutScreen() {
         {/* ---- Order Summary ---- */}
         <View style={[styles.card, { marginTop: spacing.md }]}>
           <Text style={styles.sectionTitle}>Order Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>₹{displaySubtotal.toFixed(0)}</Text>
-          </View>
-          {displayDiscount > 0 && (
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryLabel, { color: colors.gold }]}>Discount</Text>
-              <Text style={[styles.summaryValue, { color: colors.gold }]}>−₹{displayDiscount.toFixed(0)}</Text>
-            </View>
+          {quote ? (
+            <>
+              {quote.freeDelivery && !quote.freeDelivery.eligible ? (
+                <Text style={[styles.summaryLabel, { marginBottom: spacing.xs }]}>
+                  {t("Add")} ₹{quote.freeDelivery.remaining.toFixed(0)} {t("more for FREE delivery")}
+                </Text>
+              ) : null}
+              <SummaryLine label={`Price (${quote.itemCount} item${quote.itemCount === 1 ? "" : "s"})`} value={`₹${quote.mrpTotal.toFixed(0)}`} />
+              {quote.productDiscount > 0 ? <SummaryLine label="Discount on MRP" value={`−₹${quote.productDiscount.toFixed(0)}`} good /> : null}
+              {quote.coupon ? <SummaryLine label={`Coupon (${quote.coupon.code})`} value={`−₹${quote.coupon.discount.toFixed(0)}`} good /> : null}
+              <SummaryLine label="Delivery" value={quote.shipping === 0 ? "FREE" : `₹${quote.shipping.toFixed(0)}`} good={quote.shipping === 0} />
+              {quote.gst > 0 ? <SummaryLine label="GST" value={`₹${quote.gst.toFixed(0)}`} /> : null}
+              {quote.gstFee > 0 ? <SummaryLine label="GST charges" value={`₹${quote.gstFee.toFixed(0)}`} /> : null}
+              {quote.issues.length ? (
+                <Text style={[styles.summaryLabel, { color: "#B45309", marginTop: spacing.xs }]}>
+                  {quote.issues.map((i) => i.message).join("\n")}
+                </Text>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.summaryLabel}>Calculating…</Text>
           )}
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>GST</Text>
-            <Text
-              style={[
-                styles.summaryValue,
-                displayGst === 0 ? { color: colors.gold } : null,
-              ]}
-            >
-              {displayGst === 0 ? "FREE" : `₹${displayGst.toFixed(0)}`}
-            </Text>
-          </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Shipping</Text>
-            <Text
-              style={[
-                styles.summaryValue,
-                shippingFee === 0 ? { color: colors.gold } : null,
-              ]}
-            >
-              {shippingFee === 0 ? "FREE" : `₹${shippingFee.toFixed(0)}`}
-            </Text>
-          </View>
           <View style={[styles.summaryRow, { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSoft }]}>
-            <Text style={[styles.summaryLabel, { fontFamily: typography.sansMedium, color: colors.charcoal }]}>Grand Total</Text>
+            <Text style={[styles.summaryLabel, { fontFamily: typography.sansMedium, color: colors.charcoal }]}>Total payable</Text>
             <Text style={[styles.summaryValue, { fontFamily: typography.serif, fontSize: 18, color: colors.charcoal }]}>₹{displayGrandTotal.toFixed(0)}</Text>
           </View>
+          {quote && quote.savings > 0 ? (
+            <Text style={[styles.summaryLabel, { color: "#065F46", marginTop: spacing.xs }]}>
+              {t("You save")} ₹{quote.savings.toFixed(0)} {t("on this order")}
+            </Text>
+          ) : null}
+          <Text style={[styles.summaryLabel, { fontSize: 11, marginTop: spacing.xs }]}>
+            {t("This is the final amount, including GST and delivery.")}
+          </Text>
         </View>
 
         {/* ---- Payment method ---- */}
@@ -1506,3 +1542,12 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 });
+
+function SummaryLine({ label, value, good }: { label: string; value: string; good?: boolean }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryValue, good ? { color: "#047857" } : null]}>{value}</Text>
+    </View>
+  );
+}

@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  PackageX,
+  Settings,
   ShoppingBag,
   Sparkles,
   Undo2,
@@ -21,6 +23,7 @@ import { signOut } from "@/services/auth";
 const LINKS = [
   { href: "/user/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/user/orders", label: "My Orders", icon: ShoppingBag },
+  { href: "/user/orders?status=CANCELLED", label: "Cancelled Orders", icon: PackageX },
   { href: "/user/returns", label: "Returns", icon: Undo2 },
   { href: "/user/wishlist", label: "Wishlist", icon: Heart },
   { href: "/user/recently-viewed", label: "Recently Viewed", icon: Eye },
@@ -28,13 +31,15 @@ const LINKS = [
   { href: "/user/addresses", label: "Addresses", icon: MapPin },
   { href: "/user/appointments", label: "Appointments", icon: CalendarClock },
   { href: "/user/notifications", label: "Notifications", icon: Bell },
+  { href: "/user/settings", label: "Settings", icon: Settings },
   { href: "/user/profile", label: "Profile", icon: UserRound },
 ];
 
 /** Customer panel navigation: vertical card on desktop, scrollable pills on mobile. */
 export function AccountNav() {
   const pathname = usePathname();
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // Filtered links (with a query) are shortcuts and never take the highlight.
+  const isActive = (href: string) => !href.includes("?") && (pathname === href || pathname.startsWith(`${href}/`));
 
   return (
     <>

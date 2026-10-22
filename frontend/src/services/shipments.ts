@@ -63,6 +63,8 @@ export interface ShippingConfig {
   enabled: boolean;
   /** Fee to apply per order in INR (0 when disabled). */
   amount: number;
+  /** Orders at or above this subtotal ship free (0 = no free-delivery offer). */
+  freeAbove?: number;
 }
 
 export async function getShippingConfig() {
