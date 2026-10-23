@@ -13,19 +13,29 @@ export const createReviewSchema = z
         comment: z.string().trim().max(2000, 'Review must be at most 2000 characters').optional(),
         images: z
             .array(z.string().url('Review image must be a valid URL'))
-            .max(3, 'Maximum 3 images allowed')
+            .max(5, 'Maximum 5 images allowed')
             .optional(),
+        /** Optional 1–5 rating of the seller's service. */
+        sellerRating: z.coerce.number().int().min(1).max(5).optional(),
     })
     .transform((value) => ({
         rating: value.rating,
         title: value.title?.trim() ? value.title.trim() : null,
         text: (value.text ?? value.comment ?? '').trim(),
         images: value.images ?? [],
+        sellerRating: value.sellerRating ?? null,
     }))
-    .refine((value) => value.text.length > 0, {
-        message: 'Review text is required',
+    .refine((value) => value.text.length >= 10, {
+        message: 'Please write at least 10 characters about the product',
         path: ['text'],
     });
+
+export const REVIEW_REPORT_REASONS = ['SPAM', 'FAKE', 'OFFENSIVE', 'NOT_ABOUT_PRODUCT', 'PERSONAL_INFO', 'OTHER'] as const;
+
+export const reportReviewSchema = z.object({
+    reason: z.enum(REVIEW_REPORT_REASONS),
+    details: z.string().trim().max(500).optional(),
+});
 
 export const reviewQuerySchema = z.object({
     page: z.coerce.number().int().min(1).optional(),

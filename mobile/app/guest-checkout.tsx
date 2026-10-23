@@ -29,6 +29,7 @@ export default function GuestCheckoutScreen() {
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [referralCode, setReferralCode] = React.useState("");
   const [step, setStep] = React.useState<"details" | "code">("details");
   const [verifyWith, setVerifyWith] = React.useState<OtpVerifyWith | null>(null);
   const [existing, setExisting] = React.useState(false);
@@ -44,7 +45,12 @@ export default function GuestCheckoutScreen() {
     if (digits && !/^\d{10,15}$/.test(digits)) return setError("Mobile number must be 10 to 15 digits.");
     setBusy(true);
     try {
-      const res = await requestGuestOtp({ fullName: name.trim(), email: email.trim(), ...(digits ? { phone: digits } : {}) });
+      const res = await requestGuestOtp({
+        fullName: name.trim(),
+        email: email.trim(),
+        ...(digits ? { phone: digits } : {}),
+        ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
+      });
       setVerifyWith(res.verifyWith ?? { email: email.trim().toLowerCase() });
       setExisting(res.existingAccount);
       setStep("code");
@@ -101,6 +107,7 @@ export default function GuestCheckoutScreen() {
               <Field label="Full name" value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" />
               <Field label="Email" value={email} onChangeText={setEmail} autoComplete="email" keyboardType="email-address" autoCapitalize="none" />
               <Field label="Mobile number (optional)" value={phone} onChangeText={setPhone} autoComplete="tel" keyboardType="phone-pad" />
+              <Field label="Referral code (optional)" value={referralCode} onChangeText={(v) => setReferralCode(v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase())} autoCapitalize="characters" maxLength={16} />
               {error ? <T size={12} color={C.red} style={{ marginTop: 10 }}>{error}</T> : null}
               <PrimaryBtn label="Send verification code" onPress={() => void sendCode()} loading={busy} style={{ marginTop: 18 }} />
             </>

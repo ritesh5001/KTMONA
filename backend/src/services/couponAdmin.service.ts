@@ -93,6 +93,14 @@ export class CouponAdminService {
                 isActive: input.isActive,
                 sellerId: input.sellerId ?? null,
                 firstTimeUserOnly: input.firstTimeUserOnly,
+                title: input.title ?? null,
+                terms: input.terms ?? null,
+                isPublic: input.isPublic ?? true,
+                autoApply: input.autoApply ?? false,
+                productIds: input.productIds ?? [],
+                categoryIds: input.categoryIds ?? [],
+                excludedProductIds: input.excludedProductIds ?? [],
+                excludedCategoryIds: input.excludedCategoryIds ?? [],
             },
             include: {
                 seller: { select: { id: true, email: true, seller_profiles: { select: { store_name: true } } } },
@@ -146,6 +154,14 @@ export class CouponAdminService {
                 : { disconnect: true };
         }
         if (input.firstTimeUserOnly !== undefined) data.firstTimeUserOnly = input.firstTimeUserOnly;
+        if (input.title !== undefined) data.title = input.title;
+        if (input.terms !== undefined) data.terms = input.terms;
+        if (input.isPublic !== undefined) data.isPublic = input.isPublic;
+        if (input.autoApply !== undefined) data.autoApply = input.autoApply;
+        if (input.productIds !== undefined) data.productIds = input.productIds;
+        if (input.categoryIds !== undefined) data.categoryIds = input.categoryIds;
+        if (input.excludedProductIds !== undefined) data.excludedProductIds = input.excludedProductIds;
+        if (input.excludedCategoryIds !== undefined) data.excludedCategoryIds = input.excludedCategoryIds;
 
         return prisma.coupon.update({
             where: { id },

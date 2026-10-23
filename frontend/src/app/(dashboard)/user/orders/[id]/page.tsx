@@ -312,8 +312,10 @@ export default function OrderDetailPage() {
             <Row label="Price (MRP)" value={formatInr(order.charges.mrpTotal)} />
             {order.charges.productDiscount > 0 ? <Row label="Discount on MRP" value={`−${formatInr(order.charges.productDiscount)}`} good /> : null}
             {order.charges.couponDiscount > 0 ? <Row label={`Coupon ${order.charges.couponCode ?? ""}`} value={`−${formatInr(order.charges.couponDiscount)}`} good /> : null}
+            {order.charges.autoDiscount ? <Row label={order.charges.autoDiscountLabel ?? "Offer"} value={`−${formatInr(order.charges.autoDiscount)}`} good /> : null}
             <Row label="Delivery" value={order.charges.shipping > 0 ? formatInr(order.charges.shipping) : "FREE"} />
             {order.charges.tax > 0 ? <Row label="GST" value={formatInr(order.charges.tax)} /> : null}
+            {order.charges.walletAmount ? <Row label="Cashback used" value={`−${formatInr(order.charges.walletAmount)}`} good /> : null}
             <div className="h-px bg-border-soft" />
             <Row label="Order total" value={formatInr(order.charges.total)} bold />
             <p className="pt-1 text-xs text-muted-foreground">

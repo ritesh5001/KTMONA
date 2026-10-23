@@ -38,6 +38,8 @@ export type SignupOtpPayload = {
     passwordHash: string;
     role: 'USER' | 'SELLER';
     fullName?: string;
+    /** Referral code the customer signed up with. */
+    referralCode?: string | null;
 };
 
 export class OtpService {

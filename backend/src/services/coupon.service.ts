@@ -19,6 +19,27 @@ interface ApplyCouponInput {
     tx?: TxClient;
     /** Price check only (checkout quote): no row lock, no metrics. */
     preview?: boolean;
+    /** Cart lines, for coupons limited to (or excluding) products / categories. */
+    lines?: Array<{ productId: string; categoryId: string | null; amount: Prisma.Decimal | number }>;
+}
+
+/** Part of the order a scoped coupon applies to; null when the coupon is not scoped. */
+function eligibleSubtotal(
+    coupon: { productIds: string[]; categoryIds: string[]; excludedProductIds: string[]; excludedCategoryIds: string[] },
+    lines: ApplyCouponInput['lines'],
+): Prisma.Decimal | null {
+    const scoped = coupon.productIds.length || coupon.categoryIds.length || coupon.excludedProductIds.length || coupon.excludedCategoryIds.length;
+    if (!scoped || !lines) return null;
+    return lines.reduce((sum, line) => {
+        const included =
+            (!coupon.productIds.length && !coupon.categoryIds.length) ||
+            coupon.productIds.includes(line.productId) ||
+            (line.categoryId != null && coupon.categoryIds.includes(line.categoryId));
+        const excluded =
+            coupon.excludedProductIds.includes(line.productId) ||
+            (line.categoryId != null && coupon.excludedCategoryIds.includes(line.categoryId));
+        return included && !excluded ? sum.add(toDecimal(line.amount)) : sum;
+    }, new Prisma.Decimal(0));
 }
 
 interface RedeemCouponInput {
@@ -146,16 +167,24 @@ export class CouponService {
                 throw ApiError.badRequest('Coupon is not applicable to items in this cart');
             }
 
+            // Scoped coupons discount only the matching items.
+            const scopedBase = eligibleSubtotal(coupon, input.lines);
+            if (scopedBase && scopedBase.lte(0)) {
+                couponRejectedTotal.inc();
+                throw ApiError.badRequest('This coupon does not apply to the items in your cart');
+            }
+            const base = scopedBase ?? orderSubtotal;
+
             let discount = coupon.type === CouponType.PERCENT
-                ? orderSubtotal.mul(coupon.value).div(100)
+                ? base.mul(coupon.value).div(100)
                 : new Prisma.Decimal(coupon.value);
 
             if (coupon.maxDiscountAmount && discount.gt(coupon.maxDiscountAmount)) {
                 discount = new Prisma.Decimal(coupon.maxDiscountAmount);
             }
 
-            if (discount.gt(orderSubtotal)) {
-                discount = orderSubtotal;
+            if (discount.gt(base)) {
+                discount = base;
             }
 
             discount = round2(discount);
@@ -273,3 +302,32 @@ export class CouponService {
 }
 
 export const couponService = new CouponService();
+
+/** Public, active coupons shoppers can see (Offers page, product page, checkout). */
+export async function listPublicCoupons(now = new Date()) {
+    const rows = await prisma.coupon.findMany({
+        where: { isActive: true, isPublic: true, validFrom: { lte: now }, validUntil: { gte: now } },
+        orderBy: [{ autoApply: 'desc' }, { validUntil: 'asc' }],
+        take: 100,
+    });
+    return rows
+        .filter((c) => c.usageLimit === null || c.usedCount < c.usageLimit)
+        .map((c) => ({
+            code: c.code,
+            title: c.title,
+            terms: c.terms,
+            type: c.type,
+            value: Number(c.value),
+            maxDiscountAmount: c.maxDiscountAmount ? Number(c.maxDiscountAmount) : null,
+            minOrderAmount: Number(c.minOrderAmount),
+            validUntil: c.validUntil.toISOString(),
+            firstTimeUserOnly: c.firstTimeUserOnly,
+            autoApply: c.autoApply,
+            sellerId: c.sellerId,
+            productIds: c.productIds,
+            categoryIds: c.categoryIds,
+            excludedProductIds: c.excludedProductIds,
+            excludedCategoryIds: c.excludedCategoryIds,
+            perUserLimit: c.perUserLimit,
+        }));
+}

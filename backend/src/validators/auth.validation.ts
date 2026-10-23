@@ -27,6 +27,9 @@ export const registerUserSchema = z.object({
         .min(8, 'Password must be at least 8 characters')
         .regex(/[A-Z]/, 'Password must contain at least 1 uppercase letter')
         .regex(/[0-9]/, 'Password must contain at least 1 number'),
+
+    /** Friend's referral code (from a ?ref= link). */
+    referralCode: z.string().trim().max(32).optional(),
 }).refine((data) => Boolean(data.email || data.phone), {
     message: 'Enter an email address or a mobile number',
     path: ['email'],
@@ -253,6 +256,7 @@ export const guestOtpSchema = z.object({
         .trim()
         .min(2, 'Full name must be at least 2 characters')
         .max(80, 'Full name must be at most 80 characters'),
+    referralCode: z.string().trim().max(32).optional(),
 });
 
 export type GuestOtpInput = z.infer<typeof guestOtpSchema>;

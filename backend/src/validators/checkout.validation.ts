@@ -24,6 +24,8 @@ export const checkoutSchema = z.object({
 		shippingNotes: z.string().max(500).optional(),
 		/** One key per Place Order attempt; repeats return the same order. */
 		checkoutKey: z.string().min(8).max(100).optional(),
+		/** Pay part of the order from the cashback wallet. */
+		useWallet: z.boolean().optional(),
 	})
 });
 
@@ -38,5 +40,6 @@ export const checkoutQuoteSchema = z.object({
 		variantIds: z.array(z.string().min(1)).min(1).max(50).optional(),
 		couponCode: z.string().min(1).max(64).optional(),
 		paymentMethod: z.enum(['ONLINE', 'COD']).optional(),
+		useWallet: z.boolean().optional(),
 	})
 });

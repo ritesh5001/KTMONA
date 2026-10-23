@@ -66,6 +66,7 @@ import { adminCenterRouter, campaignsPublicRouter, storefrontPublicRouter } from
 import { adminActivityRouter, adminEmployeesRouter, adminMeRouter } from './routes/admin-staff.routes.js';
 import { siteAdminRouter, sitePublicRouter } from './routes/site-content.routes.js';
 import { activityLogger } from './middlewares/activity-log.middleware.js';
+import { offersRouter } from './routes/offers.routes.js';
 
 const HOT_ENDPOINT_SLOW_THRESHOLD_MS = 400;
 
@@ -364,6 +365,7 @@ export function createApp(): Application {
     app.use('/v1/cart', cartRouter);
     app.use('/v1/checkout', checkoutRouter);
     app.use('/v1/coupons', couponRouter);
+    app.use('/v1/offers', offersRouter);
     app.use('/v1/orders', orderRouter);
     app.use('/v1/seller/orders', sellerOrderRouter);
     app.use('/v1/appointments', appointmentRouter);

@@ -12,11 +12,13 @@ import { useT } from "../../i18n";
 type Row = { icon: React.ComponentProps<typeof Feather>["name"]; label: string; href?: string; url?: string };
 
 /** Rows that need a signed-in account. */
-const NEEDS_LOGIN = new Set(["My Orders", "Cancelled Orders", "Settings & Privacy", "My Addresses", "Notifications", "Bank & UPI Details", "Video Calls", "Edit Profile", "Change Password"]);
+const NEEDS_LOGIN = new Set(["My Orders", "Cancelled Orders", "Settings & Privacy", "Wallet & Cashback", "Refer & Earn", "My Addresses", "Notifications", "Bank & UPI Details", "Video Calls", "Edit Profile", "Change Password"]);
 
 const SHOPPING: Row[] = [
   { icon: "package", label: "My Orders", href: "/orders" },
   { icon: "x-circle", label: "Cancelled Orders", href: "/orders?status=CANCELLED" },
+  { icon: "credit-card", label: "Wallet & Cashback", href: "/account/wallet" },
+  { icon: "gift", label: "Refer & Earn", href: "/account/referrals" },
   { icon: "heart", label: "My Wishlist", href: "/wishlist" },
   { icon: "share-2", label: "Shared Products", href: "/account/shared" },
   { icon: "eye", label: "Recently Viewed", href: "/account/recently-viewed" },

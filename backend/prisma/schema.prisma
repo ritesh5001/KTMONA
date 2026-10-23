@@ -39,6 +39,10 @@ model User {
   /// Customer asked for their account to be deleted (handled by an admin).
   deletionRequestedAt          DateTime?               @map("deletion_requested_at")
   deletionReason               String?                 @map("deletion_reason")
+  /// This customer's referral code (created on first use).
+  referralCode                 String?                 @unique @map("referral_code")
+  /// Who referred this customer at sign-up.
+  referredById                 String?                 @map("referred_by_id")
   createdAt                    DateTime                @default(now()) @map("created_at")
   updatedAt                    DateTime                @updatedAt @map("updated_at")
   adminProfile                 AdminProfile?
@@ -475,6 +479,11 @@ model Order {
   /// Client-generated key for one Place Order attempt. A retried or double-clicked
   /// submit with the same key returns the same order instead of creating another.
   checkoutKey          String?                @unique @map("checkout_key")
+  /// Cashback wallet balance used on this order (comes off the amount to pay).
+  walletAmount         Float                  @default(0) @map("wallet_amount")
+  /// Automatic discounts (welcome offer, referral bonus), included in discountAmount.
+  autoDiscountAmount   Float                  @default(0) @map("auto_discount_amount")
+  autoDiscountLabel    String?                @map("auto_discount_label")
   createdAt            DateTime               @default(now()) @map("created_at")
   movements            InventoryMovement[]
   items                OrderItem[]
@@ -795,21 +804,35 @@ model SellerSettlement {
 }
 
 model Coupon {
-  id                String     @id @default(uuid())
-  code              String     @unique
-  type              CouponType
-  value             Decimal    @db.Decimal(10, 2)
-  maxDiscountAmount Decimal?   @map("max_discount_amount") @db.Decimal(10, 2)
-  minOrderAmount    Decimal    @default(0) @map("min_order_amount") @db.Decimal(10, 2)
-  usageLimit        Int?       @map("usage_limit")
-  perUserLimit      Int?       @map("per_user_limit")
-  usedCount         Int        @default(0) @map("used_count")
-  validFrom         DateTime   @map("valid_from")
-  validUntil        DateTime   @map("valid_until")
-  isActive          Boolean    @default(true) @map("is_active")
-  sellerId          String?    @map("seller_id")
-  firstTimeUserOnly Boolean    @default(false) @map("first_time_user_only")
-  createdAt         DateTime   @default(now()) @map("created_at")
+  id                  String     @id @default(uuid())
+  code                String     @unique
+  type                CouponType
+  value               Decimal    @db.Decimal(10, 2)
+  maxDiscountAmount   Decimal?   @map("max_discount_amount") @db.Decimal(10, 2)
+  minOrderAmount      Decimal    @default(0) @map("min_order_amount") @db.Decimal(10, 2)
+  usageLimit          Int?       @map("usage_limit")
+  perUserLimit        Int?       @map("per_user_limit")
+  usedCount           Int        @default(0) @map("used_count")
+  validFrom           DateTime   @map("valid_from")
+  validUntil          DateTime   @map("valid_until")
+  isActive            Boolean    @default(true) @map("is_active")
+  sellerId            String?    @map("seller_id")
+  firstTimeUserOnly   Boolean    @default(false) @map("first_time_user_only")
+  /// Short name shown to shoppers, e.g. "Flat ₹200 off on sarees".
+  title               String?
+  /// Offer terms shown on the offers page and at checkout.
+  terms               String?
+  /// Listed on the Offers page / product pages (false = code shared privately).
+  isPublic            Boolean    @default(true) @map("is_public")
+  /// Applied by itself at checkout when eligible and no code was typed.
+  autoApply           Boolean    @default(false) @map("auto_apply")
+  /// Limit the discount to these products / categories (empty = everything).
+  productIds          String[]   @default([]) @map("product_ids")
+  categoryIds         String[]   @default([]) @map("category_ids")
+  /// Never discounted by this coupon.
+  excludedProductIds  String[]   @default([]) @map("excluded_product_ids")
+  excludedCategoryIds String[]   @default([]) @map("excluded_category_ids")
+  createdAt           DateTime   @default(now()) @map("created_at")
 
   seller      User?              @relation("SellerCoupons", fields: [sellerId], references: [id], onDelete: SetNull)
   redemptions CouponRedemption[]
@@ -1306,19 +1329,29 @@ enum NotificationStatus {
 
 /// Reviews for products
 model Review {
-  id           String   @id @default(cuid())
-  productId    String   @map("product_id")
-  userId       String   @map("user_id")
-  rating       Int
-  title        String?
-  text         String
-  images       String[] @default([])
+  id               String   @id @default(cuid())
+  productId        String   @map("product_id")
+  userId           String   @map("user_id")
+  rating           Int
+  title            String?
+  text             String
+  images           String[] @default([])
   /// Reviewer name shown publicly for reviews an admin adds or edits.
-  authorName   String?  @map("author_name")
-  helpfulCount Int      @default(0) @map("helpful_count")
-  isHidden     Boolean  @default(false) @map("is_hidden")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  authorName       String?  @map("author_name")
+  helpfulCount     Int      @default(0) @map("helpful_count")
+  isHidden         Boolean  @default(false) @map("is_hidden")
+  /// Size/colour the reviewer bought, e.g. "Navy / L".
+  variantLabel     String?  @map("variant_label")
+  variantId        String?  @map("variant_id")
+  /// Written by someone whose order of this product was delivered.
+  verifiedPurchase Boolean  @default(false) @map("verified_purchase")
+  orderId          String?  @map("order_id")
+  /// Optional 1–5 rating of the seller's service (packing, delivery, as described).
+  sellerRating     Int?     @map("seller_rating")
+  /// Shopper reports; three hide the review until an admin looks.
+  reportCount      Int      @default(0) @map("report_count")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1392,6 +1425,8 @@ model WishlistItem {
   id         String   @id @default(uuid())
   wishlistId String   @map("wishlist_id")
   productId  String   @map("product_id")
+  /// Lowest price when saved (or last alerted), for price-drop alerts.
+  priceAtAdd Float?   @map("price_at_add")
   createdAt  DateTime @default(now()) @map("created_at")
   wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
   product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -2105,4 +2140,149 @@ model CategoryAttribute {
   @@unique([categoryId, key])
   @@index([categoryId, sortOrder])
   @@map("category_attributes")
+}
+
+enum WalletTxnKind {
+  CREDIT
+  DEBIT
+}
+
+enum WalletTxnSource {
+  CASHBACK
+  REFERRAL
+  CHECKOUT
+  ORDER_REFUND
+  EXPIRY
+  ADMIN
+}
+
+enum WalletTxnStatus {
+  /// Credit waiting for the return window to pass.
+  PENDING
+  /// Credit that can be spent (until expiresAt).
+  AVAILABLE
+  /// Pending credit cancelled (order returned / cancelled).
+  REVERSED
+  /// Debit or expiry entry; final.
+  DONE
+}
+
+/// Cashback wallet ledger. Credits carry `remaining`; spends and expiry consume it oldest-first.
+model WalletTransaction {
+  id          String          @id @default(cuid())
+  userId      String          @map("user_id")
+  kind        WalletTxnKind
+  source      WalletTxnSource
+  status      WalletTxnStatus
+  amount      Float
+  remaining   Float           @default(0)
+  orderId     String?         @map("order_id")
+  note        String?
+  availableAt DateTime?       @map("available_at")
+  expiresAt   DateTime?       @map("expires_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([userId, status])
+  @@index([orderId])
+  @@index([status, availableAt])
+  @@index([status, expiresAt])
+  @@map("wallet_transactions")
+}
+
+enum ReferralStatus {
+  SIGNED_UP
+  ORDERED
+  REWARDED
+  CANCELLED
+}
+
+model Referral {
+  id             String         @id @default(cuid())
+  referrerId     String         @map("referrer_id")
+  referredUserId String         @unique @map("referred_user_id")
+  status         ReferralStatus @default(SIGNED_UP)
+  firstOrderId   String?        @map("first_order_id")
+  rewardedAt     DateTime?      @map("rewarded_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  @@index([referrerId])
+  @@map("referrals")
+}
+
+enum ProductAlertType {
+  BACK_IN_STOCK
+  PRICE_DROP
+}
+
+/// "Notify me" subscriptions. variantId "" = any size/colour.
+model ProductAlert {
+  id         String           @id @default(cuid())
+  userId     String           @map("user_id")
+  productId  String           @map("product_id")
+  variantId  String           @default("") @map("variant_id")
+  type       ProductAlertType
+  notifiedAt DateTime?        @map("notified_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  @@unique([userId, productId, variantId, type])
+  @@index([type, notifiedAt])
+  @@map("product_alerts")
+}
+
+/// One "helpful" vote per shopper per review.
+model ReviewVote {
+  reviewId  String   @map("review_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([reviewId, userId])
+  @@map("review_votes")
+}
+
+model ReviewReport {
+  id         String    @id @default(cuid())
+  reviewId   String    @map("review_id")
+  userId     String    @map("user_id")
+  reason     String
+  details    String?
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([reviewId, userId])
+  @@index([resolvedAt])
+  @@map("review_reports")
+}
+
+/// Product Q&A: shoppers ask, the seller (or an admin) answers.
+model ProductQuestion {
+  id         String    @id @default(cuid())
+  productId  String    @map("product_id")
+  userId     String    @map("user_id")
+  question   String
+  answer     String?
+  answeredBy String?   @map("answered_by")
+  answeredAt DateTime? @map("answered_at")
+  isHidden   Boolean   @default(false) @map("is_hidden")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([productId, answeredAt])
+  @@index([answeredAt])
+  @@map("product_questions")
+}
+
+/// "Report incorrect product information" from shoppers.
+model ProductReport {
+  id         String    @id @default(cuid())
+  productId  String    @map("product_id")
+  userId     String    @map("user_id")
+  /// WRONG_PRICE | WRONG_SPECS | WRONG_IMAGES | FAKE_OR_COUNTERFEIT | OFFENSIVE | OTHER
+  type       String
+  details    String?
+  status     String    @default("OPEN")
+  resolvedAt DateTime? @map("resolved_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@index([productId])
+  @@map("product_reports")
 }

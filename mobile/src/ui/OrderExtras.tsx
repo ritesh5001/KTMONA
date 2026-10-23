@@ -263,8 +263,10 @@ export function OrderExtras({
           <Line label="Price (MRP)" value={inr(order.charges.mrpTotal)} />
           {order.charges.productDiscount > 0 ? <Line label="Discount on MRP" value={`−${inr(order.charges.productDiscount)}`} good /> : null}
           {order.charges.couponDiscount > 0 ? <Line label={`${t("Coupon")} ${order.charges.couponCode ?? ""}`} value={`−${inr(order.charges.couponDiscount)}`} good /> : null}
+          {order.charges.autoDiscount ? <Line label={order.charges.autoDiscountLabel ?? "Offer"} value={`−${inr(order.charges.autoDiscount)}`} good /> : null}
           <Line label="Delivery" value={order.charges.shipping > 0 ? inr(order.charges.shipping) : "FREE"} />
           {order.charges.tax > 0 ? <Line label="GST" value={inr(order.charges.tax)} /> : null}
+          {order.charges.walletAmount ? <Line label="Cashback used" value={`−${inr(order.charges.walletAmount)}`} good /> : null}
           <View style={{ height: 1, backgroundColor: C.divider, marginVertical: 6 }} />
           <Line label="Order total" value={inr(order.charges.total)} bold />
           <T size={11} color={C.muted}>{order.paymentMethod === "COD" ? t("Cash on Delivery") : t("Paid online")}</T>

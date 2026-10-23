@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Check } from "lucide-react";
@@ -29,30 +30,6 @@ const currency = new Intl.NumberFormat("en-IN", {
   currency: "INR",
   maximumFractionDigits: 0,
 });
-
-const getStatusStyle = (status: string) => {
-  // Calm, desaturated status colors - never loud
-  switch (status.toUpperCase()) {
-    case "DELIVERED":
-      return "border-[#7B9971]/30 text-[#5A7352] bg-[#7B9971]/5";
-    case "AWAITING SELLER":
-      return "border-border-soft text-muted-foreground bg-mist/30";
-    case "CONFIRMED":
-      return "border-[#FF8A00]/30 text-[#B84A00] bg-[#FF8A00]/5";
-    case "SHIPPED":
-      return "border-[#8B9CB8]/30 text-[#5E6B82] bg-[#8B9CB8]/5";
-    case "PLACED":
-      return "border-border-soft text-muted-foreground bg-mist/30";
-    case "PAYMENT PENDING":
-      return "border-[#FF8A00]/40 text-[#B84A00] bg-[#FF8A00]/10";
-    case "PAYMENT FAILED":
-      return "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5";
-    case "CANCELLED":
-      return "border-[#A67575]/30 text-[#7A5656] bg-[#A67575]/5";
-    default:
-      return "border-border-soft text-muted-foreground bg-mist/30";
-  }
-};
 
 const STATUS_FILTERS: { value: BuyerOrderStatusFilter; label: string }[] = [
   { value: "ON_THE_WAY", label: "On the way" },
@@ -120,6 +97,71 @@ function FilterChip({
       {active ? <Check className="h-3.5 w-3.5" strokeWidth={2.2} /> : null}
       {children}
     </button>
+  );
+}
+
+/** Split an order's total into items, coupon, delivery and GST from its stored amounts. */
+function orderCharges(order: any) {
+  const items = ((order.items ?? []) as any[]).reduce(
+    (sum: number, item: any) => sum + (item.priceSnapshot ?? 0) * (item.quantity ?? 0),
+    0
+  );
+  const discount = Number(order.discountAmount ?? 0) || 0;
+  const tax = Number(order.totalTaxAmount ?? 0) || 0;
+  const total = Number(order.totalAmount ?? 0) || 0;
+  // Delivery is whatever is left once items (after coupon) and GST are taken out.
+  const delivery = Math.max(0, Math.round((total - (items - discount) - tax) * 100) / 100);
+  return { items, discount, tax, delivery };
+}
+
+/** Headline status for an order card, in plain words. */
+function statusLine(order: any, label: string, cancellationStatus?: string, returnStatus?: string) {
+  const green = { tone: "text-emerald-700", dot: "bg-emerald-600" };
+  const amber = { tone: "text-amber-700", dot: "bg-amber-500" };
+  const red = { tone: "text-red-700", dot: "bg-red-500" };
+  const blue = { tone: "text-foreground", dot: "bg-brand" };
+  if (returnStatus && returnStatus !== "REJECTED") {
+    return { ...blue, title: `Return ${returnStatus.toLowerCase()}`, detail: "See order details for pickup and refund status." };
+  }
+  switch (label) {
+    case "PAYMENT PENDING":
+      return { ...amber, title: "Payment pending", detail: "Complete the payment within 30 minutes to confirm this order." };
+    case "PAYMENT FAILED":
+      return { ...red, title: "Payment failed", detail: "Retry the payment — it won't create a second order." };
+    case "AWAITING SELLER":
+      return { ...blue, title: "Order confirmed", detail: "Waiting for the seller to accept and pack it." };
+    case "CONFIRMED":
+      return { ...blue, title: "Being packed", detail: "The seller is getting your order ready." };
+    case "SHIPPED":
+      return { ...blue, title: "On the way", detail: "Track it for the latest courier update." };
+    case "DELIVERED":
+      return { ...green, title: "Delivered", detail: "Return or replace within 7 days of delivery." };
+    case "CANCELLED":
+      return { ...red, title: "Cancelled", detail: order.paymentMethod === "COD" ? "No money was charged." : "Any amount paid is refunded to your original payment method." };
+    default:
+      return {
+        ...blue,
+        title: cancellationStatus === "REQUESTED" ? "Cancellation requested" : label.charAt(0) + label.slice(1).toLowerCase(),
+        detail: cancellationStatus === "REQUESTED" ? "The seller is reviewing your request." : "",
+      };
+  }
+}
+
+function HeaderFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="font-medium text-foreground">{children}</p>
+    </div>
+  );
+}
+
+function ChargeFact({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex gap-1">
+      <dt>{label}</dt>
+      <dd className={strong ? "font-semibold text-foreground" : "text-foreground"}>{value}</dd>
+    </div>
   );
 }
 
@@ -524,20 +566,7 @@ export default function UserOrdersClient({
           ) : (
             orders.map((order, index) => {
               const paymentStatus = paymentStatusByOrder[order.id] ?? order.paymentStatus;
-              const saleSubtotal = (order.items ?? []).reduce(
-                (sum: number, item: any) =>
-                  sum + (item.priceSnapshot ?? 0) * (item.quantity ?? 0),
-                0
-              );
-              const regularSubtotal = (order.items ?? []).reduce(
-                (sum: number, item: any) =>
-                  sum +
-                  ((item.sellerPriceSnapshot ?? item.priceSnapshot ?? 0) *
-                    (item.quantity ?? 0)),
-                0
-              );
-              const shippingAmount = Math.max((order.totalAmount ?? 0) - saleSubtotal, 0);
-              const regularGrandTotal = regularSubtotal + shippingAmount;
+              const charges = orderCharges(order);
               let label = order.status;
               const cancellationStatus =
                 cancellationByOrderId[order.id]?.status ?? order.cancellationRequest?.status;
@@ -565,74 +594,100 @@ export default function UserOrdersClient({
                 }
               }
 
+              const status = statusLine(order, label, cancellationStatus, returnStatus);
+              const items = (order.items ?? []) as any[];
+
               return (
-                <motion.div
+                <motion.article
                   key={order.id}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + (index % BUYER_ORDERS_PAGE_SIZE) * 0.05, duration: 0.5 }}
-                  className="border border-border-soft bg-card"
+                  transition={{ delay: 0.05 + (index % BUYER_ORDERS_PAGE_SIZE) * 0.04, duration: 0.4 }}
+                  className="overflow-hidden rounded-2xl border border-border-soft bg-card"
                 >
-                  {/* Order Header */}
-                  <div className="flex flex-col gap-4 p-6 border-b border-border-soft sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1">
-                      <p className="font-serif text-lg font-normal text-foreground">
-                        Order {order.id.slice(0, 8).toUpperCase()}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {order.id}
-                      </p>
+                  {/* Header bar */}
+                  <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3 border-b border-border-soft bg-mist/40 px-5 py-3 text-xs">
+                    <div className="flex flex-wrap gap-x-8 gap-y-2">
+                      <HeaderFact label="Order placed">
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                          : "—"}
+                      </HeaderFact>
+                      <HeaderFact label="Total">{currency.format(order.totalAmount ?? 0)}</HeaderFact>
+                      {order.shippingName ? <HeaderFact label="Ship to">{order.shippingName}</HeaderFact> : null}
+                      <HeaderFact label="Payment">{order.paymentMethod === "COD" ? "Cash on Delivery" : "Online"}</HeaderFact>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className={`px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border ${getStatusStyle(label)}`}>
-                        {label}
-                      </span>
-                      {hasCancellationRequest ? (
-                        <span className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border border-brand/30 text-[#B84A00] bg-brand/5">
-                          Cancellation Requested
-                        </span>
-                      ) : null}
-                      {canRequestCancellation ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={requestingCancellation}
-                          onClick={() => openCancellationModal(order.id)}
-                        >
-                          {requestingCancellation ? "Requesting..." : "Request Cancellation"}
+                    <div className="text-right">
+                      <p className="text-muted-foreground">Order # <span className="font-mono font-medium text-foreground">{order.id.slice(0, 8).toUpperCase()}</span></p>
+                      <Link href={`/user/orders/${order.id}`} className="font-medium text-brand-strong hover:underline">View order details</Link>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-5 p-5 md:grid-cols-[1fr_200px]">
+                    <div className="min-w-0 space-y-4">
+                      {/* Status */}
+                      <div>
+                        <p className={cn("flex items-center gap-2 text-base font-semibold", status.tone)}>
+                          <span className={cn("h-2 w-2 rounded-full", status.dot)} aria-hidden />
+                          {status.title}
+                        </p>
+                        {status.detail ? <p className="mt-0.5 text-sm text-muted-foreground">{status.detail}</p> : null}
+                      </div>
+
+                      {/* Items */}
+                      <ul className="space-y-3">
+                        {items.map((item) => (
+                          <li key={item.id} className="flex gap-3">
+                            <Link href={`/product/${item.productId}`} className="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-mist">
+                              <Image src={item.productImage ?? "/images/product-placeholder.svg"} alt="" fill sizes="64px" className="object-cover" />
+                            </Link>
+                            <div className="min-w-0 flex-1 text-sm">
+                              <Link href={`/product/${item.productId}`} className="line-clamp-2 font-medium text-foreground hover:underline">
+                                {item.productTitle ?? "Item"}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">
+                                {[item.variantColor, item.variantSize && item.variantSize !== "Default" ? `Size ${item.variantSize}` : null, `Qty ${item.quantity}`]
+                                  .filter(Boolean)
+                                  .join(" · ")}
+                              </p>
+                              <p className="mt-0.5 font-medium">{currency.format((item.priceSnapshot ?? 0) * (item.quantity ?? 1))}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+
+                      {/* Charges: what made up the total */}
+                      <dl className="flex flex-wrap gap-x-5 gap-y-1 border-t border-border-soft pt-3 text-xs text-muted-foreground">
+                        <ChargeFact label="Items" value={currency.format(charges.items)} />
+                        {charges.discount > 0 ? <ChargeFact label="Coupon" value={`−${currency.format(charges.discount)}`} /> : null}
+                        <ChargeFact label="Delivery" value={charges.delivery > 0 ? currency.format(charges.delivery) : "FREE"} />
+                        {charges.tax > 0 ? <ChargeFact label="GST" value={currency.format(charges.tax)} /> : null}
+                        <ChargeFact label="Total" value={currency.format(order.totalAmount ?? 0)} strong />
+                      </dl>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2">
+                      {(label === "PAYMENT PENDING" || label === "PAYMENT FAILED") && (
+                        <Button size="sm" disabled={retryingOrderId === order.id} onClick={() => handleRetryPayment(order.id)}>
+                          {retryingOrderId === order.id ? "Opening…" : "Retry payment"}
+                        </Button>
+                      )}
+                      {order.status !== "PLACED" && order.status !== "CANCELLED" ? (
+                        <Button asChild size="sm">
+                          <Link href={`/user/orders/${order.id}`}>Track order</Link>
                         </Button>
                       ) : null}
-                      {hasReturnRequest ? (
-                        <span className="px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider border border-[#8B9CB8]/30 text-[#5E6B82] bg-[#8B9CB8]/5">
-                          Return {returnStatus}
-                        </span>
+                      {canRequestCancellation ? (
+                        <Button size="sm" variant="outline" disabled={requestingCancellation} onClick={() => openCancellationModal(order.id)}>
+                          {requestingCancellation ? "Requesting…" : "Cancel order"}
+                        </Button>
                       ) : null}
                       {canRequestReturn ? (
                         <Button asChild size="sm" variant="outline">
                           <Link href={`/user/orders/${order.id}`}>Return / Replace</Link>
                         </Button>
                       ) : null}
-                      {/* Retry Payment — for unpaid PLACED orders */}
-                      {(label === "PAYMENT PENDING" || label === "PAYMENT FAILED") && (
-                        <Button
-                          size="sm"
-                          disabled={retryingOrderId === order.id}
-                          onClick={() => handleRetryPayment(order.id)}
-                        >
-                          {retryingOrderId === order.id ? "Redirecting..." : "Retry Payment"}
-                        </Button>
-                      )}
-                      {/* Download Invoice — available for confirmed/shipped/delivered orders */}
-                      {(order.status === "CONFIRMED" || order.status === "SHIPPED" || order.status === "DELIVERED") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={downloadingInvoiceId === order.id}
-                          onClick={() => handleDownloadInvoice(order.id)}
-                        >
-                          {downloadingInvoiceId === order.id ? "Downloading..." : "Download Invoice"}
-                        </Button>
-                      )}
                       {order.status === "DELIVERED" || order.status === "CANCELLED" ? (
                         <Button
                           size="sm"
@@ -646,90 +701,14 @@ export default function UserOrdersClient({
                           Buy again
                         </Button>
                       ) : null}
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/user/orders/${order.id}`}>
-                          View details
-                        </Link>
-                      </Button>
+                      {(order.status === "CONFIRMED" || order.status === "SHIPPED" || order.status === "DELIVERED") && (
+                        <Button size="sm" variant="ghost" disabled={downloadingInvoiceId === order.id} onClick={() => handleDownloadInvoice(order.id)}>
+                          {downloadingInvoiceId === order.id ? "Downloading…" : "Download invoice"}
+                        </Button>
+                      )}
                     </div>
                   </div>
-
-                  {/* Order Details */}
-                  <div className="grid gap-px bg-border-soft sm:grid-cols-3">
-                    <div className="bg-card p-6 space-y-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                        Placed On
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString("en-IN", {
-                            month: "long",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                          : "—"}
-                      </p>
-                    </div>
-                    <div className="bg-card p-6 space-y-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                        Items
-                      </p>
-                      <p className="font-medium text-foreground">
-                        {order.items?.length ?? 0} {order.items?.length === 1 ? "piece" : "pieces"}
-                      </p>
-                    </div>
-                    <div className="bg-card p-6 space-y-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                        Total
-                      </p>
-                      <div className="space-y-1">
-                        <p className="font-serif text-lg font-light text-foreground">
-                          {currency.format(order.totalAmount ?? 0)}
-                        </p>
-                        {regularGrandTotal !== (order.totalAmount ?? 0) ? (
-                          <p className="text-xs text-muted-foreground line-through">
-                            {currency.format(regularGrandTotal)}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Summary Footer */}
-                  <div className="p-6 border-t border-border-soft">
-                    <div className="grid gap-6 sm:grid-cols-3 text-sm">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                          Subtotal
-                        </p>
-                        <p className="text-foreground">
-                          {currency.format(saleSubtotal)}
-                        </p>
-                        {regularSubtotal !== saleSubtotal ? (
-                          <p className="text-xs text-muted-foreground line-through">
-                            {currency.format(regularSubtotal)}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                          Shipping
-                        </p>
-                        <p className="text-foreground">
-                          {currency.format(shippingAmount)}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
-                          Grand Total
-                        </p>
-                        <p className="font-medium text-foreground">
-                          {currency.format(order.totalAmount ?? 0)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
+                </motion.article>
               );
             })
           )}

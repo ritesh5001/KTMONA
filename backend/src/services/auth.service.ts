@@ -38,6 +38,7 @@ import type { Role, UserStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { authLogger } from '../config/logger.js';
 import { redis } from '../config/redis.js';
+import { referralService } from './referral.service.js';
 import { sellerSuspensionService } from './seller-suspension.service.js';
 
 
@@ -153,6 +154,7 @@ export class AuthService {
             passwordHash,
             role: 'USER',
             fullName: data.fullName,
+            referralCode: data.referralCode ?? null,
         };
         const delivery = await otpService.sendSignupOtp(payload);
         this.logger.info({ email, phone: phone ? '[present]' : '[missing]', channel: delivery.channel, role: 'USER' }, 'register_user_otp_sent');
@@ -348,7 +350,7 @@ export class AuthService {
      * (they can set a password later with Forgot Password) so the order can be
      * tracked. Verification goes through POST /v1/auth/verify-otp as usual.
      */
-    async requestGuestOtp(input: { email: string; phone?: string | undefined; fullName: string }): Promise<RegisterSuccessResponse & { existingAccount: boolean }> {
+    async requestGuestOtp(input: { email: string; phone?: string | undefined; fullName: string; referralCode?: string | undefined }): Promise<RegisterSuccessResponse & { existingAccount: boolean }> {
         const email = input.email.trim().toLowerCase();
 
         // Anyone can trigger this without an account, so cap the emails per address.
@@ -386,6 +388,7 @@ export class AuthService {
             passwordHash,
             role: 'USER',
             fullName: input.fullName.trim(),
+            referralCode: input.referralCode ?? null,
         });
         this.logger.info({ channel: delivery.channel }, 'guest_otp_new_account');
         return { ...otpSent(delivery), existingAccount: false };
@@ -482,6 +485,7 @@ export class AuthService {
                 }
             } else {
                 this.logger.info({ email: created.email, userId: created.id, role: created.role }, 'verify_phone_otp_user_created');
+                if (payload.referralCode) await referralService.attachAtSignup(created.id, payload.referralCode);
             }
 
             // A new seller is not signed in: they log in to the seller portal

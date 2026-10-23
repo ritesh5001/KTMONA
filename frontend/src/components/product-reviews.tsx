@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Image as ImageIcon, X, ThumbsUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { Image as ImageIcon, X, ThumbsUp, ChevronLeft, ChevronRight, BadgeCheck, Flag, Store } from "lucide-react";
 import ImageKit from "imagekit-javascript";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,12 @@ import {
   fetchProductReviews,
   submitProductReview,
   markReviewHelpful,
+  getReviewEligibility,
+  getMyHelpfulVotes,
+  reportReview,
+  REVIEW_REPORT_REASONS,
   type Review,
+  type ReviewEligibility,
   type ReviewSummary,
 } from "@/services/reviews";
 import { toast } from "sonner";
@@ -21,7 +26,7 @@ import { compressImageForUpload } from "@/lib/image-compression";
 const IMAGEKIT_PUBLIC_KEY = process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY;
 const IMAGEKIT_URL_ENDPOINT = process.env.NEXT_PUBLIC_IMAGEKIT_URL_ENDPOINT;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
-const MAX_REVIEW_IMAGES = 3;
+const MAX_REVIEW_IMAGES = 5;
 const MAX_REVIEW_IMAGE_BYTES = 2 * 1024 * 1024;
 
 interface ProductReviewsProps {
@@ -55,6 +60,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     const [images, setImages] = useState<string[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [showForm, setShowForm] = useState(false);
+    const [sellerRating, setSellerRating] = useState(0);
+    const [eligibility, setEligibility] = useState<ReviewEligibility | null>(null);
+    const [voted, setVoted] = useState<Set<string>>(new Set());
+    const [reportingId, setReportingId] = useState<string | null>(null);
+    const [reportReason, setReportReason] = useState<string>(REVIEW_REPORT_REASONS[0].value);
+    const [reported, setReported] = useState<Set<string>>(new Set());
 
     const imagekit = useMemo(() => {
         if (!IMAGEKIT_PUBLIC_KEY || !IMAGEKIT_URL_ENDPOINT || !API_BASE_URL) {
@@ -86,6 +97,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         loadReviews();
     }, [loadReviews]);
 
+    // Only customers who received this product can review it.
+    useEffect(() => {
+        if (!user || user.role !== "USER") return;
+        getReviewEligibility(productId).then(setEligibility).catch(() => setEligibility(null));
+    }, [productId, user]);
+
+    // Highlight the reviews this customer already found helpful.
+    const reviewIdsKey = reviews.map((r) => r.id).join(",");
+    useEffect(() => {
+        if (!token || !reviewIdsKey) return;
+        getMyHelpfulVotes(reviewIdsKey.split(",")).then((r) => setVoted(new Set(r.reviewIds))).catch(() => undefined);
+    }, [token, reviewIdsKey]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!token) {
@@ -98,8 +122,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
             return;
         }
 
-        if (!comment.trim()) {
-            toast.error("Please write a review");
+        if (comment.trim().length < 10) {
+            toast.error("Please write at least 10 characters about the product");
             return;
         }
 
@@ -112,11 +136,14 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     text: comment.trim(),
                     title: title.trim() || undefined,
                     images,
+                    ...(sellerRating ? { sellerRating } : {}),
                 },
                 token
             );
 
             toast.success("Review submitted successfully");
+            setEligibility({ canReview: false, alreadyReviewed: true, reason: "You have already reviewed this product." });
+            setSellerRating(0);
             setShowForm(false);
             setRating(0);
             setTitle("");
@@ -165,6 +192,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     r.id === reviewId ? { ...r, helpfulCount: result.helpfulCount } : r
                 )
             );
+            setVoted((prev) => {
+                const next = new Set(prev);
+                if (result.voted) next.add(reviewId);
+                else next.delete(reviewId);
+                return next;
+            });
         } catch (error: any) {
             toast.error(error.message || "Failed to mark as helpful");
         }
@@ -240,7 +273,22 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         setImages(images.filter((_, i) => i !== index));
     };
 
-    const canReview = user && user.role === "USER";
+    const canReview = Boolean(user && user.role === "USER" && eligibility?.canReview);
+
+    const submitReport = async (reviewId: string) => {
+        if (!token) {
+            toast.error("Please login to report a review");
+            return;
+        }
+        try {
+            await reportReview(reviewId, reportReason);
+            setReported((prev) => new Set(prev).add(reviewId));
+            setReportingId(null);
+            toast.success("Thanks — our team will look at this review.");
+        } catch (error: any) {
+            toast.error(error.message || "Could not report the review");
+        }
+    };
 
     // Rating distribution bar
     const RatingBar = ({ star, count, total }: { star: number; count: number; total: number }) => {
@@ -270,7 +318,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                             ))}
                         </div>
                         <p className="text-xs text-muted-foreground">{summary.totalReviews} reviews</p>
+                        {summary.verifiedReviews ? (
+                            <p className="flex items-center gap-1 text-[11px] text-emerald-700">
+                                <BadgeCheck className="h-3.5 w-3.5" /> {summary.verifiedReviews} verified purchases
+                            </p>
+                        ) : null}
                     </div>
+                    {summary.seller?.rating?.count ? (
+                        <div className="flex min-w-36 flex-col justify-center gap-1 border-border-soft sm:border-l sm:pl-6">
+                            <p className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground"><Store className="h-3.5 w-3.5" /> Seller rating</p>
+                            <p className="text-2xl font-light">{summary.seller.rating.average?.toFixed(1)} <span className="text-base text-yellow-400">★</span></p>
+                            <p className="text-xs text-muted-foreground">{summary.seller.name ?? "Seller"} · {summary.seller.rating.count} ratings</p>
+                        </div>
+                    ) : null}
                     <div className="flex-1 space-y-1.5">
                         {[5, 4, 3, 2, 1].map((star) => (
                             <RatingBar
@@ -312,6 +372,12 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                 </div>
             )}
 
+            {user && user.role === "USER" && eligibility && !eligibility.canReview && (
+                <div className="text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
+                    {eligibility.reason}
+                </div>
+            )}
+
             {user && user.role !== "USER" && (
                 <div className="text-sm text-yellow-600 p-4 bg-yellow-50 rounded-lg">
                     Sellers and Admins cannot submit reviews.
@@ -336,6 +402,10 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                         </div>
                     </div>
 
+                    {eligibility?.variantLabel ? (
+                        <p className="text-xs text-muted-foreground">You bought: {eligibility.variantLabel}</p>
+                    ) : null}
+
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Title (Optional)</label>
                         <Input
@@ -357,7 +427,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">Photos (Optional, max 3)</label>
+                        <label className="text-sm font-medium">Photos (Optional, max {MAX_REVIEW_IMAGES})</label>
                         <div className="flex flex-wrap gap-4">
                             {images.map((img, i) => (
                                 <div key={i} className="relative w-20 h-20 border rounded overflow-hidden">
@@ -384,6 +454,24 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                         {isUploading && (
                             <p className="text-xs text-muted-foreground">Uploading photos…</p>
                         )}
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Rate the seller (Optional)</label>
+                        <p className="text-xs text-muted-foreground">Packing, delivery speed and whether the item matched the listing.</p>
+                        <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setSellerRating(star === sellerRating ? 0 : star)}
+                                    aria-label={`${star} star seller rating`}
+                                    className={`text-xl ${sellerRating >= star ? "text-yellow-400" : "text-gray-300"}`}
+                                >
+                                    ★
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
                     <div className="flex gap-4">
@@ -422,9 +510,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                                     </div>
                                 </div>
                                 <span className="ml-auto text-xs text-muted-foreground">
-                                    {new Date(review.createdAt).toLocaleDateString()}
+                                    {new Date(review.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                                 </span>
                             </div>
+                            {review.verifiedPurchase || review.variantLabel ? (
+                                <p className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                                    {review.verifiedPurchase ? (
+                                        <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
+                                            <BadgeCheck className="h-3.5 w-3.5" /> Verified purchase
+                                        </span>
+                                    ) : null}
+                                    {review.variantLabel ? <span>Bought: {review.variantLabel}</span> : null}
+                                </p>
+                            ) : null}
                             {review.title && (
                                 <p className="text-sm font-semibold text-foreground mb-1">{review.title}</p>
                             )}
@@ -438,14 +536,42 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                                     ))}
                                 </div>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => handleHelpful(review.id)}
-                                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                                <ThumbsUp className="w-3.5 h-3.5" />
-                                Helpful{review.helpfulCount ? ` (${review.helpfulCount})` : ""}
-                            </button>
+                            <div className="flex flex-wrap items-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => handleHelpful(review.id)}
+                                    aria-pressed={voted.has(review.id)}
+                                    className={`flex items-center gap-1.5 text-xs transition-colors ${voted.has(review.id) ? "font-medium text-brand-strong" : "text-muted-foreground hover:text-foreground"}`}
+                                >
+                                    <ThumbsUp className="w-3.5 h-3.5" />
+                                    Helpful{review.helpfulCount ? ` (${review.helpfulCount})` : ""}
+                                </button>
+                                {reported.has(review.id) ? (
+                                    <span className="text-xs text-muted-foreground">Reported</span>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setReportingId(reportingId === review.id ? null : review.id)}
+                                        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                                    >
+                                        <Flag className="w-3.5 h-3.5" /> Report
+                                    </button>
+                                )}
+                            </div>
+                            {reportingId === review.id ? (
+                                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-muted/40 p-3">
+                                    <select
+                                        aria-label="Why are you reporting this review?"
+                                        value={reportReason}
+                                        onChange={(e) => setReportReason(e.target.value)}
+                                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+                                    >
+                                        {REVIEW_REPORT_REASONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                                    </select>
+                                    <Button size="sm" onClick={() => void submitReport(review.id)}>Report review</Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setReportingId(null)}>Cancel</Button>
+                                </div>
+                            ) : null}
                         </div>
                     ))
                 )}

@@ -16,9 +16,9 @@ export class CheckoutController {
     async checkout(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user!.userId;
-            const { couponCode, variantIds, paymentMethod, checkoutKey, ...shipping } = req.body ?? {};
+            const { couponCode, variantIds, paymentMethod, checkoutKey, useWallet, ...shipping } = req.body ?? {};
             const method = paymentMethod === 'COD' ? 'COD' : 'ONLINE';
-            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds, method, checkoutKey);
+            const result = await checkoutService.checkout(userId, shipping, couponCode, variantIds, method, checkoutKey, { useWallet: useWallet === true });
 
             const withPayment = req.query.withPayment === '1';
             // COD orders are already confirmed: there is nothing to pay now. A repeat
@@ -61,11 +61,12 @@ export class CheckoutController {
      */
     async quote(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
-            const { couponCode, variantIds, paymentMethod } = req.body ?? {};
+            const { couponCode, variantIds, paymentMethod, useWallet } = req.body ?? {};
             const result = await checkoutService.quote(req.user!.userId, {
                 couponCode,
                 variantIds,
                 paymentMethod: paymentMethod === 'COD' ? 'COD' : 'ONLINE',
+                useWallet: useWallet === true,
             });
             res.set('Cache-Control', 'no-store');
             res.json(result);

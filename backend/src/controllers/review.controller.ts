@@ -3,6 +3,7 @@ import { ApiError } from '../errors/ApiError.js';
 import { reviewService } from '../services/review.service.js';
 import {
     createReviewSchema,
+    reportReviewSchema,
     reviewQuerySchema,
 } from '../validators/review.validation.js';
 
@@ -78,13 +79,47 @@ export const reviewController = {
                 throw ApiError.badRequest('Review ID is required');
             }
 
-            const updated = await reviewService.markHelpful(id);
+            const updated = await reviewService.markHelpful(id, req.user?.userId);
 
             res.status(200).json({
-                message: 'Marked as helpful',
+                message: updated.voted ? 'Marked as helpful' : 'Vote removed',
                 helpfulCount: updated.helpfulCount,
+                voted: updated.voted,
                 review: updated,
             });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /** GET /v1/reviews/product/:productId/eligibility — can I review this? */
+    eligibility: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            res.set('Cache-Control', 'private, no-store');
+            res.json(await reviewService.eligibility(resolveProductId(req), req.user!.userId));
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /** GET /v1/reviews/my-votes?ids=a,b — reviews I marked helpful. */
+    myVotes: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const ids = String(req.query['ids'] ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 100);
+            res.set('Cache-Control', 'private, no-store');
+            res.json({ reviewIds: await reviewService.myVotes(req.user!.userId, ids) });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    /** POST /v1/reviews/:id/report */
+    report: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+        try {
+            const id = firstParam(req.params['id']);
+            if (!id) throw ApiError.badRequest('Review ID is required');
+            const input = reportReviewSchema.parse(req.body);
+            res.json(await reviewService.report(id, req.user!.userId, input));
         } catch (error) {
             next(error);
         }

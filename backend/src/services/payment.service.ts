@@ -1,6 +1,7 @@
 
 import { paymentRepository } from '../repositories/payment.repository.js';
 import { savedPaymentsService } from './saved-payments.service.js';
+import { walletService } from './wallet.service.js';
 import { PaymentStatus, PaymentEventType, PaymentProvider, OrderStatus } from '@prisma/client';
 import { prisma } from '../config/db.js';
 import { ApiError } from '../errors/ApiError.js';
@@ -86,6 +87,7 @@ export class PaymentService {
                 createdAt: true,
                 totalAmount: true,
                 grandTotal: true,
+                walletAmount: true,
                 subTotalAmount: true,
                 totalTaxAmount: true,
                 shippingName: true,
@@ -114,10 +116,12 @@ export class PaymentService {
     private resolvePayableAmount(order: {
         totalAmount: number;
         grandTotal?: number | null;
+        walletAmount?: number | null;
     }): number {
         const grandTotal = toNumber(order.grandTotal);
         if (grandTotal > 0) {
-            return roundMoney(grandTotal);
+            // Cashback wallet money already covers part of it.
+            return roundMoney(grandTotal - toNumber(order.walletAmount));
         }
 
         // Older orders written before grandTotal existed only carry totalAmount.
@@ -713,6 +717,7 @@ export class PaymentService {
                 });
 
                 if (wasCancelled) {
+                    await walletService.onOrderCancelled(order.id).catch(() => undefined);
                     cancelledCount++;
                     staleCancelTotal.inc();
                     paymentLogger.info({

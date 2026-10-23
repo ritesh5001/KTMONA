@@ -49,8 +49,15 @@ export function PriceBreakup({ quote, showCouponRow = true }: { quote: CheckoutQ
         <Row label="Discount on MRP" value={`−${formatInr(quote.productDiscount)}`} tone="good" />
       ) : null}
       {showCouponRow && quote.coupon ? (
-        <Row label={`Coupon (${quote.coupon.code})`} value={`−${formatInr(quote.coupon.discount)}`} tone="good" />
+        <Row
+          label={`${quote.coupon.auto ? "Offer applied" : "Coupon"} (${quote.coupon.code})`}
+          value={`−${formatInr(quote.coupon.discount)}`}
+          tone="good"
+        />
       ) : null}
+      {(quote.autoDiscounts ?? []).map((d) => (
+        <Row key={d.key} label={d.label} value={`−${formatInr(d.amount)}`} tone="good" />
+      ))}
       <Row
         label="Delivery charges"
         value={
@@ -68,6 +75,9 @@ export function PriceBreakup({ quote, showCouponRow = true }: { quote: CheckoutQ
       />
       {quote.gst > 0 ? <Row label="GST" value={formatInr(quote.gst)} /> : null}
       {quote.gstFee > 0 ? <Row label="GST charges" value={formatInr(quote.gstFee)} /> : null}
+      {quote.wallet && quote.wallet.applied > 0 ? (
+        <Row label="Cashback used" value={`−${formatInr(quote.wallet.applied)}`} tone="good" />
+      ) : null}
       <div className="h-px bg-border-soft" />
       <div className="flex items-baseline justify-between">
         <dt className="text-sm font-semibold text-foreground">Total payable</dt>

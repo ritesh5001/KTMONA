@@ -25,6 +25,7 @@ export interface CheckoutCartRow {
     productId: string;
     variantId: string;
     productTitle: string | null;
+    categoryId: string | null;
     sellerId: string | null;
     taxRate: number | null;
     productStatus: string | null;
@@ -391,6 +392,7 @@ export class CartRepository {
                 ci."product_id"               AS "productId",
                 ci."variant_id"               AS "variantId",
                 p."title"                     AS "productTitle",
+                p."category_id"               AS "categoryId",
                 p."seller_id"                 AS "sellerId",
                 p."tax_rate"                  AS "taxRate",
                 p."status"::text              AS "productStatus",

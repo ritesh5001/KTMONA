@@ -17,6 +17,7 @@ const quickLinks = [
   { label: "Home", href: "/" },
   { label: "About Us", href: "/about" },
   { label: "Shop", href: "/marketplace" },
+  { label: "Offers & Rewards", href: "/offers" },
   { label: "Become a Seller", href: "/register/seller" },
   { label: "Careers", href: "/careers" },
   { label: "Investors", href: "/investors" },

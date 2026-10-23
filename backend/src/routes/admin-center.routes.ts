@@ -26,6 +26,9 @@ import { priceLockReviewSchema, priceLockService } from '../services/price-lock.
 import { sellerPackagingService } from '../services/seller-center/packaging.service.js';
 import { categoryRequestService, categoryReviewSchema } from '../services/category-request.service.js';
 import { categoryAttributeService, categoryFieldsSchema } from '../services/category-attribute.service.js';
+import { reviewService } from '../services/review.service.js';
+import { answerQuestionSchema, productTrustService } from '../services/product-trust.service.js';
+import { offersConfigService } from '../services/offers-config.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 const h = (fn: Handler) => async (req: Request, res: Response, next: NextFunction) => {
@@ -118,6 +121,21 @@ adminCenterRouter.post('/reviews', h((req) => adminReviewsService.create(aid(req
 adminCenterRouter.patch('/reviews/:id', h((req) => adminReviewsService.update(param(req, 'id'), adminReviewUpdateSchema.parse(req.body))));
 adminCenterRouter.post('/reviews/:id/hidden', h((req) => adminReviewsService.setHidden(param(req, 'id'), z.object({ hidden: z.boolean() }).parse(req.body).hidden)));
 adminCenterRouter.delete('/reviews/:id', h((req) => adminReviewsService.remove(param(req, 'id'))));
+
+// ---- Review trust: reported reviews ----
+adminCenterRouter.get('/reviews-reported', h(() => reviewService.listReported()));
+adminCenterRouter.post('/reviews-reported/:id/resolve', h((req) => reviewService.resolveReports(param(req, 'id'), z.object({ action: z.enum(['KEEP', 'REMOVE']) }).parse(req.body).action)));
+
+// ---- Product Q&A and incorrect-information reports ----
+adminCenterRouter.get('/product-questions', h(() => productTrustService.adminQuestions()));
+adminCenterRouter.post('/product-questions/:id/answer', h((req) => productTrustService.answer(param(req, 'id'), { userId: aid(req), role: req.user!.role }, answerQuestionSchema.parse(req.body).answer)));
+adminCenterRouter.post('/product-questions/:id/hidden', h((req) => productTrustService.setQuestionHidden(param(req, 'id'), z.object({ hidden: z.boolean() }).parse(req.body).hidden)));
+adminCenterRouter.get('/product-reports', h((req) => productTrustService.adminReports((String(req.query['status'] ?? 'OPEN').toUpperCase() as 'OPEN' | 'RESOLVED' | 'ALL'))));
+adminCenterRouter.post('/product-reports/:id/resolve', h((req) => productTrustService.resolveReport(param(req, 'id'))));
+
+// ---- Offers: cashback, referral and welcome-offer rules ----
+adminCenterRouter.get('/offers-config', h(() => offersConfigService.get()));
+adminCenterRouter.put('/offers-config', h((req) => offersConfigService.update(req.body)));
 adminCenterRouter.delete(
     '/sellers/:id',
     h((req) => adminSellersService.deletePermanently(aid(req), param(req, 'id'), z.object({ confirm: z.string().min(1) }).parse(req.body).confirm))

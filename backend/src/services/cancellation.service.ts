@@ -1,5 +1,6 @@
 import { CancellationStatus, NotificationChannel, NotificationType, OrderStatus, PaymentStatus, Role, SettlementStatus } from '@prisma/client';
 import { prisma } from '../config/db.js';
+import { walletService } from './wallet.service.js';
 import { cancellationLogger } from '../config/logger.js';
 import {
     orderCancelApprovedTotal,
@@ -492,6 +493,11 @@ export class CancellationService {
             );
 
             txResult = await runApprovalTransaction();
+        }
+
+        // Give back cashback wallet money used on the order; cancel pending rewards.
+        if (!txResult.alreadyCancelled) {
+            await walletService.onOrderCancelled(txResult.orderId).catch(() => undefined);
         }
 
         let refundTriggered = false;

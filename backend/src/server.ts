@@ -2,6 +2,8 @@ import { createApp } from './app.js';
 import { sellerPackagingService } from './services/seller-center/packaging.service.js';
 import { syncShipmaxxTracking } from './services/seller-center/shipmaxx-tracking.service.js';
 import { notifyDelayedShipments } from './services/delivery-alerts.service.js';
+import { walletService } from './services/wallet.service.js';
+import { productAlertsService } from './services/product-alerts.service.js';
 import { env } from './config/env.js';
 import { prisma, disconnectDatabase } from './config/db.js';
 import { closeQueueResources } from './notifications/notification.queue.js';
@@ -380,6 +382,20 @@ async function bootstrap(): Promise<void> {
                 await syncShipmaxxTracking();
             } catch (err) {
                 logger.warn({ err }, 'ShipMaxx tracking sweep error');
+            }
+
+            // Release / reverse held cashback and expire old wallet credits.
+            try {
+                await walletService.sweep();
+            } catch (err) {
+                logger.warn({ err }, 'Wallet sweep error');
+            }
+
+            // Back-in-stock and wishlist price-drop alerts.
+            try {
+                await productAlertsService.sweep();
+            } catch (err) {
+                logger.warn({ err }, 'Product alert sweep error');
             }
 
             // Tell buyers once when a shipped parcel is past its estimate.

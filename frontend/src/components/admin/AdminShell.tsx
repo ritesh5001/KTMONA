@@ -43,7 +43,7 @@ import {
   Link2,
   Lock,
   Users,
-  UsersRound,
+  UsersRound, Gift,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -125,9 +125,11 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       { section: "Growth", href: "/admin/sale-events", label: "Sale Events", icon: Tag },
       ...(ADS_ENABLED ? [{ section: "Growth", href: "/admin/ads", label: "Ads", icon: Megaphone }] : []),
       { section: "Growth", href: "/admin/coupons", label: "Coupons", icon: BadgePercent },
+      { section: "Growth", href: "/admin/offers", label: "Offers & Rewards", icon: Gift },
       { section: "Growth", href: "/admin/bestsellers", label: "Bestsellers", icon: Award },
       { section: "Growth", href: "/admin/reels", label: "Reels", icon: Clapperboard },
       { section: "Growth", href: "/admin/reviews", label: "Reviews", icon: Star },
+      { section: "Growth", href: "/admin/trust", label: "Trust & Safety", icon: ShieldAlert },
       { section: "Platform", href: "/admin/homepage", label: "Homepage Banners", icon: Images },
       { section: "Platform", href: "/admin/site-links", label: "App & Social Links", icon: Link2 },
       { section: "Platform", href: "/admin/packaging-supplier", label: "Packaging Supplier", icon: Package },

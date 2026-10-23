@@ -30,6 +30,7 @@ import { campaignsService } from '../services/admin-center/campaigns.service.js'
 import { adminOpsService } from '../services/admin-center/ops.service.js';
 import { sellerCatalogUploadsService, MAX_PRODUCTS_PER_CATALOG } from '../services/seller-center/catalog-uploads.service.js';
 import { sellerSupplierService } from '../services/seller-center/supplier.service.js';
+import { answerQuestionSchema, productTrustService } from '../services/product-trust.service.js';
 
 type Handler = (req: Request, res: Response) => Promise<unknown>;
 
@@ -339,6 +340,10 @@ sellerCenterRouter.delete('/category-requests/:id', h((req) => categoryRequestSe
 sellerCenterRouter.get('/price-lock', h((req) => priceLockService.sellerList(sid(req), req.query)));
 sellerCenterRouter.post('/price-lock/request', h((req) => priceLockService.sellerRequest(sid(req), priceLockIdsSchema.parse(req.body))));
 sellerCenterRouter.post('/price-lock/withdraw', h((req) => priceLockService.sellerWithdraw(sid(req), priceLockIdsSchema.parse(req.body))));
+
+// Customer questions on the seller's products.
+sellerCenterRouter.get('/questions', h((req) => productTrustService.sellerQuestions(sid(req), req.query['all'] !== '1')));
+sellerCenterRouter.post('/questions/:id/answer', h((req) => productTrustService.answer(String(req.params['id']), { userId: sid(req), role: 'SELLER' }, answerQuestionSchema.parse(req.body).answer)));
 
 sellerCenterRouter.use('/ads', adsEnabledGuard);
 sellerCenterRouter.get('/ads', h((req) => sellerAdsService.listCampaigns(sid(req), req.query)));

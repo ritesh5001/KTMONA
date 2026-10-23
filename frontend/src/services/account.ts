@@ -66,3 +66,69 @@ export interface MyProfile {
 export async function getMyProfile() {
   return apiRequest<{ profile: MyProfile }>("/v1/me", { method: "GET" });
 }
+
+// ---- Cashback wallet ----
+
+export interface WalletSummary {
+  available: number;
+  pending: number;
+  nextExpiry: { amount: number; at: string } | null;
+  rules: { cashbackPercent: number; maxUsePercent: number; holdDays: number; expiryDays: number; enabled: boolean };
+}
+
+export interface WalletTransaction {
+  id: string;
+  kind: "CREDIT" | "DEBIT";
+  source: "CASHBACK" | "REFERRAL" | "CHECKOUT" | "ORDER_REFUND" | "EXPIRY" | "ADMIN";
+  status: "PENDING" | "AVAILABLE" | "REVERSED" | "DONE";
+  amount: number;
+  remaining: number;
+  orderId: string | null;
+  note: string | null;
+  availableAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+export async function getWallet() {
+  return apiRequest<WalletSummary>("/v1/me/wallet", { method: "GET" });
+}
+
+export async function getWalletTransactions(page = 1) {
+  return apiRequest<{ transactions: WalletTransaction[] }>(`/v1/me/wallet/transactions?page=${page}`, { method: "GET" });
+}
+
+// ---- Referrals ----
+
+export interface ReferralOverview {
+  code: string;
+  link: string;
+  enabled: boolean;
+  rules: { friendAmount: number; referrerAmount: number; minOrder: number; maxRewards: number; holdDays: number };
+  stats: { joined: number; rewarded: number; earned: number; remaining: number };
+  referrals: Array<{ id: string; name: string; status: "SIGNED_UP" | "ORDERED" | "REWARDED" | "CANCELLED"; joinedAt: string; rewardedAt: string | null }>;
+}
+
+export async function getReferrals() {
+  return apiRequest<ReferralOverview>("/v1/me/referrals", { method: "GET" });
+}
+
+// ---- Back-in-stock alerts ----
+
+export async function getMyAlerts() {
+  return apiRequest<{ alerts: Array<{ id: string; productId: string; variantId: string | null; createdAt: string }> }>("/v1/me/alerts", { method: "GET" });
+}
+
+export async function notifyBackInStock(productId: string, variantId?: string | null) {
+  return apiRequest<{ subscribed: boolean }>("/v1/me/alerts/back-in-stock", {
+    method: "POST",
+    body: { productId, ...(variantId ? { variantId } : {}) },
+  });
+}
+
+export async function cancelBackInStock(productId: string, variantId?: string | null) {
+  return apiRequest<{ subscribed: boolean }>("/v1/me/alerts/back-in-stock", {
+    method: "DELETE",
+    body: { productId, ...(variantId ? { variantId } : {}) },
+  });
+}

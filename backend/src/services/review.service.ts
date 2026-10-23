@@ -1,6 +1,7 @@
 import { prisma } from '../config/db.js';
 import { ApiError } from '../errors/ApiError.js';
 import { reviewRepository } from '../repositories/review.repository.js';
+import { notificationService } from '../notifications/notification.service.js';
 import {
     CACHE_KEYS,
     getFromCache,
@@ -13,7 +14,15 @@ interface CreateReviewInput {
     title?: string | null;
     text: string;
     images?: string[];
+    sellerRating?: number | null;
 }
+
+/** Reports that hide a review until an admin looks at it. */
+const REPORTS_TO_HIDE = 3;
+/** Reviews one customer may post per day (spam guard). */
+const REVIEWS_PER_DAY = 5;
+
+const normalizeText = (t: string) => t.toLowerCase().replace(/[^a-z0-9\u0900-\u097f]+/g, ' ').trim();
 
 interface ReviewQuery {
     page: number;
@@ -37,6 +46,9 @@ const toReviewResponse = (review: {
     images: string[];
     helpfulCount: number;
     createdAt: Date;
+    variantLabel?: string | null;
+    verifiedPurchase?: boolean;
+    sellerRating?: number | null;
 }, user: ReviewAuthor) => ({
     id: review.id,
     rating: review.rating,
@@ -45,6 +57,9 @@ const toReviewResponse = (review: {
     images: review.images,
     helpfulCount: review.helpfulCount,
     createdAt: review.createdAt,
+    variantLabel: review.variantLabel ?? null,
+    verifiedPurchase: review.verifiedPurchase ?? false,
+    sellerRating: review.sellerRating ?? null,
     user,
 });
 
@@ -72,6 +87,26 @@ export class ReviewService {
         if (!product) throw ApiError.notFound('Product not found');
         if (existing) throw ApiError.conflict('You have already reviewed this product');
 
+        // Only customers who received this product can review it.
+        const purchase = await this.deliveredPurchase(productId, userId);
+        if (!purchase) {
+            throw ApiError.forbidden('Only customers who bought and received this product can review it.');
+        }
+
+        // Spam guards: a daily cap and no copy-pasting the same review.
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const recent = await prisma.review.findMany({
+            where: { userId, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
+            select: { text: true, createdAt: true },
+        });
+        if (recent.filter((r) => r.createdAt >= dayAgo).length >= REVIEWS_PER_DAY) {
+            throw new ApiError(429, 'You have posted several reviews today. Please try again tomorrow.');
+        }
+        const mine = normalizeText(input.text);
+        if (mine.length > 20 && recent.some((r) => normalizeText(r.text) === mine)) {
+            throw ApiError.badRequest('This review matches one you already posted. Please describe this product.');
+        }
+
         const created = await prisma.review.create({
             data: {
                 productId,
@@ -80,6 +115,11 @@ export class ReviewService {
                 title: input.title ?? null,
                 text: input.text,
                 images: input.images ?? [],
+                verifiedPurchase: true,
+                orderId: purchase.orderId,
+                variantId: purchase.variantId,
+                variantLabel: purchase.variantLabel,
+                sellerRating: input.sellerRating ?? null,
             },
         });
 
@@ -173,6 +213,13 @@ export class ReviewService {
                 averageRating: totalRatings > 0 ? +(ratingSum / totalRatings).toFixed(1) : 0,
                 totalReviews: totalRatings,
                 ratingDistribution,
+                verifiedReviews: await prisma.review.count({ where: { ...where, verifiedPurchase: true } }),
+                seller: await (async () => {
+                    const product = await prisma.product.findUnique({ where: { id: productId }, select: { sellerId: true } });
+                    if (!product) return null;
+                    const store = await prisma.seller_profiles.findUnique({ where: { user_id: product.sellerId }, select: { store_name: true } });
+                    return { name: store?.store_name ?? null, rating: await this.sellerRating(product.sellerId) };
+                })(),
             },
             pagination: {
                 page: query.page,
@@ -185,21 +232,139 @@ export class ReviewService {
         return response;
     }
 
+    /** The delivered order item that lets this customer review the product. */
+    async deliveredPurchase(productId: string, userId: string) {
+        const item = await prisma.orderItem.findFirst({
+            where: { productId, order: { userId, status: 'DELIVERED' } },
+            select: { orderId: true, variantId: true },
+            orderBy: { order: { createdAt: 'desc' } },
+        });
+        if (!item) return null;
+        const variant = await prisma.productVariant.findUnique({ where: { id: item.variantId }, select: { size: true, color: true } });
+        const variantLabel = variant
+            ? [variant.color, variant.size && variant.size !== 'Default' ? variant.size : null].filter(Boolean).join(' / ') || null
+            : null;
+        return { orderId: item.orderId, variantId: item.variantId, variantLabel };
+    }
+
+    /** Can this customer review the product, and have they already? */
+    async eligibility(productId: string, userId: string) {
+        const [existing, purchase] = await Promise.all([
+            prisma.review.findFirst({ where: { productId, userId }, select: { id: true } }),
+            this.deliveredPurchase(productId, userId),
+        ]);
+        if (existing) return { canReview: false, alreadyReviewed: true, reason: 'You have already reviewed this product.' };
+        if (!purchase) return { canReview: false, alreadyReviewed: false, reason: 'You can review this product after it is delivered to you.' };
+        return { canReview: true, alreadyReviewed: false, reason: null, variantLabel: purchase.variantLabel };
+    }
+
     /**
-     * Mark a review as helpful (increment counter)
+     * Helpful vote: one per customer per review, tapping again takes it back.
+     * Authors cannot vote on their own review.
      */
-    async markHelpful(reviewId: string) {
+    async markHelpful(reviewId: string, userId?: string) {
         const review = await prisma.review.findUnique({ where: { id: reviewId } });
         if (!review) throw ApiError.notFound('Review not found');
+        if (!userId) throw ApiError.unauthorized('Please sign in to vote');
+        if (review.userId === userId) throw ApiError.badRequest('You cannot vote on your own review');
 
-        const updated = await prisma.review.update({
-            where: { id: reviewId },
-            data: { helpfulCount: { increment: 1 } },
-            select: { id: true, helpfulCount: true },
+        const existing = await prisma.reviewVote.findUnique({ where: { reviewId_userId: { reviewId, userId } } });
+        const updated = await prisma.$transaction(async (tx) => {
+            if (existing) {
+                await tx.reviewVote.delete({ where: { reviewId_userId: { reviewId, userId } } });
+            } else {
+                await tx.reviewVote.create({ data: { reviewId, userId } });
+            }
+            return tx.review.update({
+                where: { id: reviewId },
+                data: { helpfulCount: existing ? Math.max(0, review.helpfulCount - 1) : review.helpfulCount + 1 },
+                select: { id: true, helpfulCount: true },
+            });
         });
 
         await invalidateCacheByPattern(`reviews:${review.productId}:*`);
-        return updated;
+        return { ...updated, voted: !existing };
+    }
+
+    /** Which of these reviews the customer marked helpful (for highlighting). */
+    async myVotes(userId: string, reviewIds: string[]) {
+        if (!reviewIds.length) return [];
+        const votes = await prisma.reviewVote.findMany({ where: { userId, reviewId: { in: reviewIds } }, select: { reviewId: true } });
+        return votes.map((v) => v.reviewId);
+    }
+
+    /** Report a review; enough reports hide it until an admin decides. */
+    async report(reviewId: string, userId: string, input: { reason: string; details?: string | undefined }) {
+        const review = await prisma.review.findUnique({ where: { id: reviewId } });
+        if (!review) throw ApiError.notFound('Review not found');
+        if (review.userId === userId) throw ApiError.badRequest('You cannot report your own review');
+        try {
+            await prisma.reviewReport.create({ data: { reviewId, userId, reason: input.reason, details: input.details ?? null } });
+        } catch {
+            return { reported: true, alreadyReported: true };
+        }
+        const updated = await prisma.review.update({
+            where: { id: reviewId },
+            data: { reportCount: { increment: 1 } },
+            select: { reportCount: true, isHidden: true },
+        });
+        if (updated.reportCount >= REPORTS_TO_HIDE && !updated.isHidden) {
+            await prisma.review.update({ where: { id: reviewId }, data: { isHidden: true } });
+            await invalidateCacheByPattern(`reviews:${review.productId}:*`);
+            void notificationService.notifyAdmin(
+                'Review hidden after reports',
+                `Review ${reviewId} on product ${review.productId} was reported ${updated.reportCount} times and is hidden until you review it (Admin → Reviews → Reported).`,
+            ).catch(() => undefined);
+        }
+        return { reported: true, alreadyReported: false };
+    }
+
+    /** Admin queue: reviews with unresolved reports. */
+    async listReported() {
+        const reports = await prisma.reviewReport.findMany({ where: { resolvedAt: null }, orderBy: { createdAt: 'desc' }, take: 500 });
+        const ids = [...new Set(reports.map((r) => r.reviewId))];
+        const reviews = ids.length
+            ? await prisma.review.findMany({
+                where: { id: { in: ids } },
+                include: { product: { select: { id: true, title: true } }, user: { select: { email: true, user_profiles: { select: { full_name: true } } } } },
+            })
+            : [];
+        return {
+            reviews: reviews.map((r) => ({
+                id: r.id,
+                product: r.product,
+                author: r.user.user_profiles?.full_name ?? r.user.email,
+                rating: r.rating,
+                text: r.text,
+                images: r.images,
+                isHidden: r.isHidden,
+                verifiedPurchase: r.verifiedPurchase,
+                createdAt: r.createdAt.toISOString(),
+                reports: reports.filter((x) => x.reviewId === r.id).map((x) => ({ reason: x.reason, details: x.details, createdAt: x.createdAt.toISOString() })),
+            })),
+        };
+    }
+
+    /** Admin decision on a reported review: keep it visible, or remove it. */
+    async resolveReports(reviewId: string, action: 'KEEP' | 'REMOVE') {
+        const review = await prisma.review.findUnique({ where: { id: reviewId } });
+        if (!review) throw ApiError.notFound('Review not found');
+        await prisma.$transaction([
+            prisma.reviewReport.updateMany({ where: { reviewId, resolvedAt: null }, data: { resolvedAt: new Date() } }),
+            prisma.review.update({ where: { id: reviewId }, data: { isHidden: action === 'REMOVE', ...(action === 'KEEP' ? { reportCount: 0 } : {}) } }),
+        ]);
+        await invalidateCacheByPattern(`reviews:${review.productId}:*`);
+        return { ok: true };
+    }
+
+    /** Average service rating a seller has received across their products' reviews. */
+    async sellerRating(sellerId: string) {
+        const agg = await prisma.review.aggregate({
+            where: { isHidden: false, sellerRating: { not: null }, product: { sellerId } },
+            _avg: { sellerRating: true },
+            _count: { sellerRating: true },
+        });
+        return { average: agg._avg.sellerRating ? +agg._avg.sellerRating.toFixed(1) : null, count: agg._count.sellerRating };
     }
 
     /**

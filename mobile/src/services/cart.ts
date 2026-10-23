@@ -217,6 +217,8 @@ export async function checkoutWithPayment(
     paymentMethod?: "ONLINE" | "COD";
     /** One key per Place Order attempt: a repeat returns the same order. */
     checkoutKey?: string;
+    /** Pay part of the order from the cashback wallet. */
+    useWallet?: boolean;
   },
   token?: string | null
 ) {
@@ -291,8 +293,12 @@ export interface CheckoutQuote {
   mrpTotal: number;
   productDiscount: number;
   itemsTotal: number;
-  coupon: { code: string; discount: number } | null;
+  coupon: { code: string; discount: number; auto?: boolean } | null;
   couponError: string | null;
+  /** Welcome offer / referral bonus on a first order. */
+  autoDiscounts?: { key: string; label: string; amount: number }[];
+  /** Cashback wallet: balance, usable on this order, applied. */
+  wallet?: { available: number; usable: number; applied: number };
   taxableAmount: number;
   gst: number;
   gstFee: number;
@@ -309,6 +315,7 @@ export async function getCheckoutQuote(input: {
   couponCode?: string;
   paymentMethod?: "ONLINE" | "COD";
   variantIds?: string[];
+  useWallet?: boolean;
 } = {}) {
   return apiRequest<CheckoutQuote>({ url: "/v1/checkout/quote", method: "POST", data: input });
 }

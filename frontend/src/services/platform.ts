@@ -145,6 +145,8 @@ export const ADMIN_PAGE_PERMISSION: Record<string, StaffPermission> = {
   "/admin/sale-events": "marketing",
   "/admin/ads": "marketing",
   "/admin/coupons": "marketing",
+  "/admin/offers": "marketing",
+  "/admin/trust": "marketing",
   "/admin/bestsellers": "marketing",
   "/admin/reels": "marketing",
   "/admin/reviews": "marketing",

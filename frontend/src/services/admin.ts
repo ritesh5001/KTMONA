@@ -682,6 +682,14 @@ export interface AdminCoupon {
   isActive: boolean;
   sellerId?: string | null;
   firstTimeUserOnly: boolean;
+  title: string | null;
+  terms: string | null;
+  isPublic: boolean;
+  autoApply: boolean;
+  productIds: string[];
+  categoryIds: string[];
+  excludedProductIds: string[];
+  excludedCategoryIds: string[];
   createdAt: string;
   seller?: {
     id: string;
@@ -704,6 +712,14 @@ export interface CreateCouponPayload {
   isActive?: boolean;
   sellerId?: string | null;
   firstTimeUserOnly?: boolean;
+  title?: string | null;
+  terms?: string | null;
+  isPublic?: boolean;
+  autoApply?: boolean;
+  productIds?: string[];
+  categoryIds?: string[];
+  excludedProductIds?: string[];
+  excludedCategoryIds?: string[];
 }
 
 export interface UpdateCouponPayload {
@@ -719,6 +735,14 @@ export interface UpdateCouponPayload {
   isActive?: boolean;
   sellerId?: string | null;
   firstTimeUserOnly?: boolean;
+  title?: string | null;
+  terms?: string | null;
+  isPublic?: boolean;
+  autoApply?: boolean;
+  productIds?: string[];
+  categoryIds?: string[];
+  excludedProductIds?: string[];
+  excludedCategoryIds?: string[];
 }
 
 export interface AdminCouponListResponse {

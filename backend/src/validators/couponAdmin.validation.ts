@@ -18,6 +18,14 @@ export const createCouponSchema = z.object({
     isActive: z.boolean().default(true),
     sellerId: z.string().uuid().optional().nullable(),
     firstTimeUserOnly: z.boolean().default(false),
+    title: z.string().trim().max(120).optional().nullable(),
+    terms: z.string().trim().max(2000).optional().nullable(),
+    isPublic: z.boolean().optional(),
+    autoApply: z.boolean().optional(),
+    productIds: z.array(z.string().min(1)).max(500).optional(),
+    categoryIds: z.array(z.string().min(1)).max(200).optional(),
+    excludedProductIds: z.array(z.string().min(1)).max(500).optional(),
+    excludedCategoryIds: z.array(z.string().min(1)).max(200).optional(),
 }).refine((data) => data.validUntil > data.validFrom, {
     message: 'validUntil must be after validFrom',
     path: ['validUntil'],
@@ -42,6 +50,14 @@ export const updateCouponSchema = z.object({
     isActive: z.boolean().optional(),
     sellerId: z.string().uuid().optional().nullable(),
     firstTimeUserOnly: z.boolean().optional(),
+    title: z.string().trim().max(120).optional().nullable(),
+    terms: z.string().trim().max(2000).optional().nullable(),
+    isPublic: z.boolean().optional(),
+    autoApply: z.boolean().optional(),
+    productIds: z.array(z.string().min(1)).max(500).optional(),
+    categoryIds: z.array(z.string().min(1)).max(200).optional(),
+    excludedProductIds: z.array(z.string().min(1)).max(500).optional(),
+    excludedCategoryIds: z.array(z.string().min(1)).max(200).optional(),
 });
 
 export const couponQuerySchema = z.object({

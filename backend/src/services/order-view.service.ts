@@ -163,6 +163,11 @@ export interface BuyerOrderExtras {
         productDiscount: number;
         couponCode: string | null;
         couponDiscount: number;
+        /** Welcome offer / referral bonus. */
+        autoDiscount: number;
+        autoDiscountLabel: string | null;
+        /** Paid from the cashback wallet. */
+        walletAmount: number;
         tax: number;
         shipping: number;
         total: number;
@@ -204,6 +209,9 @@ export async function buildBuyerOrderExtras(order: {
     grandTotal: number;
     couponCode?: string | null;
     discountAmount?: unknown;
+    autoDiscountAmount?: number | null;
+    autoDiscountLabel?: string | null;
+    walletAmount?: number | null;
     items: Array<{ id: string; sellerId: string; productId: string; variantId: string; quantity: number; priceSnapshot: number }>;
 }): Promise<BuyerOrderExtras> {
     const [shipments, refunds, returns, cancellation, variants, products] = await Promise.all([
@@ -290,7 +298,9 @@ export async function buildBuyerOrderExtras(order: {
         const mrp = compareAt.get(i.variantId);
         return sum + (mrp != null && mrp > i.priceSnapshot ? mrp : i.priceSnapshot) * i.quantity;
     }, 0);
-    const couponDiscount = Number(order.discountAmount ?? 0);
+    const autoDiscount = Number(order.autoDiscountAmount ?? 0);
+    const couponDiscount = Math.max(0, Number(order.discountAmount ?? 0) - autoDiscount);
+    const walletAmount = Number(order.walletAmount ?? 0);
     const shipping = Math.max(0, Math.round((order.grandTotal - order.subTotalAmount - order.totalTaxAmount) * 100) / 100);
 
     // What the buyer can still do.
@@ -326,6 +336,9 @@ export async function buildBuyerOrderExtras(order: {
             productDiscount: Math.max(0, Math.round((mrpTotal - itemsTotal) * 100) / 100),
             couponCode: order.couponCode ?? null,
             couponDiscount,
+            autoDiscount,
+            autoDiscountLabel: order.autoDiscountLabel ?? null,
+            walletAmount,
             tax: order.totalTaxAmount,
             shipping,
             total: order.totalAmount,

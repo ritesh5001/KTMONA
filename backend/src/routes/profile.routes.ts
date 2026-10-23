@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { profileController } from '../controllers/profile.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import type { NextFunction, Request, Response } from 'express';
-import { ZodError } from 'zod';
+import { ZodError, z } from 'zod';
 import { ApiError } from '../errors/ApiError.js';
 import { profileService, refundDetailsSchema, updateProfileSchema } from '../services/profile.service.js';
 import {
@@ -11,6 +11,9 @@ import {
     notificationPreferencesSchema,
 } from '../services/account-settings.service.js';
 import { savedPaymentsService } from '../services/saved-payments.service.js';
+import { walletService } from '../services/wallet.service.js';
+import { referralService } from '../services/referral.service.js';
+import { productAlertsService } from '../services/product-alerts.service.js';
 
 const h = (fn: (req: Request) => Promise<unknown>) => async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -62,5 +65,24 @@ profileRouter.delete('/deletion-request', h((req) => accountSettingsService.canc
 /** Cards / UPI saved with Razorpay (tokens only — no card data is stored here). */
 profileRouter.get('/saved-payment-methods', h((req) => savedPaymentsService.list(req.user!.userId)));
 profileRouter.delete('/saved-payment-methods/:tokenId', h((req) => savedPaymentsService.remove(req.user!.userId, req.params.tokenId as string)));
+
+/** Cashback wallet: balance, pending, expiry and history. */
+profileRouter.get('/wallet', h((req) => walletService.summary(req.user!.userId)));
+profileRouter.get('/wallet/transactions', h((req) => walletService.transactions(req.user!.userId, Number(req.query['page'] ?? 1) || 1)));
+
+/** Referral program: code, share link, friends and rewards. */
+profileRouter.get('/referrals', h((req) => referralService.overview(req.user!.userId)));
+
+/** Back-in-stock alerts ("Notify me"). */
+const alertBody = z.object({ productId: z.string().min(1), variantId: z.string().min(1).optional() });
+profileRouter.get('/alerts', h((req) => productAlertsService.mine(req.user!.userId)));
+profileRouter.post('/alerts/back-in-stock', h((req) => {
+    const body = alertBody.parse(req.body);
+    return productAlertsService.subscribeBackInStock(req.user!.userId, body.productId, body.variantId ?? null);
+}));
+profileRouter.delete('/alerts/back-in-stock', h((req) => {
+    const body = alertBody.parse(req.body ?? {});
+    return productAlertsService.unsubscribe(req.user!.userId, body.productId, body.variantId ?? null);
+}));
 
 export { profileRouter };

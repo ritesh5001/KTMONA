@@ -21,6 +21,8 @@ import { useToast } from "../../providers/ToastProvider";
 import { trackPendingCartWrite } from "../../lib/pending-cart";
 import { getProductById, getProducts, type ProductVariant } from "../../services/products";
 import { fetchProductReviews } from "../../services/reviews";
+import { NotifyMeRow, ProductOffersCard, ProductQA, ReviewTrustRow } from "../ProductTrust";
+import { useT } from "../../i18n";
 import { C, FILL, S, inr } from "../theme";
 import { EmptyState, HeaderActions, PriceLockBadge, PrimaryBtn, ProductCard, RatingBadge, T, priceOf } from "../kit";
 import { useFreeDelivery, type FeedProduct } from "../data";
@@ -36,6 +38,7 @@ type Detail = Awaited<ReturnType<typeof getProductById>>["product"] & {
 };
 
 export default function ProductScreen({ id }: { id: string }) {
+  const t = useT();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -267,10 +270,27 @@ export default function ProductScreen({ id }: { id: string }) {
                     );
                   })}
                 </View>
+                {(() => {
+                  const soldOut = sizeOptions.filter((v) => v.inventory != null && v.inventory.stock <= 0);
+                  if (!soldOut.length) return null;
+                  const all = soldOut.length === sizeOptions.length;
+                  return all ? (
+                    <NotifyMeRow productId={product!.id} variantId={null} label={t("This product")} />
+                  ) : (
+                    soldOut.slice(0, 3).map((v) => (
+                      <NotifyMeRow key={v.id} productId={product!.id} variantId={v.id} label={`${t("Size")} ${v.size}`} />
+                    ))
+                  );
+                })()}
               </>
             ) : null}
           </View>
         ) : null}
+
+        {/* Coupons, welcome offer and cashback */}
+        <View style={styles.block}>
+          <ProductOffersCard productId={product!.id} />
+        </View>
 
         {/* Product details */}
         <Details product={product} selected={selected} />
@@ -364,12 +384,23 @@ export default function ProductScreen({ id }: { id: string }) {
                       {r.images.slice(0, 5).map((src) => <CachedImage key={src} source={src} style={{ width: 56, height: 56, borderRadius: 6 }} contentFit="cover" />)}
                     </ScrollView>
                   ) : null}
+                  <ReviewTrustRow review={r} />
                 </View>
               ))}
+              {summary.seller?.rating?.count ? (
+                <T size={12} color={C.muted} style={{ marginTop: 10 }}>
+                  {t("Seller rating")}: {summary.seller.rating.average?.toFixed(1)} ★ ({summary.seller.rating.count})
+                </T>
+              ) : null}
             </>
           ) : (
             <T size={13} color={C.muted} style={{ marginTop: 8 }}>No reviews yet. Buyers can review after delivery.</T>
           )}
+        </View>
+
+        {/* Questions & answers, report incorrect information */}
+        <View style={styles.block}>
+          <ProductQA productId={product!.id} />
         </View>
 
         {/* Similar products */}

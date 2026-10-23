@@ -11,6 +11,8 @@ export interface RegisterUserPayload {
   email?: string;
   phone?: string;
   password: string;
+  /** Friend's referral code from a ?ref= link. */
+  referralCode?: string;
 }
 
 export interface RegisterSellerPayload {
@@ -326,6 +328,7 @@ export async function requestGuestOtp(payload: {
   email: string;
   phone?: string;
   fullName: string;
+  referralCode?: string;
 }): Promise<OtpRequestResponse & { existingAccount: boolean }> {
   if (!API_BASE_URL) throw new Error("API base URL is not configured");
   const response = await fetch(`${API_BASE_URL}/v1/auth/guest-otp`, {

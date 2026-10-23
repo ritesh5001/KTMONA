@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { registerUser, verifyOtpUrl } from "@/services/auth";
+import { readReferralCode, rememberReferralCode } from "@/lib/referral-code";
 import { toast } from "sonner";
 import { EmailTypoHint, useEmailTypoGuard } from "@/components/auth/EmailTypoHint";
 import { heroContainerVariants, heroItemVariants } from "@/lib/motion.config";
@@ -24,6 +25,12 @@ function normalizePhone(value: string): string {
 }
 
 export default function UserRegisterPage() {
+  // ?ref=CODE from a friend's invite link.
+  const [inviteCode, setInviteCode] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    rememberReferralCode(new URLSearchParams(window.location.search).get("ref"));
+    setInviteCode(readReferralCode());
+  }, []);
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const checkEmailTypo = useEmailTypoGuard();
@@ -91,11 +98,13 @@ export default function UserRegisterPage() {
     setLoading(true);
     try {
       console.info("[auth-ui][register-user] submit", { hasPhone: Boolean(normalizedPhone) });
+      const referralCode = readReferralCode();
       const result = await registerUser({
         fullName: fullName.trim(),
         email: normalizedEmail,
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         password,
+        ...(referralCode ? { referralCode } : {}),
       });
       console.info("[auth-ui][register-user] otp-sent");
       toast.success(result.message);
@@ -170,6 +179,11 @@ export default function UserRegisterPage() {
         >
           <Card className="border-border-soft">
             <CardHeader className="space-y-3 pb-6">
+              {inviteCode ? (
+                <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                  You were invited by a friend (code {inviteCode}) — enjoy an extra discount on your first order.
+                </p>
+              ) : null}
               <CardTitle className="font-serif text-2xl font-normal">
                 Create your account
               </CardTitle>

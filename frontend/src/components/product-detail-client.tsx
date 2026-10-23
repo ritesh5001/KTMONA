@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { addGuestCartLine } from "@/lib/guest-cart";
+import { BackInStockPrompt, ProductOffers } from "@/components/product-extras";
 import { PriceLockBadge } from "@/components/storefront/ProductTile";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -704,6 +705,17 @@ export default function ProductDetailClient({
           </div>
         </div>
 
+        {/* Sold-out sizes: back-in-stock alert */}
+        <div className="pt-4">
+          <BackInStockPrompt
+            productId={product.id}
+            soldOut={sizeOptions
+              .filter((o) => !o.inStock)
+              .map((o) => ({ id: o.variant.id, label: [selectedColorLabel, o.size].filter(Boolean).join(" / ") }))}
+            allSoldOut={sizeOptions.length > 0 && sizeOptions.every((o) => !o.inStock)}
+          />
+        </div>
+
         {/* 5. Views Counter */}
         <div className="flex items-center gap-2 pt-6 pb-2 text-[13px] text-foreground">
           <Eye className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.5} />
@@ -755,6 +767,11 @@ export default function ProductDetailClient({
           >
             Book Video Call
           </Button>
+        </div>
+
+        {/* Coupons, welcome offer and cashback for this product */}
+        <div className="pt-4">
+          <ProductOffers productId={product.id} />
         </div>
 
         {/* 7. Pincode Check */}

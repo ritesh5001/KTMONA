@@ -1,4 +1,5 @@
 import * as React from "react";
+import { Feather } from "@expo/vector-icons";
 import {
   View,
   StyleSheet,
@@ -232,7 +233,8 @@ export default function CheckoutScreen() {
   // The server quote is exactly what Place Order charges (coupon, GST, delivery,
   // free-delivery offer). The local numbers above only fill the first frame.
   const [quote, setQuote] = React.useState<CheckoutQuote | null>(null);
-  const quoteKey = `${cartItems.map((i) => `${i.variantId}:${i.quantity}`).join("|")}#${appliedCoupon?.code ?? ""}#${buyNowVariantId ?? ""}`;
+  const [useWallet, setUseWallet] = React.useState(false);
+  const quoteKey = `${cartItems.map((i) => `${i.variantId}:${i.quantity}`).join("|")}#${appliedCoupon?.code ?? ""}#${buyNowVariantId ?? ""}#${useWallet}`;
   React.useEffect(() => {
     if (!token || cartItems.length === 0) return;
     let active = true;
@@ -240,6 +242,7 @@ export default function CheckoutScreen() {
       getCheckoutQuote({
         ...(appliedCoupon?.code ? { couponCode: appliedCoupon.code } : {}),
         ...(buyNowVariantId ? { variantIds: [buyNowVariantId] } : {}),
+        useWallet,
       })
         .then((q) => {
           if (!active) return;
@@ -475,6 +478,7 @@ export default function CheckoutScreen() {
           ...(buyNowVariantId ? { variantIds: [buyNowVariantId] } : {}),
           paymentMethod,
           checkoutKey: checkoutKey.current,
+          ...(useWallet ? { useWallet: true } : {}),
         },
         token
       );
@@ -926,10 +930,25 @@ export default function CheckoutScreen() {
               ) : null}
               <SummaryLine label={`Price (${quote.itemCount} item${quote.itemCount === 1 ? "" : "s"})`} value={`₹${quote.mrpTotal.toFixed(0)}`} />
               {quote.productDiscount > 0 ? <SummaryLine label="Discount on MRP" value={`−₹${quote.productDiscount.toFixed(0)}`} good /> : null}
-              {quote.coupon ? <SummaryLine label={`Coupon (${quote.coupon.code})`} value={`−₹${quote.coupon.discount.toFixed(0)}`} good /> : null}
+              {quote.coupon ? <SummaryLine label={`${quote.coupon.auto ? "Offer applied" : "Coupon"} (${quote.coupon.code})`} value={`−₹${quote.coupon.discount.toFixed(0)}`} good /> : null}
+              {(quote.autoDiscounts ?? []).map((d) => <SummaryLine key={d.key} label={d.label} value={`−₹${d.amount.toFixed(0)}`} good />)}
               <SummaryLine label="Delivery" value={quote.shipping === 0 ? "FREE" : `₹${quote.shipping.toFixed(0)}`} good={quote.shipping === 0} />
               {quote.gst > 0 ? <SummaryLine label="GST" value={`₹${quote.gst.toFixed(0)}`} /> : null}
               {quote.gstFee > 0 ? <SummaryLine label="GST charges" value={`₹${quote.gstFee.toFixed(0)}`} /> : null}
+              {quote.wallet && quote.wallet.applied > 0 ? <SummaryLine label="Cashback used" value={`−₹${quote.wallet.applied.toFixed(0)}`} good /> : null}
+              {quote.wallet && quote.wallet.available > 0 ? (
+                <Pressable
+                  onPress={() => setUseWallet((v) => !v)}
+                  style={{ flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.xs, paddingVertical: 6 }}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: useWallet }}
+                >
+                  <Feather name={useWallet ? "check-square" : "square"} size={20} color={useWallet ? colors.gold : colors.brownSoft} />
+                  <Text style={styles.summaryLabel}>
+                    {t("Use cashback")} ₹{quote.wallet.usable.toFixed(0)} ({t("balance")} ₹{quote.wallet.available.toFixed(0)})
+                  </Text>
+                </Pressable>
+              ) : null}
               {quote.issues.length ? (
                 <Text style={[styles.summaryLabel, { color: "#B45309", marginTop: spacing.xs }]}>
                   {quote.issues.map((i) => i.message).join("\n")}

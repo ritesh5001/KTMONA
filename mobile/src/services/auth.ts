@@ -15,6 +15,8 @@ export interface RegisterUserPayload {
   /** Optional: the OTP is sent to the email address. */
   phone?: string;
   password: string;
+  /** Friend's referral code. */
+  referralCode?: string;
 }
 
 export interface AuthUser {
@@ -128,6 +130,7 @@ export async function requestGuestOtp(payload: {
   email: string;
   phone?: string;
   fullName: string;
+  referralCode?: string;
 }): Promise<OtpSentResponse & { existingAccount: boolean }> {
   return apiRequest<OtpSentResponse & { existingAccount: boolean }>({
     url: "/v1/auth/guest-otp",

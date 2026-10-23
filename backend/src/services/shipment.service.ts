@@ -6,6 +6,7 @@
 import { shipmentRepository } from '../repositories/shipment.repository.js';
 import { commissionService } from './commission.service.js';
 import { prisma } from '../config/db.js';
+import { walletService } from './wallet.service.js';
 import { emitShipmentCreated, emitShipmentShipped, emitShipmentDelivered } from '../events/order.events.js';
 import {
     CreateShipmentInput,
@@ -292,7 +293,11 @@ export class ShipmentService {
                     data: { status: newStatus }
                 });
 
-                if (newStatus === 'DELIVERED') await this.markCodCollected(orderId);
+                if (newStatus === 'DELIVERED') {
+                    await this.markCodCollected(orderId);
+                    // Cashback / referral rewards, held until the return window closes.
+                    await walletService.onOrderDelivered(orderId).catch(() => undefined);
+                }
             }
         }
     }

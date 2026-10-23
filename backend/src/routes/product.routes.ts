@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { productController } from '../controllers/product.controller.js';
 import { reviewController } from '../controllers/review.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { askQuestionSchema, productReportSchema, productTrustService } from '../services/product-trust.service.js';
 
 /**
  * Product Routes
@@ -41,5 +42,32 @@ productRouter.get('/:id/reviews', reviewController.getProductReviews);
  * Create a review for a product (Authenticated)
  */
 productRouter.post('/:id/reviews', authenticate, reviewController.createReview);
+
+/** Product Q&A: answered questions (public) and asking one (signed in). */
+productRouter.get('/:id/questions', async (req, res, next) => {
+    try {
+        res.set('Cache-Control', 'public, max-age=60');
+        res.json(await productTrustService.listQuestions(String(req.params['id'])));
+    } catch (error) {
+        next(error);
+    }
+});
+productRouter.post('/:id/questions', authenticate, async (req, res, next) => {
+    try {
+        const { question } = askQuestionSchema.parse(req.body);
+        res.status(201).json(await productTrustService.ask(String(req.params['id']), req.user!.userId, question));
+    } catch (error) {
+        next(error);
+    }
+});
+
+/** Report incorrect product information. */
+productRouter.post('/:id/report', authenticate, async (req, res, next) => {
+    try {
+        res.json(await productTrustService.report(String(req.params['id']), req.user!.userId, productReportSchema.parse(req.body)));
+    } catch (error) {
+        next(error);
+    }
+});
 
 export { productRouter };

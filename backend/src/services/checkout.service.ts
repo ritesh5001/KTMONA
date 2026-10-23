@@ -18,7 +18,10 @@ import {
     intraStateOrderTotal,
 } from '../config/metrics.js';
 import { recordReserveAttempt, recordReserveFailure } from '../monitoring/alerts.js';
-import { couponService } from './coupon.service.js';
+import { couponService, listPublicCoupons } from './coupon.service.js';
+import { offersConfigService } from './offers-config.service.js';
+import { referralService } from './referral.service.js';
+import { walletService } from './wallet.service.js';
 import { settingsService, shippingFeeFor, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
 import { codEligibilityService } from './cod-eligibility.service.js';
 import { generateInvoiceNumber } from '../utils/invoice.util.js';
@@ -35,6 +38,7 @@ export interface CheckoutLine {
     itemId: string;
     variantId: string;
     productId: string;
+    categoryId: string | null;
     sellerId: string;
     title: string;
     image: string | null;
@@ -66,6 +70,62 @@ export interface CheckoutLineIssue {
     available?: number;
 }
 
+/** A discount applied without a code (welcome offer, referral bonus). */
+export interface AutoDiscount {
+    key: 'WELCOME' | 'REFERRAL';
+    label: string;
+    amount: number;
+}
+
+/** True until the customer has an order that was not cancelled. */
+async function isFirstOrder(userId: string): Promise<boolean> {
+    return (await prisma.order.count({ where: { userId, status: { not: 'CANCELLED' } } })) === 0;
+}
+
+/** Welcome offer and referral bonus for a customer's first order. */
+export async function computeAutoDiscounts(userId: string, itemsTotal: number): Promise<AutoDiscount[]> {
+    const config = await offersConfigService.get();
+    if (!(config.welcome.enabled || config.referral.enabled) || itemsTotal <= 0) return [];
+    if (!(await isFirstOrder(userId))) return [];
+    const out: AutoDiscount[] = [];
+    if (config.welcome.enabled && config.welcome.amount > 0 && itemsTotal >= config.welcome.minOrder) {
+        out.push({ key: 'WELCOME', label: 'Welcome offer', amount: config.welcome.amount });
+    }
+    if (config.referral.enabled && config.referral.friendAmount > 0 && itemsTotal >= config.referral.minOrder) {
+        if (await referralService.pendingFor(userId)) {
+            out.push({ key: 'REFERRAL', label: 'Referral bonus', amount: config.referral.friendAmount });
+        }
+    }
+    return out;
+}
+
+/** Best eligible auto-apply coupon for these lines, when the shopper typed no code. */
+async function pickAutoCoupon(
+    userId: string,
+    items: CheckoutLine[],
+    orderSubtotal: Prisma.Decimal,
+): Promise<{ code: string; discount: number } | null> {
+    const candidates = (await listPublicCoupons()).filter((c) => c.autoApply).slice(0, 15);
+    let best: { code: string; discount: number } | null = null;
+    for (const c of candidates) {
+        try {
+            const applied = await couponService.applyCouponToOrder({
+                userId,
+                couponCode: c.code,
+                orderSubtotal,
+                sellerIds: Array.from(new Set(items.map((i) => i.sellerId))),
+                lines: items.map((i) => ({ productId: i.productId, categoryId: i.categoryId, amount: i.lineSubtotal })),
+                preview: true,
+            });
+            const discount = Number(applied.discountAmount.toString());
+            if (!best || discount > best.discount) best = { code: applied.couponCode, discount };
+        } catch {
+            // Not eligible for this cart.
+        }
+    }
+    return best;
+}
+
 /** Price breakup returned by POST /v1/checkout/quote (buyer-safe: no seller costs). */
 export interface CheckoutQuote {
     lines: Array<{
@@ -94,8 +154,11 @@ export interface CheckoutQuote {
     productDiscount: number;
     /** Selling price total, before coupon. */
     itemsTotal: number;
-    coupon: { code: string; discount: number } | null;
+    /** Applied coupon; `auto` = picked automatically (no code typed). */
+    coupon: { code: string; discount: number; auto: boolean } | null;
     couponError: string | null;
+    /** Welcome offer / referral bonus on a first order. */
+    autoDiscounts: AutoDiscount[];
     /** Items total after the coupon (GST is charged on this). */
     taxableAmount: number;
     /** Product GST. */
@@ -107,6 +170,8 @@ export interface CheckoutQuote {
     /** The normal delivery charge (0 = delivery is always free). */
     shippingFee: number;
     freeDelivery: { threshold: number; eligible: boolean; remaining: number } | null;
+    /** Cashback wallet: balance, how much this order may use, and what is applied. */
+    wallet: { available: number; usable: number; applied: number };
     /** What the buyer pays. */
     total: number;
     /** MRP discount + coupon + waived delivery. */
@@ -164,6 +229,7 @@ export function buildCheckoutLines(
             itemId: row.itemId,
             variantId: row.variantId,
             productId: row.productId,
+            categoryId: row.categoryId,
             sellerId: row.sellerId,
             title,
             image: row.variantImage ?? row.productImage ?? null,
@@ -312,6 +378,8 @@ export class CheckoutService {
          * already created instead of placing a second one.
          */
         checkoutKey?: string,
+        /** Pay part of the order from the cashback wallet (up to the admin's limit). */
+        options: { useWallet?: boolean } = {},
     ): Promise<CheckoutResponse> {
         if (checkoutKey) {
             const existing = await this.findByCheckoutKey(userId, checkoutKey);
@@ -319,7 +387,7 @@ export class CheckoutService {
         }
 
         try {
-            return await this.placeOrder(userId, shipping, couponCode, variantIds, paymentMethod, checkoutKey);
+            return await this.placeOrder(userId, shipping, couponCode, variantIds, paymentMethod, checkoutKey, options);
         } catch (error) {
             // Two submits with the same key raced: the loser's transaction hit the
             // unique key and rolled back (stock, coupon and all). Hand back the winner.
@@ -338,7 +406,7 @@ export class CheckoutService {
      */
     async quote(
         userId: string,
-        input: { variantIds?: string[]; couponCode?: string; paymentMethod?: 'ONLINE' | 'COD' },
+        input: { variantIds?: string[]; couponCode?: string; paymentMethod?: 'ONLINE' | 'COD'; useWallet?: boolean },
     ): Promise<CheckoutQuote> {
         const [cartRows, buyer, shippingRules, gstChargeEnabled] = await Promise.all([
             this.cartRepo.getCartForCheckout(userId),
@@ -363,23 +431,33 @@ export class CheckoutService {
                     couponCode: input.couponCode,
                     orderSubtotal: itemsTotal,
                     sellerIds: Array.from(new Set(items.map((item) => item.sellerId))),
+                    lines: items.map((i) => ({ productId: i.productId, categoryId: i.categoryId, amount: i.lineSubtotal })),
                     preview: true,
                 });
-                coupon = { code: applied.couponCode, discount: Number(applied.discountAmount.toString()) };
+                coupon = { code: applied.couponCode, discount: Number(applied.discountAmount.toString()), auto: false };
             } catch (error) {
                 couponError = error instanceof Error ? error.message : 'This coupon cannot be applied';
             }
+        } else if (items.length > 0) {
+            const best = await pickAutoCoupon(userId, items, itemsTotal);
+            if (best) coupon = { ...best, auto: true };
         }
 
-        const { orderSubTotal, orderTaxTotal, orderGrandTotal } = priceCheckoutLines(
-            items,
-            new Prisma.Decimal(coupon?.discount ?? 0),
-        );
+        const autoDiscounts = items.length > 0 ? await computeAutoDiscounts(userId, Number(itemsTotal.toString())) : [];
+        let totalDiscount = new Prisma.Decimal(coupon?.discount ?? 0).add(autoDiscounts.reduce((s, d) => s + d.amount, 0));
+        if (totalDiscount.gt(itemsTotal)) totalDiscount = itemsTotal;
+
+        const { orderSubTotal, orderTaxTotal, orderGrandTotal } = priceCheckoutLines(items, totalDiscount);
         const units = items.reduce((sum, item) => sum + item.quantity, 0);
         const gstFee = gstChargeEnabled ? FLAT_GST_FEE_INR * units : 0;
         const taxable = Number(orderSubTotal.toString());
         const shipping = items.length > 0 ? shippingFeeFor(taxable, shippingRules) : 0;
-        const total = Number(round2(orderGrandTotal.add(gstFee).add(shipping)).toString());
+        const grandTotal = Number(round2(orderGrandTotal.add(gstFee).add(shipping)).toString());
+        const wallet = items.length > 0
+            ? await walletService.usableFor(userId, grandTotal)
+            : { available: 0, usable: 0 };
+        const walletApplied = input.useWallet ? wallet.usable : 0;
+        const total = Math.round((grandTotal - walletApplied) * 100) / 100;
 
         const mrpTotal = items.reduce(
             (sum, item) => sum + (item.compareAtPrice ?? item.priceSnapshot) * item.quantity,
@@ -417,6 +495,7 @@ export class CheckoutService {
             itemsTotal: itemsTotalNum,
             coupon,
             couponError,
+            autoDiscounts,
             taxableAmount: taxable,
             gst: Number(orderTaxTotal.toString()),
             gstFee,
@@ -429,8 +508,9 @@ export class CheckoutService {
                     remaining: Math.max(0, Math.round((shippingRules.freeAbove - taxable) * 100) / 100),
                 }
                 : null,
+            wallet: { available: wallet.available, usable: wallet.usable, applied: walletApplied },
             total,
-            savings: Math.round((productDiscount + (coupon?.discount ?? 0) + shippingWaived) * 100) / 100,
+            savings: Math.round((productDiscount + Number(totalDiscount.toString()) + shippingWaived + walletApplied) * 100) / 100,
             cod: {
                 available: codCheck.available && !codTooBig,
                 reason: codTooBig
@@ -479,6 +559,7 @@ export class CheckoutService {
         variantIds: string[] | undefined,
         paymentMethod: 'ONLINE' | 'COD',
         checkoutKey: string | undefined,
+        options: { useWallet?: boolean },
     ): Promise<CheckoutResponse> {
         // =====================================================================
         // PHASE 1 — Read-only validation (outside transaction)
@@ -537,6 +618,12 @@ export class CheckoutService {
             (sum, item) => sum.add(item.lineSubtotal),
             new Prisma.Decimal(0),
         );
+        // Automatic discounts and the best auto-apply coupon are read-only lookups,
+        // so they are resolved here rather than inside the transaction.
+        const autoDiscounts = await computeAutoDiscounts(userId, Number(orderSubtotal.toString()));
+        const autoCoupon = couponCode?.trim() ? null : await pickAutoCoupon(userId, itemsWithStock, orderSubtotal);
+        const effectiveCouponCode = couponCode?.trim() ? couponCode : autoCoupon?.code;
+
         // shippingRules and gstChargeEnabled were resolved in the batched load above —
         // outside the transaction, so no DB reads happen while holding row locks.
 
@@ -616,17 +703,30 @@ export class CheckoutService {
                 discountAmount: Prisma.Decimal;
             } | null = null;
 
-            if (couponCode && couponCode.trim().length > 0) {
-                appliedCoupon = await couponService.applyCouponToOrder({
-                    userId,
-                    couponCode,
-                    orderSubtotal,
-                    sellerIds: uniqueSellerIds,
-                    tx,
-                });
+            if (effectiveCouponCode && effectiveCouponCode.trim().length > 0) {
+                try {
+                    appliedCoupon = await couponService.applyCouponToOrder({
+                        userId,
+                        couponCode: effectiveCouponCode,
+                        orderSubtotal,
+                        sellerIds: uniqueSellerIds,
+                        lines: itemsWithStock.map((i) => ({ productId: i.productId, categoryId: i.categoryId, amount: i.lineSubtotal })),
+                        tx,
+                    });
+                } catch (error) {
+                    // A coupon the shopper typed must work or fail loudly; an
+                    // automatic one that just ran out is simply skipped.
+                    if (couponCode?.trim()) throw error;
+                    appliedCoupon = null;
+                }
             }
 
-            const totalDiscount = appliedCoupon?.discountAmount ?? new Prisma.Decimal(0);
+            const couponDiscount = appliedCoupon?.discountAmount ?? new Prisma.Decimal(0);
+            const autoDiscountTotal = autoDiscounts.reduce((sum, d) => sum + d.amount, 0);
+            // Coupon + automatic discounts, never more than the items are worth.
+            let totalDiscount = couponDiscount.add(autoDiscountTotal);
+            if (totalDiscount.gt(orderSubtotal)) totalDiscount = orderSubtotal;
+            const autoDiscountApplied = Number(totalDiscount.sub(couponDiscount).toString());
 
             const { discountedLines, orderSubTotal, orderTaxTotal, orderGrandTotal } =
                 priceCheckoutLines(itemsWithStock, totalDiscount);
@@ -647,7 +747,11 @@ export class CheckoutService {
             const orderTaxTotalWithFlat = round2(orderTaxTotal.add(flatGstFee));
             const orderGrandTotalWithFlat = round2(orderGrandTotal.add(flatGstFee));
             const grandTotalWithShipping = round2(orderGrandTotalWithFlat.add(shippingFee));
-            const totalAmount = grandTotalWithShipping;
+            // Cashback wallet pays part of the order; the rest is what the buyer pays now.
+            const walletUse = options.useWallet
+                ? (await walletService.usableFor(userId, Number(grandTotalWithShipping.toString()))).usable
+                : 0;
+            const totalAmount = round2(grandTotalWithShipping.sub(walletUse));
             // Throwing here rolls back the stock reservation and coupon with it.
             if (paymentMethod === 'COD' && totalAmount.gt(COD_MAX_ORDER_INR)) {
                 throw ApiError.badRequest(
@@ -666,6 +770,9 @@ export class CheckoutService {
                     grandTotal: Number(grandTotalWithShipping.toString()),
                     couponCode: appliedCoupon?.couponCode ?? null,
                     discountAmount: totalDiscount,
+                    walletAmount: walletUse,
+                    autoDiscountAmount: autoDiscountApplied,
+                    autoDiscountLabel: autoDiscountApplied > 0 ? autoDiscounts.map((d) => d.label).join(' + ') : null,
                     shippingName: shipping?.shippingName ?? null,
                     shippingPhone: shipping?.shippingPhone ?? null,
                     shippingEmail: shipping?.shippingEmail ?? null,
@@ -715,14 +822,18 @@ export class CheckoutService {
                 })),
             });
 
-            if (appliedCoupon && totalDiscount.gt(0)) {
+            if (appliedCoupon && couponDiscount.gt(0)) {
                 await couponService.redeemCouponAfterOrderCreated({
                     tx,
                     couponId: appliedCoupon.couponId,
                     userId,
                     orderId: created.id,
-                    discountAmount: totalDiscount,
+                    discountAmount: couponDiscount,
                 });
+            }
+
+            if (walletUse > 0) {
+                await walletService.debitInTx(tx, userId, walletUse, created.id);
             }
 
             // 2c. Create RESERVE inventory movements (audit trail)
@@ -781,6 +892,9 @@ export class CheckoutService {
 
         // Invalidate caches
         const productIdsToInvalidate = Array.from(new Set(itemsWithStock.map((item) => item.productId)));
+
+        // A referred customer's first order: the referrer is rewarded once it is delivered.
+        void referralService.markFirstOrder(userId, order.id).catch(() => undefined);
 
         // Keep buyer cart immediately consistent for UX; run broader invalidations asynchronously.
         await invalidateCache(CACHE_KEYS.CART(userId));

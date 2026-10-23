@@ -8,7 +8,7 @@ import { useToast } from "../../providers/ToastProvider";
 import { C, F } from "../theme";
 import { PrimaryBtn, ScreenHeader, T } from "../kit";
 import { useT } from "../../i18n";
-import { submitProductReview } from "../../services/reviews";
+import { getReviewEligibility, submitProductReview, type ReviewEligibility } from "../../services/reviews";
 import { buildReviewImageName, uploadReviewImage } from "../../services/imagekit";
 
 const LABELS = ["", "Very bad", "Bad", "Okay", "Good", "Excellent"];
@@ -24,6 +24,13 @@ export default function ReviewScreen({ productId, title }: { productId: string; 
   const [text, setText] = React.useState("");
   const [photos, setPhotos] = React.useState<{ uri: string; mimeType: string }[]>([]);
   const [saving, setSaving] = React.useState(false);
+  const [sellerRating, setSellerRating] = React.useState(0);
+  const [eligibility, setEligibility] = React.useState<ReviewEligibility | null>(null);
+
+  // Only customers who received this product can review it.
+  React.useEffect(() => {
+    getReviewEligibility(productId).then(setEligibility).catch(() => setEligibility(null));
+  }, [productId]);
 
   const addPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -41,13 +48,17 @@ export default function ReviewScreen({ productId, title }: { productId: string; 
       showToast(t("Tap the stars to rate the product"), "info");
       return;
     }
+    if (text.trim().length < 10) {
+      showToast(t("Please write at least 10 characters about the product"), "info");
+      return;
+    }
     setSaving(true);
     try {
       const images: string[] = [];
       for (const [i, p] of photos.entries()) {
         images.push(await uploadReviewImage({ uri: p.uri, fileName: buildReviewImageName(i), mimeType: p.mimeType }));
       }
-      await submitProductReview(productId, { rating, text: text.trim(), images });
+      await submitProductReview(productId, { rating, text: text.trim(), images, ...(sellerRating ? { sellerRating } : {}) });
       await qc.invalidateQueries({ queryKey: ["storefront", "reviews", productId] });
       showToast(t("Thanks for your review!"), "success");
       router.back();
@@ -62,6 +73,12 @@ export default function ReviewScreen({ productId, title }: { productId: string; 
     <View style={{ flex: 1, backgroundColor: C.bg }}>
       <ScreenHeader title="Rate product" actions={false} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+        {eligibility && !eligibility.canReview ? (
+          <View style={[styles.card, { marginBottom: 12, backgroundColor: "#FFFBEB" }]}>
+            <T size={13} color="#92400E">{t(eligibility.reason ?? "You can review this product after it is delivered to you.")}</T>
+          </View>
+        ) : null}
+        {eligibility?.variantLabel ? <T size={12} color={C.muted} style={{ marginBottom: 8 }}>{t("You bought")}: {eligibility.variantLabel}</T> : null}
         <View style={styles.card}>
           {title ? <T size={13} color={C.textSoft} numberOfLines={2}>{title}</T> : null}
           <T w="semibold" size={16} style={{ marginTop: title ? 10 : 0 }}>How was the product?</T>
@@ -76,7 +93,7 @@ export default function ReviewScreen({ productId, title }: { productId: string; 
         </View>
 
         <View style={[styles.card, { marginTop: 12 }]}>
-          <T w="semibold" size={15}>Write a review (optional)</T>
+          <T w="semibold" size={15}>Write a review</T>
           <TextInput
             value={text}
             onChangeText={setText}
@@ -86,6 +103,15 @@ export default function ReviewScreen({ productId, title }: { productId: string; 
             placeholderTextColor={C.faint}
             style={styles.input}
           />
+          <T w="semibold" size={15} style={{ marginTop: 14 }}>Rate the seller (optional)</T>
+          <T size={11} color={C.muted}>Packing, delivery speed and whether the item matched the listing.</T>
+          <View style={{ flexDirection: "row", gap: 8, marginTop: 6 }}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable key={n} onPress={() => setSellerRating(n === sellerRating ? 0 : n)} hitSlop={6} accessibilityLabel={`${n} star seller rating`}>
+                <Ionicons name={n <= sellerRating ? "star" : "star-outline"} size={24} color={n <= sellerRating ? "#F59E0B" : C.faint} />
+              </Pressable>
+            ))}
+          </View>
           <T w="semibold" size={15} style={{ marginTop: 14 }}>Add photos (optional)</T>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
             {photos.map((p) => (

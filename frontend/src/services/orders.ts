@@ -258,6 +258,9 @@ export interface BuyerOrderDetail extends BuyerOrder {
     productDiscount: number;
     couponCode: string | null;
     couponDiscount: number;
+    autoDiscount?: number;
+    autoDiscountLabel?: string | null;
+    walletAmount?: number;
     tax: number;
     shipping: number;
     total: number;

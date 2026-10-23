@@ -39,6 +39,11 @@ const RelatedProducts = dynamic(
   }
 );
 
+const ProductQuestionsAndReport = dynamic(
+  () => import("@/components/product-extras").then((mod) => mod.ProductQuestionsAndReport),
+  { ssr: false }
+);
+
 const RecentlyViewedTracker = dynamic(
   () => import("@/components/recently-viewed-tracker").then((mod) => mod.RecentlyViewedTracker),
   { ssr: false }
@@ -57,6 +62,9 @@ export function ProductDetailDeferredSections({
       <RecentlyViewedTracker productId={productId} />
       <section className="border-t border-border-soft pt-16">
         <ProductReviews productId={productId} />
+      </section>
+      <section className="border-t border-border-soft pt-16">
+        <ProductQuestionsAndReport productId={productId} />
       </section>
       <RelatedProducts productId={productId} categoryId={categoryId} />
     </>

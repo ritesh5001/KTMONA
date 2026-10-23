@@ -7,6 +7,15 @@ const reviewRouter = Router();
 // POST /v1/reviews/:id/helpful - Mark as helpful (Authenticated)
 reviewRouter.post('/:id/helpful', authenticate, reviewController.markHelpful);
 
+// GET /v1/reviews/my-votes?ids= - Reviews I marked helpful
+reviewRouter.get('/my-votes', authenticate, reviewController.myVotes);
+
+// POST /v1/reviews/:id/report - Report a review (spam, fake, offensive…)
+reviewRouter.post('/:id/report', authenticate, reviewController.report);
+
+// GET /v1/reviews/product/:productId/eligibility - Can the signed-in buyer review it?
+reviewRouter.get('/product/:productId/eligibility', authenticate, reviewController.eligibility);
+
 // GET /v1/reviews/product/:productId - Get reviews (Public) — legacy route
 reviewRouter.get('/product/:productId', reviewController.getProductReviews);
 

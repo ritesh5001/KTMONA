@@ -30,6 +30,7 @@ import { getSessionRole, hasSession } from "@/lib/session";
 import { startNavigationFeedback } from "@/lib/navigation-feedback";
 import { clearCheckoutCartSnapshot } from "@/lib/checkout-snapshot";
 import { clearGuestCart, readGuestCart } from "@/lib/guest-cart";
+import { readReferralCode } from "@/lib/referral-code";
 
 const PLACEHOLDER = "/images/product-placeholder.svg";
 
@@ -125,7 +126,8 @@ function GuestGate({ onVerified }: { onVerified: (contact: Contact) => void }) {
     if (phone && !/^\d{10,15}$/.test(phone)) return toast.error("Mobile number must be 10 to 15 digits.");
     setBusy(true);
     try {
-      const res = await requestGuestOtp({ fullName: name, email, ...(phone ? { phone } : {}) });
+      const referralCode = readReferralCode();
+      const res = await requestGuestOtp({ fullName: name, email, ...(phone ? { phone } : {}), ...(referralCode ? { referralCode } : {}) });
       setVerifyWith(res.verifyWith ?? { email });
       setExistingAccount(res.existingAccount);
       setStep("code");
@@ -275,6 +277,7 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
   const [notes, setNotes] = React.useState("");
   const [paymentMethod, setPaymentMethod] = React.useState<"ONLINE" | "COD">("ONLINE");
   const [appliedCoupon, setAppliedCoupon] = React.useState<CouponPreview | null>(null);
+  const [useWallet, setUseWallet] = React.useState(false);
   const [placing, setPlacing] = React.useState(false);
   // One key per visit to this page: a retry or double click returns the same order.
   const checkoutKey = React.useRef<string>(
@@ -309,7 +312,7 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
     try {
       // Buy Now navigates here while its add-to-cart is still in flight.
       await flushPendingCartWrite().catch(() => undefined);
-      const q = await getCheckoutQuote({ ...(couponCode ? { couponCode } : {}), paymentMethod });
+      const q = await getCheckoutQuote({ ...(couponCode ? { couponCode } : {}), paymentMethod, useWallet });
       setQuote(q);
       if (couponCode && q.couponError) {
         toast.error(q.couponError);
@@ -321,7 +324,7 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
     } finally {
       setQuoteLoading(false);
     }
-  }, [couponCode, paymentMethod]);
+  }, [couponCode, paymentMethod, useWallet]);
 
   React.useEffect(() => {
     void refreshQuote();
@@ -383,6 +386,7 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
         ...(couponCode ? { couponCode } : {}),
         paymentMethod,
         checkoutKey: checkoutKey.current,
+        ...(useWallet ? { useWallet: true } : {}),
       });
 
       const orderId = result.order?.id;
@@ -594,6 +598,19 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
         />
 
         {quote ? <FreeDeliveryProgress freeDelivery={quote.freeDelivery} /> : null}
+
+        {quote?.wallet && quote.wallet.available > 0 ? (
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border-soft bg-card p-4 text-sm">
+            <input type="checkbox" className="mt-1" checked={useWallet} onChange={(e) => setUseWallet(e.target.checked)} disabled={placing} />
+            <span>
+              <span className="block font-medium">Use cashback · {formatInr(quote.wallet.usable)}</span>
+              <span className="block text-xs text-muted-foreground">
+                Balance {formatInr(quote.wallet.available)}. Cashback can pay for part of each order.{" "}
+                <Link href="/user/wallet" className="underline">Wallet</Link>
+              </span>
+            </span>
+          </label>
+        ) : null}
 
         <section className="space-y-4 rounded-2xl border border-border-soft bg-card p-5">
           <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Price details</h2>

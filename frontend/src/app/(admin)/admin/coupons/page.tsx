@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { getCategories } from "@/services/catalog";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -160,6 +161,8 @@ const CouponFormFields = ({
       />
     </div>
 
+    <CouponScopeFields values={values} onChange={onChange} />
+
     <div className="flex items-center gap-6">
       <label className="flex items-center gap-2 text-sm cursor-pointer">
         <input
@@ -182,6 +185,95 @@ const CouponFormFields = ({
     </div>
   </div>
 );
+
+const splitIds = (text: string) => text.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean);
+
+/** Shopper-facing text, visibility, auto-apply and product/category limits. */
+function CouponScopeFields({ values, onChange }: { values: Record<string, any>; onChange: (field: string, value: any) => void }) {
+  const [categories, setCategories] = React.useState<Array<{ id: string; name: string }>>([]);
+  React.useEffect(() => {
+    getCategories()
+      .then((r) => setCategories(r.categories.filter((c) => !c.parentId).map((c) => ({ id: c.id, name: c.name }))))
+      .catch(() => undefined);
+  }, []);
+  const toggleCat = (field: "categoryIds" | "excludedCategoryIds", id: string) => {
+    const cur: string[] = values[field] ?? [];
+    onChange(field, cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+  };
+  return (
+    <div className="space-y-4 rounded-xl border border-border-soft p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Shown to shoppers</p>
+      <div>
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Title (e.g. &quot;Flat ₹200 off on sarees&quot;)</Label>
+        <Input value={values.title ?? ""} onChange={(e) => onChange("title", e.target.value || null)} className="mt-1 h-11" />
+      </div>
+      <div>
+        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Terms & conditions</Label>
+        <textarea
+          value={values.terms ?? ""}
+          onChange={(e) => onChange("terms", e.target.value || null)}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-input bg-background p-2 text-sm"
+          placeholder="One coupon per order. Not valid on gift cards…"
+        />
+      </div>
+      <div className="flex flex-wrap gap-6">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="h-4 w-4" checked={values.isPublic ?? true} onChange={(e) => onChange("isPublic", e.target.checked)} />
+          Show on Offers page & product pages
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" className="h-4 w-4" checked={values.autoApply ?? false} onChange={(e) => onChange("autoApply", e.target.checked)} />
+          Apply automatically (no code needed)
+        </label>
+      </div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Where it applies (leave empty for all products)</p>
+      {categories.length ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">Only these categories</p>
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-border-soft p-2 text-sm">
+              {categories.map((c) => (
+                <label key={c.id} className="flex items-center gap-2">
+                  <input type="checkbox" checked={(values.categoryIds ?? []).includes(c.id)} onChange={() => toggleCat("categoryIds", c.id)} /> {c.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-muted-foreground">Exclude these categories</p>
+            <div className="max-h-36 space-y-1 overflow-y-auto rounded-md border border-border-soft p-2 text-sm">
+              {categories.map((c) => (
+                <label key={c.id} className="flex items-center gap-2">
+                  <input type="checkbox" checked={(values.excludedCategoryIds ?? []).includes(c.id)} onChange={() => toggleCat("excludedCategoryIds", c.id)} /> {c.name}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Only these product IDs</Label>
+          <Input
+            value={(values.productIds ?? []).join(", ")}
+            onChange={(e) => onChange("productIds", splitIds(e.target.value))}
+            className="mt-1 h-11"
+            placeholder="Paste IDs from product URLs, comma-separated"
+          />
+        </div>
+        <div>
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Exclude product IDs</Label>
+          <Input
+            value={(values.excludedProductIds ?? []).join(", ")}
+            onChange={(e) => onChange("excludedProductIds", splitIds(e.target.value))}
+            className="mt-1 h-11"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminCouponsPage() {
   const [loading, setLoading] = React.useState(true);
@@ -251,6 +343,14 @@ export default function AdminCouponsPage() {
       isActive: coupon.isActive,
       sellerId: coupon.sellerId,
       firstTimeUserOnly: coupon.firstTimeUserOnly,
+      title: coupon.title ?? null,
+      terms: coupon.terms ?? null,
+      isPublic: coupon.isPublic ?? true,
+      autoApply: coupon.autoApply ?? false,
+      productIds: coupon.productIds ?? [],
+      categoryIds: coupon.categoryIds ?? [],
+      excludedProductIds: coupon.excludedProductIds ?? [],
+      excludedCategoryIds: coupon.excludedCategoryIds ?? [],
     });
   };
 

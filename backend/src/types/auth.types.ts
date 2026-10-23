@@ -60,6 +60,8 @@ export interface RegisterUserRequest {
     email?: string | undefined;
     phone?: string | undefined;
     password: string;
+    /** Friend's referral code from a ?ref= link. */
+    referralCode?: string | undefined;
 }
 
 /**

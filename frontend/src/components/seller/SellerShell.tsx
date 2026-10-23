@@ -28,7 +28,7 @@ import {
   Store,
   Tag,
   Wallet,
-  Warehouse,
+  Warehouse, MessageCircleQuestion,
 } from "lucide-react";
 import { getUnreadCount } from "@/services/notifications";
 import { sellerCenter } from "@/services/seller-center";
@@ -87,6 +87,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         ],
       },
       { href: "/seller/returns", label: "Returns", icon: RotateCcw, section: "Manage Business" },
+      { href: "/seller/questions", label: "Customer Questions", icon: MessageCircleQuestion, section: "Manage Business" },
       {
         href: "/seller/pricing",
         label: "Pricing",

@@ -64,6 +64,8 @@ const PATH_RULES: [RegExp, StaffPermission][] = [
 
     [/^\/v1\/admin\/(coupons|bestsellers|reviews|reels)(\/|$)/, 'marketing'],
     [/^\/v1\/admin\/center\/(campaigns|ads)(\/|$)/, 'marketing'],
+    [/^\/v1\/admin\/center\/(reviews|reviews-reported|product-questions|offers-config)(\/|$)/, 'marketing'],
+    [/^\/v1\/admin\/center\/product-reports(\/|$)/, 'catalog'],
 
     [/^\/v1\/admin\/center\/(storefront|announcements)(\/|$)/, 'content'],
     [/^\/v1\/admin\/site(\/|$)/, 'content'],

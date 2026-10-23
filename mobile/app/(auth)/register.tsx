@@ -33,6 +33,7 @@ export default function RegisterScreen() {
   const [fullName, setFullName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [phone, setPhone] = React.useState("");
+  const [referralCode, setReferralCode] = React.useState("");
   const typoConfirmed = React.useRef<string | null>(null);
   const emailSuggestion = suggestEmailFix(email);
   const [password, setPassword] = React.useState("");
@@ -96,6 +97,7 @@ export default function RegisterScreen() {
         email: normalizedEmail,
         ...(normalizedPhone ? { phone: normalizedPhone } : {}),
         password,
+        ...(referralCode.trim() ? { referralCode: referralCode.trim().toUpperCase() } : {}),
       });
       router.replace({
         pathname: "/(auth)/verify-otp",
@@ -171,6 +173,17 @@ export default function RegisterScreen() {
           <Text style={styles.helperText}>
             We&apos;ll email a verification code (OTP) to the address above.
           </Text>
+
+          <FieldLabel>Referral code (optional)</FieldLabel>
+          <TextInput
+            placeholder="KTABC123"
+            placeholderTextColor={REGISTER_PLACEHOLDER_COLOR}
+            style={styles.input}
+            value={referralCode}
+            onChangeText={(value) => setReferralCode(value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase())}
+            autoCapitalize="characters"
+            maxLength={16}
+          />
 
           <FieldLabel required>Password</FieldLabel>
           <View style={styles.inputRow}>
