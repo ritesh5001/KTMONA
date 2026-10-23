@@ -331,7 +331,7 @@ export interface HomeBanners {
   promo: HomeBannerItem | null;
 }
 
-export type CustomerTab = "all" | "active" | "suspended" | "cod_off";
+export type CustomerTab = "all" | "active" | "suspended" | "cod_off" | "deletion_requested";
 
 export interface AdminCustomerRow {
   id: string;
@@ -340,6 +340,8 @@ export interface AdminCustomerRow {
   phone: string | null;
   status: "PENDING" | "ACTIVE" | "SUSPENDED";
   codDisabled: boolean;
+  /** Customer asked for their account to be deleted. */
+  deletionRequestedAt?: string | null;
   state: string | null;
   joinedAt: string;
   orders: number;
@@ -360,6 +362,8 @@ export interface AdminCustomerDetail {
   statusReason: string | null;
   suspendedAt: string | null;
   codDisabled: boolean;
+  deletionRequestedAt?: string | null;
+  deletionReason?: string | null;
   emailVerified: boolean;
   phoneVerified: boolean;
   joinedAt: string;

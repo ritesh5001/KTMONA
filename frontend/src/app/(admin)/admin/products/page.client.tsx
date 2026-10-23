@@ -8,7 +8,7 @@ import ImageKit from "imagekit-javascript";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RequiredMark } from "@/components/ui/label";
-import { deleteProduct, getAllProducts, setProductCod, updateProductDetails } from "@/services/admin";
+import { deleteProduct, getAllProducts, setProductCod, setProductReturnable, updateProductDetails } from "@/services/admin";
 import type {
   AdminProductUpdatePayload,
   AdminProductVariantUpdatePayload,
@@ -165,6 +165,8 @@ export default function AdminProductsClient({
   const [editingProduct, setEditingProduct] = React.useState<any | null>(null);
   // Cash on Delivery off for this product (saved through its own endpoint).
   const [editCodDisabled, setEditCodDisabled] = React.useState(false);
+  // Non-returnable: only wrong / damaged / defective / incomplete items come back.
+  const [editNonReturnable, setEditNonReturnable] = React.useState(false);
   const [editForm, setEditForm] = React.useState({
     categoryId: "",
     occasionIds: [] as string[],
@@ -382,6 +384,7 @@ export default function AdminProductsClient({
       : [];
     setEditingProduct(product);
     setEditCodDisabled(Boolean(product.codDisabled));
+    setEditNonReturnable(product.isReturnable === false);
     setEditForm({
       categoryId,
       occasionIds: existingOccasionIds,
@@ -816,6 +819,10 @@ export default function AdminProductsClient({
       if (codChanged) {
         await setProductCod(editingProduct.id, editCodDisabled);
         (saved as { codDisabled?: boolean }).codDisabled = editCodDisabled;
+      }
+      if ((editingProduct.isReturnable === false) !== editNonReturnable) {
+        await setProductReturnable(editingProduct.id, !editNonReturnable);
+        (saved as { isReturnable?: boolean }).isReturnable = !editNonReturnable;
       }
 
       // Paint the saved row from the response so the table updates without waiting
@@ -1493,6 +1500,20 @@ export default function AdminProductsClient({
                   <label htmlFor="editCodDisabled" className="text-muted-foreground">
                     Cash on Delivery off for this product
                     <span className="block text-xs">Buyers must pay online when this product is in their order.</span>
+                  </label>
+                </div>
+
+                <div className="flex items-start gap-3 text-sm">
+                  <input
+                    id="editNonReturnable"
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={editNonReturnable}
+                    onChange={(event) => setEditNonReturnable(event.target.checked)}
+                  />
+                  <label htmlFor="editNonReturnable" className="text-muted-foreground">
+                    Non-returnable
+                    <span className="block text-xs">Innerwear, cosmetics, perishables… Buyers can still return it if it arrives wrong, damaged, defective or incomplete.</span>
                   </label>
                 </div>
 

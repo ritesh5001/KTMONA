@@ -64,6 +64,16 @@ export default function AdminCustomerDetailPage() {
         </div>
       ) : null}
 
+      {c.deletionRequestedAt ? (
+        <div className="flex gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            The customer asked for their account to be deleted on {fmtDate(c.deletionRequestedAt)}
+            {c.deletionReason ? ` (“${c.deletionReason}”)` : ""}. Settle open orders, returns and refunds first, then use Delete permanently. Invoices are kept for tax records.
+          </span>
+        </div>
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard icon={IndianRupee} tone="blue" label="Total spent" value={inr.format(c.stats.spent)} sub={`${c.stats.orders} order${c.stats.orders === 1 ? "" : "s"} placed`} />
         <StatCard icon={RotateCcw} tone="amber" label="Returns" value={c.stats.returns} sub={`${c.stats.cancellations} cancellation request${c.stats.cancellations === 1 ? "" : "s"}`} />

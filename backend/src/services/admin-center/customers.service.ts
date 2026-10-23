@@ -10,7 +10,7 @@ import { ApiError } from '../../errors/ApiError.js';
 import { auditService } from '../audit.service.js';
 import { parseLimit, parsePage } from '../seller-center/common.js';
 
-export const CUSTOMER_TABS = ['all', 'active', 'suspended', 'cod_off'] as const;
+export const CUSTOMER_TABS = ['all', 'active', 'suspended', 'cod_off', 'deletion_requested'] as const;
 type CustomerTab = (typeof CUSTOMER_TABS)[number];
 
 /** Orders that count as real purchases (paid or COD-confirmed, not cancelled). */
@@ -33,6 +33,8 @@ class AdminCustomersService {
                 return { ...base, status: 'SUSPENDED' };
             case 'cod_off':
                 return { ...base, codDisabled: true };
+            case 'deletion_requested':
+                return { ...base, deletionRequestedAt: { not: null } };
             default:
                 return base;
         }
@@ -61,6 +63,7 @@ class AdminCustomersService {
                     codDisabled: true,
                     state: true,
                     createdAt: true,
+                    deletionRequestedAt: true,
                     user_profiles: { select: { full_name: true } },
                 },
             }),
@@ -90,6 +93,7 @@ class AdminCustomersService {
                     phone: u.phone,
                     status: u.status,
                     codDisabled: u.codDisabled,
+                    deletionRequestedAt: u.deletionRequestedAt,
                     state: u.state,
                     joinedAt: u.createdAt,
                     orders: s?._count._all ?? 0,
@@ -112,6 +116,8 @@ class AdminCustomersService {
                 status: true,
                 codDisabled: true,
                 state: true,
+                deletionRequestedAt: true,
+                deletionReason: true,
                 isEmailVerified: true,
                 isPhoneVerified: true,
                 createdAt: true,
@@ -171,6 +177,9 @@ class AdminCustomersService {
             statusReason: reason,
             suspendedAt: suspension?.createdAt ?? null,
             codDisabled: user.codDisabled,
+            /** The customer asked for their account to be deleted (Settings → Privacy). */
+            deletionRequestedAt: user.deletionRequestedAt,
+            deletionReason: user.deletionReason,
             emailVerified: user.isEmailVerified,
             phoneVerified: user.isPhoneVerified,
             joinedAt: user.createdAt,

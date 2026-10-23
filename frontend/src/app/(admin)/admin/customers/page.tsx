@@ -14,6 +14,7 @@ const TABS: { key: CustomerTab; label: string }[] = [
   { key: "active", label: "Active" },
   { key: "suspended", label: "Suspended" },
   { key: "cod_off", label: "COD off" },
+  { key: "deletion_requested", label: "Deletion requested" },
 ];
 
 export default function AdminCustomersPage() {
@@ -66,6 +67,7 @@ export default function AdminCustomersPage() {
                       <div className="flex flex-wrap gap-1">
                         <StatusBadge status={c.status === "SUSPENDED" ? "CANCELLED" : c.status === "PENDING" ? "PENDING" : "ACTIVE"} />
                         {c.codDisabled ? <Badge tone="red"><Ban className="mr-1 h-3 w-3" />COD off</Badge> : null}
+                        {c.deletionRequestedAt ? <Badge tone="red">Deletion requested</Badge> : null}
                       </div>
                     </td>
                     <td className="px-3 py-3 tabular-nums">{c.orders}</td>

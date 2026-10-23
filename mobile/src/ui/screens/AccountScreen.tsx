@@ -29,6 +29,7 @@ const SHOPPING: Row[] = [
   { icon: "bell", label: "Notifications", href: "/notifications" },
 ];
 const EXPLORE: Row[] = [
+  { icon: "tag", label: "Offers & Rewards", href: "/offers" },
   { icon: "lock", label: "KTMONA Price Lock", href: "/price-lock" },
   { icon: "shopping-bag", label: "All Products", href: "/marketplace" },
   { icon: "book-open", label: "KTMONA Blog", href: "/blog" },

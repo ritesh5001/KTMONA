@@ -421,6 +421,14 @@ export async function setProductCod(id: string, disabled: boolean) {
   );
 }
 
+/** Non-returnable products come back only when wrong, damaged, defective or incomplete. */
+export async function setProductReturnable(id: string, isReturnable: boolean) {
+  return apiRequest<{ product: { id: string; isReturnable: boolean } }>(
+    `/v1/admin/products/${id}/returnable`,
+    { method: "PATCH", body: { isReturnable } }
+  );
+}
+
 export async function getProfitAnalytics(token?: string | null) {
   return apiRequest<ProfitAnalytics>("/v1/admin/analytics/profit", {
     method: "GET",
