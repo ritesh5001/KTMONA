@@ -10,8 +10,6 @@ import { Router } from 'express';
 import type { Request, Response, NextFunction } from 'express';
 import {
     settingsService,
-    DEFAULT_SHIPPING_FEE_INR,
-    FLAT_GST_FEE_INR,
     COD_MAX_ORDER_INR,
 } from '../services/settings.service.js';
 
@@ -27,7 +25,7 @@ configRouter.get('/shipping', async (_req: Request, res: Response, next: NextFun
             settingsService.isShippingChargeEnabled(),
             settingsService.getFreeShippingMinOrder(),
         ]);
-        res.json({ enabled, amount: enabled ? DEFAULT_SHIPPING_FEE_INR : 0, freeAbove });
+        res.json({ enabled, amount: enabled ? await settingsService.getShippingFeeAmount() : 0, freeAbove });
     } catch (error) {
         next(error);
     }
@@ -40,8 +38,9 @@ configRouter.get('/shipping', async (_req: Request, res: Response, next: NextFun
  */
 configRouter.get('/gst', async (_req: Request, res: Response, next: NextFunction) => {
     try {
-        const enabled = await settingsService.isGstChargeEnabled();
-        res.json({ enabled, amount: enabled ? FLAT_GST_FEE_INR : 0 });
+        // "GST" kept in the path for older app builds; this is the platform fee.
+        const rules = await settingsService.getPlatformFeeRules();
+        res.json({ enabled: rules.enabled, amount: rules.enabled ? rules.amount : 0, mode: rules.mode });
     } catch (error) {
         next(error);
     }

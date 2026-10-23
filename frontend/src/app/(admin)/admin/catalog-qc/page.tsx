@@ -10,6 +10,7 @@ import { inr, fmtDate } from "@/services/seller-center";
 import { Badge, Btn, Empty, ErrorNote, Field, Loading, Modal, PageHeader, PageShell, Pager, SearchBox, errorMessage, inputCls, useDebounced } from "@/components/seller/kit";
 import { cn } from "@/lib/utils";
 import { ImageLightbox } from "@/components/admin/ImageLightbox";
+import { CategoryField } from "@/components/category/CategoryField";
 
 export default function CatalogQcPage() {
   const { mutate: globalMutate } = useSWRConfig();
@@ -77,7 +78,7 @@ export default function CatalogQcPage() {
           </label>
           <div className="space-y-4">
             {products.map((p) => (
-              <QcCard key={p.id} product={p} selected={selected.has(p.id)} onToggle={() => toggle(p.id)} busy={busy} onApprove={() => review([p.id], "APPROVE")} onReject={() => setRejecting([p.id])} />
+              <QcCard key={p.id} product={p} selected={selected.has(p.id)} onToggle={() => toggle(p.id)} busy={busy} onApprove={() => review([p.id], "APPROVE")} onReject={() => setRejecting([p.id])} onCategoryChanged={() => mutate()} />
             ))}
           </div>
           <div className="rounded-2xl border border-border-soft bg-card"><Pager page={page} totalPages={data?.pagination.totalPages ?? 1} onPage={setPage} /></div>
@@ -89,8 +90,22 @@ export default function CatalogQcPage() {
   );
 }
 
-function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: { product: QcProduct; selected: boolean; onToggle: () => void; busy: boolean; onApprove: () => void; onReject: () => void }) {
+function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject, onCategoryChanged }: { product: QcProduct; selected: boolean; onToggle: () => void; busy: boolean; onApprove: () => void; onReject: () => void; onCategoryChanged: () => void }) {
   const [active, setActive] = React.useState(0);
+  const [savingCategory, setSavingCategory] = React.useState(false);
+  const changeCategory = async (categoryId: string | null) => {
+    if (!categoryId || categoryId === p.category.id) return;
+    setSavingCategory(true);
+    try {
+      const res = await adminCenter.qcChangeCategory(p.id, categoryId);
+      toast.success(`Moved to ${res.category?.name ?? "the new category"}`);
+      onCategoryChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setSavingCategory(false);
+    }
+  };
   const [preview, setPreview] = React.useState<number | null>(null);
   const errors = p.flags.filter((f) => f.level === "error").length;
   return (
@@ -126,7 +141,7 @@ function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: {
             <div>
               <h2 className="text-base font-semibold">{p.title}</h2>
               <p className="text-xs text-muted-foreground">
-                {p.category.name} · <Link href={`/admin/sellers/${p.seller.id}`} className="font-medium text-brand-strong hover:underline">{p.seller.storeName ?? p.seller.code}</Link> · submitted {fmtDate(p.submittedAt)}
+                <Link href={`/admin/sellers/${p.seller.id}`} className="font-medium text-brand-strong hover:underline">{p.seller.storeName ?? p.seller.code}</Link> · submitted {fmtDate(p.submittedAt)}
                 {p.hsnCode ? ` · HSN ${p.hsnCode}` : ""} · GST {p.taxRate}%
               </p>
             </div>
@@ -134,6 +149,18 @@ function QcCard({ product: p, selected, onToggle, busy, onApprove, onReject }: {
               {p.isEdit ? <Badge tone="blue">Edit of live product</Badge> : <Badge tone="orange">New listing</Badge>}
               {errors ? <Badge tone="red">{errors} blocking issue(s)</Badge> : null}
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Category</span>
+            <CategoryField
+              value={p.category.id}
+              fallbackLabel={p.category.name}
+              onChange={(id) => void changeCategory(id)}
+              disabled={savingCategory || busy}
+              title="Move to category"
+              className="w-full sm:w-96"
+            />
+            <span className="text-[11px] text-muted-foreground">Wrong category? Pick the right one before approving.</span>
           </div>
           {p.flags.length ? (
             <div className="flex flex-wrap gap-2">

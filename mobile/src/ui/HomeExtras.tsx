@@ -28,7 +28,7 @@ function Strip({ title, action, items }: { title: string; action?: { label: stri
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: S.page, gap: 10 }}>
         {items.map((p) => (
           <Pressable key={p.id} onPress={() => router.push(`/product/${p.id}`)} style={styles.tile}>
-            <View style={styles.tileImg}>{p.image ? <CachedImage source={p.image} width={240} style={FILL} contentFit="cover" /> : null}</View>
+            <View style={styles.tileImg}>{p.image ? <CachedImage source={p.image} width={240} style={[FILL, { backgroundColor: C.white }]} contentFit="contain" /> : null}</View>
             <T size={11} color={C.muted} numberOfLines={1} style={{ marginTop: 5 }}>{p.title}</T>
             {p.price != null ? <T w="bold" size={13}>{inr(p.price)}</T> : null}
           </Pressable>

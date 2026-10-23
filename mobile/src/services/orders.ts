@@ -80,6 +80,7 @@ export interface BuyerOrderDetail {
     autoDiscountLabel?: string | null;
     walletAmount?: number;
     tax: number;
+    platformFee?: number;
     shipping: number;
     total: number;
   };

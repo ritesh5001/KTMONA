@@ -251,7 +251,7 @@ export function QuickBuyDialog({
                                     alt={product.title}
                                     width={64}
                                     height={80}
-                                    className="h-20 w-16 border border-border-soft object-cover"
+                                    className="h-20 w-16 border border-border-soft bg-white object-contain"
                                 />
                             ) : null}
                             <div className="flex-1">

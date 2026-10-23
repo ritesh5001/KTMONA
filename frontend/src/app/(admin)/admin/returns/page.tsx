@@ -239,7 +239,7 @@ export default function AdminReturnsPage() {
                       <div className="flex flex-wrap gap-2">
                         {item.images.map((src) => (
                           <a key={src} href={src} target="_blank" rel="noopener noreferrer">
-                            <img src={src} alt="Return evidence" className="h-20 w-20 rounded-lg object-cover" />
+                            <img src={src} alt="Return evidence" className="h-20 w-20 rounded-lg bg-white object-contain" />
                           </a>
                         ))}
                       </div>

@@ -167,7 +167,7 @@ function OrderConfirmation() {
           {order.items.map((item) => (
             <div key={item.id} className="flex items-center gap-3 text-sm">
               <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-mist">
-                <Image src={item.image ?? PLACEHOLDER} alt="" fill sizes="56px" className="object-cover" />
+                <Image src={item.image ?? PLACEHOLDER} alt="" fill sizes="56px" className="bg-white object-contain" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2">{item.productTitle ?? "Item"}</p>
@@ -194,6 +194,7 @@ function OrderConfirmation() {
             <Line label="Items" value={formatInr(order.charges.itemsTotal)} />
             {order.charges.couponDiscount > 0 ? <Line label={`Coupon ${order.charges.couponCode ?? ""}`} value={`−${formatInr(order.charges.couponDiscount)}`} /> : null}
             {order.charges.tax > 0 ? <Line label="GST" value={formatInr(order.charges.tax)} /> : null}
+            {order.charges.platformFee ? <Line label="Platform fee" value={formatInr(order.charges.platformFee)} /> : null}
             <Line label="Delivery" value={order.charges.shipping > 0 ? formatInr(order.charges.shipping) : "FREE"} />
             <div className="h-px bg-border-soft" />
             <Line label={order.paymentMethod === "COD" ? "To pay on delivery" : "Total paid"} value={formatInr(order.charges.total)} bold />

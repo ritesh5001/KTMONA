@@ -165,6 +165,11 @@ adminCenterRouter.post(
     )
 );
 
+adminCenterRouter.put(
+    '/qc/:id/category',
+    h((req) => adminQcService.changeCategory(param(req, 'id'), aid(req), z.object({ categoryId: z.string().min(1) }).parse(req.body).categoryId))
+);
+
 // Dispatch SLA & penalties
 adminCenterRouter.get('/sla', h((req) => adminPenaltiesService.slaBoard(req.query)));
 adminCenterRouter.post('/sla/auto-cancel', h(() => adminPenaltiesService.runAutoCancel()));

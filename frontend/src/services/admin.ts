@@ -1061,9 +1061,20 @@ export async function updateShippingSetting(
   });
 }
 
+/** Platform fee (the API path still says "gst" for older clients). */
 export interface GstSetting {
   enabled: boolean;
   amount: number;
+  mode?: "PER_ITEM" | "PER_ORDER";
+}
+
+export async function updatePlatformFee(input: { amount?: number; mode?: "PER_ITEM" | "PER_ORDER" }) {
+  return apiRequest<GstSetting>("/v1/admin/settings/gst", { method: "PUT", body: input });
+}
+
+/** Change the shipping charge amount (₹ per order). */
+export async function updateShippingAmount(amount: number) {
+  return apiRequest<ShippingSetting>("/v1/admin/settings/shipping", { method: "PUT", body: { amount } });
 }
 
 export async function getGstSetting(token?: string | null) {

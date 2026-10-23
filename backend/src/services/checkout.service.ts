@@ -22,7 +22,7 @@ import { couponService, listPublicCoupons } from './coupon.service.js';
 import { offersConfigService } from './offers-config.service.js';
 import { referralService } from './referral.service.js';
 import { walletService } from './wallet.service.js';
-import { settingsService, shippingFeeFor, FLAT_GST_FEE_INR, COD_MAX_ORDER_INR } from './settings.service.js';
+import { settingsService, shippingFeeFor, platformFeeFor, COD_MAX_ORDER_INR } from './settings.service.js';
 import { codEligibilityService } from './cod-eligibility.service.js';
 import { generateInvoiceNumber } from '../utils/invoice.util.js';
 import { sellerAdsService } from './seller-center/ads.service.js';
@@ -163,8 +163,11 @@ export interface CheckoutQuote {
     taxableAmount: number;
     /** Product GST. */
     gst: number;
-    /** Flat per-unit GST fee, when the admin has it on. */
+    /** Platform fee (same as `platformFee`; kept for older app builds). */
     gstFee: number;
+    /** KTMONA platform fee, per item or per order as the admin set it. */
+    platformFee: number;
+    platformFeeMode: 'PER_ITEM' | 'PER_ORDER';
     /** Delivery charge for this order (0 when free). */
     shipping: number;
     /** The normal delivery charge (0 = delivery is always free). */
@@ -408,11 +411,11 @@ export class CheckoutService {
         userId: string,
         input: { variantIds?: string[]; couponCode?: string; paymentMethod?: 'ONLINE' | 'COD'; useWallet?: boolean },
     ): Promise<CheckoutQuote> {
-        const [cartRows, buyer, shippingRules, gstChargeEnabled] = await Promise.all([
+        const [cartRows, buyer, shippingRules, platformFeeRules] = await Promise.all([
             this.cartRepo.getCartForCheckout(userId),
             prisma.user.findUnique({ where: { id: userId }, select: { state: true } }),
             settingsService.getShippingRules(),
-            settingsService.isGstChargeEnabled(),
+            settingsService.getPlatformFeeRules(),
         ]);
 
         const selected = input.variantIds?.length
@@ -449,7 +452,7 @@ export class CheckoutService {
 
         const { orderSubTotal, orderTaxTotal, orderGrandTotal } = priceCheckoutLines(items, totalDiscount);
         const units = items.reduce((sum, item) => sum + item.quantity, 0);
-        const gstFee = gstChargeEnabled ? FLAT_GST_FEE_INR * units : 0;
+        const gstFee = platformFeeFor(units, platformFeeRules);
         const taxable = Number(orderSubTotal.toString());
         const shipping = items.length > 0 ? shippingFeeFor(taxable, shippingRules) : 0;
         const grandTotal = Number(round2(orderGrandTotal.add(gstFee).add(shipping)).toString());
@@ -499,6 +502,8 @@ export class CheckoutService {
             taxableAmount: taxable,
             gst: Number(orderTaxTotal.toString()),
             gstFee,
+            platformFee: gstFee,
+            platformFeeMode: platformFeeRules.mode,
             shipping,
             shippingFee: shippingRules.fee,
             freeDelivery: shippingRules.fee > 0 && shippingRules.freeAbove > 0
@@ -569,14 +574,14 @@ export class CheckoutService {
         // taxRate, the seller's state and the exact variants with pricing + stock.
         // The buyer's state and the two app settings are independent of all of it, so
         // they ride along in the same round-trip instead of being awaited in series.
-        const [cartRows, buyer, shippingRules, gstChargeEnabled] = await Promise.all([
+        const [cartRows, buyer, shippingRules, platformFeeRules] = await Promise.all([
             this.cartRepo.getCartForCheckout(userId),
             prisma.user.findUnique({
                 where: { id: userId },
                 select: { state: true },
             }),
             settingsService.getShippingRules(),
-            settingsService.isGstChargeEnabled(),
+            settingsService.getPlatformFeeRules(),
         ]);
         if (cartRows.length === 0) {
             throw ApiError.badRequest('Cart is empty');
@@ -624,7 +629,7 @@ export class CheckoutService {
         const autoCoupon = couponCode?.trim() ? null : await pickAutoCoupon(userId, itemsWithStock, orderSubtotal);
         const effectiveCouponCode = couponCode?.trim() ? couponCode : autoCoupon?.code;
 
-        // shippingRules and gstChargeEnabled were resolved in the batched load above —
+        // shippingRules and platformFeeRules were resolved in the batched load above —
         // outside the transaction, so no DB reads happen while holding row locks.
 
         // =====================================================================
@@ -739,9 +744,8 @@ export class CheckoutService {
                 }
             }
             const totalQty = itemsWithStock.reduce((sum, item) => sum + item.quantity, 0);
-            const flatGstFee = gstChargeEnabled
-                ? new Prisma.Decimal(FLAT_GST_FEE_INR).mul(totalQty)
-                : new Prisma.Decimal(0);
+            // Platform fee (per item or per order, as the admin set it).
+            const flatGstFee = new Prisma.Decimal(platformFeeFor(totalQty, platformFeeRules));
             // Free delivery is judged on the subtotal after the coupon.
             const shippingFee = shippingFeeFor(Number(orderSubTotal.toString()), shippingRules);
             const orderTaxTotalWithFlat = round2(orderTaxTotal.add(flatGstFee));
@@ -771,6 +775,7 @@ export class CheckoutService {
                     couponCode: appliedCoupon?.couponCode ?? null,
                     discountAmount: totalDiscount,
                     walletAmount: walletUse,
+                    platformFeeAmount: Number(flatGstFee.toString()),
                     autoDiscountAmount: autoDiscountApplied,
                     autoDiscountLabel: autoDiscountApplied > 0 ? autoDiscounts.map((d) => d.label).join(' + ') : null,
                     shippingName: shipping?.shippingName ?? null,

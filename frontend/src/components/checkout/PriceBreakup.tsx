@@ -74,7 +74,7 @@ export function PriceBreakup({ quote, showCouponRow = true }: { quote: CheckoutQ
         }
       />
       {quote.gst > 0 ? <Row label="GST" value={formatInr(quote.gst)} /> : null}
-      {quote.gstFee > 0 ? <Row label="GST charges" value={formatInr(quote.gstFee)} /> : null}
+      {quote.gstFee > 0 ? <Row label="Platform fee" value={formatInr(quote.gstFee)} /> : null}
       {quote.wallet && quote.wallet.applied > 0 ? (
         <Row label="Cashback used" value={`−${formatInr(quote.wallet.applied)}`} tone="good" />
       ) : null}

@@ -266,6 +266,7 @@ export function OrderExtras({
           {order.charges.autoDiscount ? <Line label={order.charges.autoDiscountLabel ?? "Offer"} value={`−${inr(order.charges.autoDiscount)}`} good /> : null}
           <Line label="Delivery" value={order.charges.shipping > 0 ? inr(order.charges.shipping) : "FREE"} />
           {order.charges.tax > 0 ? <Line label="GST" value={inr(order.charges.tax)} /> : null}
+          {order.charges.platformFee ? <Line label="Platform fee" value={inr(order.charges.platformFee)} /> : null}
           {order.charges.walletAmount ? <Line label="Cashback used" value={`−${inr(order.charges.walletAmount)}`} good /> : null}
           <View style={{ height: 1, backgroundColor: C.divider, marginVertical: 6 }} />
           <Line label="Order total" value={inr(order.charges.total)} bold />
@@ -499,7 +500,7 @@ function ReturnSheet({ open, order, token, onClose, onDone }: { open: boolean; o
         {order.items.map((i) => (
           <Pressable key={i.id} onPress={() => setSelected({ ...selected, [i.id]: !selected[i.id] })} style={styles.itemPick} accessibilityRole="checkbox" accessibilityState={{ checked: Boolean(selected[i.id]) }}>
             <Feather name={selected[i.id] ? "check-square" : "square"} size={18} color={selected[i.id] ? C.brandDark : C.faint} />
-            <View style={styles.thumb}>{i.productImage ? <CachedImage source={i.productImage} style={FILL} contentFit="cover" /> : null}</View>
+            <View style={styles.thumb}>{i.productImage ? <CachedImage source={i.productImage} style={[FILL, { backgroundColor: C.white }]} contentFit="contain" /> : null}</View>
             <View style={{ flex: 1 }}>
               <T size={12} numberOfLines={2}>{i.productTitle ?? "Item"}</T>
               {i.isReturnable === false ? <T size={10} color={C.muted}>{t("Non-returnable")}</T> : null}

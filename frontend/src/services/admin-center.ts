@@ -447,6 +447,9 @@ export const adminCenter = {
   qcReview: (productIds: string[], action: "APPROVE" | "REJECT", reason?: string) =>
     send<{ results: { productId: string; ok: boolean; error?: string }[]; done: number }>("POST", "/qc/review", { productIds, action, reason }),
 
+  qcChangeCategory: (productId: string, categoryId: string) =>
+    send<{ productId: string; category: { id: string; name: string } | null }>("PUT", `/qc/${productId}/category`, { categoryId }),
+
   sla: () => get<{ rules: PenaltyRules; rows: SlaRow[] }>("/sla"),
   runAutoCancel: () => send<{ cancelled: number }>("POST", "/sla/auto-cancel"),
   penaltyRules: () => get<PenaltyRules>("/penalties/rules"),

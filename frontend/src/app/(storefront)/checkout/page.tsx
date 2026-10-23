@@ -241,7 +241,7 @@ function GuestGate({ onVerified }: { onVerified: (contact: Contact) => void }) {
         {guestLines.map((l) => (
           <div key={l.variantId} className="flex items-center gap-3 text-sm">
             <div className="relative h-14 w-12 shrink-0 overflow-hidden rounded-lg bg-mist">
-              <Image src={l.image ?? PLACEHOLDER} alt="" fill sizes="48px" className="object-cover" />
+              <Image src={l.image ?? PLACEHOLDER} alt="" fill sizes="48px" className="bg-white object-contain" />
             </div>
             <span className="line-clamp-2 flex-1">{l.title}</span>
             <span className="text-muted-foreground">×{l.quantity}</span>
@@ -565,7 +565,7 @@ function CheckoutForm({ guestContact }: { guestContact: Contact | null }) {
             {lines.map((l) => (
               <li key={l.itemId} className="flex gap-3 text-sm">
                 <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-lg bg-mist">
-                  <Image src={l.image ?? PLACEHOLDER} alt="" fill sizes="56px" className="object-cover" />
+                  <Image src={l.image ?? PLACEHOLDER} alt="" fill sizes="56px" className="bg-white object-contain" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2">{l.title}</p>

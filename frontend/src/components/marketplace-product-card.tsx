@@ -221,7 +221,7 @@ export function MarketplaceProductCard({ product }: { product: MarketplaceCardPr
             alt={product.title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-            className="object-cover"
+            className="bg-white object-contain"
             loading="lazy"
             quality={75}
           />

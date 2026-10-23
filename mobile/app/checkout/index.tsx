@@ -874,7 +874,7 @@ export default function CheckoutScreen() {
                   <Image
                     source={{ uri: thumbnail }}
                     style={styles.checkoutItemImage}
-                    contentFit="cover"
+                    contentFit="contain"
                     width={80}
                   />
                 ) : (
@@ -934,7 +934,7 @@ export default function CheckoutScreen() {
               {(quote.autoDiscounts ?? []).map((d) => <SummaryLine key={d.key} label={d.label} value={`−₹${d.amount.toFixed(0)}`} good />)}
               <SummaryLine label="Delivery" value={quote.shipping === 0 ? "FREE" : `₹${quote.shipping.toFixed(0)}`} good={quote.shipping === 0} />
               {quote.gst > 0 ? <SummaryLine label="GST" value={`₹${quote.gst.toFixed(0)}`} /> : null}
-              {quote.gstFee > 0 ? <SummaryLine label="GST charges" value={`₹${quote.gstFee.toFixed(0)}`} /> : null}
+              {quote.gstFee > 0 ? <SummaryLine label="Platform fee" value={`₹${quote.gstFee.toFixed(0)}`} /> : null}
               {quote.wallet && quote.wallet.applied > 0 ? <SummaryLine label="Cashback used" value={`−₹${quote.wallet.applied.toFixed(0)}`} good /> : null}
               {quote.wallet && quote.wallet.available > 0 ? (
                 <Pressable

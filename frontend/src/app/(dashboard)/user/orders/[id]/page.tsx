@@ -226,7 +226,7 @@ export default function OrderDetailPage() {
           {order.items.map((item) => (
             <li key={item.id} className="flex gap-4 py-3 first:pt-0 last:pb-0">
               <Link href={`/product/${item.productId}`} className="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-mist">
-                <Image src={item.image ?? PLACEHOLDER} alt="" fill sizes="64px" className="object-cover" />
+                <Image src={item.image ?? PLACEHOLDER} alt="" fill sizes="64px" className="bg-white object-contain" />
               </Link>
               <div className="min-w-0 flex-1 text-sm">
                 <Link href={`/product/${item.productId}`} className="line-clamp-2 font-medium hover:underline">{item.productTitle ?? "Item"}</Link>
@@ -315,6 +315,7 @@ export default function OrderDetailPage() {
             {order.charges.autoDiscount ? <Row label={order.charges.autoDiscountLabel ?? "Offer"} value={`−${formatInr(order.charges.autoDiscount)}`} good /> : null}
             <Row label="Delivery" value={order.charges.shipping > 0 ? formatInr(order.charges.shipping) : "FREE"} />
             {order.charges.tax > 0 ? <Row label="GST" value={formatInr(order.charges.tax)} /> : null}
+            {order.charges.platformFee ? <Row label="Platform fee" value={formatInr(order.charges.platformFee)} /> : null}
             {order.charges.walletAmount ? <Row label="Cashback used" value={`−${formatInr(order.charges.walletAmount)}`} good /> : null}
             <div className="h-px bg-border-soft" />
             <Row label="Order total" value={formatInr(order.charges.total)} bold />
@@ -478,7 +479,7 @@ function ReturnCard({ request: r, items, onChange }: { request: BuyerOrderReturn
         <div className="flex gap-2">
           {r.images.map((src) => (
             <a key={src} href={src} target="_blank" rel="noopener noreferrer" className="relative h-14 w-14 overflow-hidden rounded-lg bg-mist">
-              <Image src={src} alt="Photo you uploaded" fill sizes="56px" className="object-cover" />
+              <Image src={src} alt="Photo you uploaded" fill sizes="56px" className="bg-white object-contain" />
             </a>
           ))}
         </div>
@@ -659,7 +660,7 @@ function ReturnModal({ order, onClose, onDone }: { order: BuyerOrderDetail; onCl
           {order.items.map((i) => (
             <label key={i.id} className="flex items-center gap-3 rounded-lg border border-border-soft p-2">
               <input type="checkbox" checked={Boolean(selected[i.id])} onChange={(e) => setSelected({ ...selected, [i.id]: e.target.checked })} />
-              <span className="relative h-12 w-10 shrink-0 overflow-hidden rounded bg-mist"><Image src={i.image ?? PLACEHOLDER} alt="" fill sizes="40px" className="object-cover" /></span>
+              <span className="relative h-12 w-10 shrink-0 overflow-hidden rounded bg-mist"><Image src={i.image ?? PLACEHOLDER} alt="" fill sizes="40px" className="bg-white object-contain" /></span>
               <span className="min-w-0 flex-1">
                 <span className="line-clamp-1">{i.productTitle}</span>
                 {i.isReturnable === false ? <span className="block text-[11px] text-muted-foreground">Non-returnable</span> : null}
@@ -691,7 +692,7 @@ function ReturnModal({ order, onClose, onDone }: { order: BuyerOrderDetail; onCl
           <div className="flex flex-wrap gap-2">
             {photos.map((src) => (
               <div key={src} className="relative h-16 w-16 overflow-hidden rounded-lg bg-mist">
-                <Image src={src} alt="" fill sizes="64px" className="object-cover" />
+                <Image src={src} alt="" fill sizes="64px" className="bg-white object-contain" />
                 <button type="button" aria-label="Remove photo" onClick={() => setPhotos(photos.filter((p) => p !== src))} className="absolute right-0.5 top-0.5 rounded-full bg-black/60 p-0.5 text-white"><X className="h-3 w-3" /></button>
               </div>
             ))}

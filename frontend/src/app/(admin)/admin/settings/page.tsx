@@ -7,6 +7,8 @@ import {
   updateShippingSetting,
   getGstSetting,
   updateGstSetting,
+  updatePlatformFee,
+  updateShippingAmount,
   getCodSetting,
   updateCodSetting,
   updateFreeDeliveryThreshold,
@@ -17,6 +19,8 @@ import { Truck, Receipt, Banknote, Gift, type LucideIcon } from "lucide-react";
 interface ChargeSetting {
   enabled: boolean;
   amount: number;
+  /** Platform fee only: per item or per order. */
+  mode?: "PER_ITEM" | "PER_ORDER";
 }
 
 interface ChargeToggleCardProps {
@@ -34,6 +38,12 @@ interface ChargeToggleCardProps {
   /** Button text; defaults to "Start charge" / "Stop charge". */
   enableLabel?: string;
   disableLabel?: string;
+  /** Lets the admin change the amount (and, for the platform fee, per item / per order). */
+  editAmount?: {
+    label: string;
+    save: (amount: number, mode?: "PER_ITEM" | "PER_ORDER") => Promise<ChargeSetting>;
+    withMode?: boolean;
+  };
 }
 
 function ChargeToggleCard({
@@ -48,7 +58,10 @@ function ChargeToggleCard({
   errorLabel,
   enableLabel = "Start charge",
   disableLabel = "Stop charge",
+  editAmount,
 }: ChargeToggleCardProps) {
+  const [amountDraft, setAmountDraft] = React.useState("");
+  const [modeDraft, setModeDraft] = React.useState<"PER_ITEM" | "PER_ORDER">("PER_ITEM");
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [setting, setSetting] = React.useState<ChargeSetting | null>(null);
@@ -56,7 +69,10 @@ function ChargeToggleCard({
   const loadSetting = React.useCallback(async () => {
     setLoading(true);
     try {
-      setSetting(await load());
+      const loaded = await load();
+      setSetting(loaded);
+      setAmountDraft(String(loaded.amount));
+      if (loaded.mode) setModeDraft(loaded.mode);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Unable to load settings"
@@ -87,6 +103,26 @@ function ChargeToggleCard({
 
   const enabled = setting?.enabled ?? false;
   const amount = setting?.amount ?? fallbackAmount;
+
+  const saveAmount = async () => {
+    if (!editAmount) return;
+    const value = Number(amountDraft);
+    if (!Number.isFinite(value) || value < 0 || value > 10000) {
+      toast.error("Enter an amount between ₹0 and ₹10,000");
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await editAmount.save(value, editAmount.withMode ? modeDraft : undefined);
+      setSetting(saved);
+      setAmountDraft(String(saved.amount));
+      toast.success(`${successLabel} set to ₹${saved.amount}${saved.mode ? (saved.mode === "PER_ORDER" ? " per order" : " per item") : ""}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : errorLabel);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <section className="border border-border-soft bg-card p-6">
@@ -124,6 +160,40 @@ function ChargeToggleCard({
                 </span>
               )}
             </div>
+            {editAmount && !loading ? (
+              <form
+                className="mt-4 flex flex-wrap items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void saveAmount();
+                }}
+              >
+                <label className="text-xs text-muted-foreground">
+                  <span className="mb-1 block uppercase tracking-wider">{editAmount.label}</span>
+                  <span className="flex items-center gap-1">
+                    ₹
+                    <input
+                      inputMode="decimal"
+                      value={amountDraft}
+                      onChange={(e) => setAmountDraft(e.target.value.replace(/[^\d.]/g, ""))}
+                      className="h-10 w-28 rounded-lg border border-border-soft bg-background px-3 text-sm text-foreground"
+                    />
+                  </span>
+                </label>
+                {editAmount.withMode ? (
+                  <select
+                    aria-label="Charged per"
+                    value={modeDraft}
+                    onChange={(e) => setModeDraft(e.target.value as "PER_ITEM" | "PER_ORDER")}
+                    className="h-10 rounded-lg border border-border-soft bg-background px-2 text-sm"
+                  >
+                    <option value="PER_ITEM">per item</option>
+                    <option value="PER_ORDER">per order</option>
+                  </select>
+                ) : null}
+                <Button type="submit" size="sm" variant="outline" disabled={saving}>Save amount</Button>
+              </form>
+            ) : null}
           </div>
         </div>
 
@@ -234,12 +304,13 @@ export default function AdminSettingsPage() {
           save={updateShippingSetting}
           successLabel="Shipping charge"
           errorLabel="Unable to update shipping charge"
+          editAmount={{ label: "Shipping charge per order", save: (amount) => updateShippingAmount(amount) }}
           renderDescription={(amount) => (
             <>
-              When enabled, a flat shipping fee of{" "}
+              When enabled, a shipping charge of{" "}
               <span className="font-medium text-foreground">₹{amount}</span> is
-              added to every order at checkout. Turn it off to offer free
-              shipping — new orders will not be charged.
+              added to every order at checkout (free above the free-delivery amount, if set).
+              Turn it off to offer free shipping on all orders.
             </>
           )}
         />
@@ -248,19 +319,20 @@ export default function AdminSettingsPage() {
 
         <ChargeToggleCard
           icon={Receipt}
-          title="GST Charge"
-          offLabel="No GST fee"
+          title="Platform Fee"
+          offLabel="No platform fee"
           fallbackAmount={180}
           load={getGstSetting}
           save={updateGstSetting}
-          successLabel="GST charge"
-          errorLabel="Unable to update GST charge"
+          successLabel="Platform fee"
+          errorLabel="Unable to update the platform fee"
+          editAmount={{ label: "Platform fee", withMode: true, save: (amount, mode) => updatePlatformFee({ amount, mode }) }}
           renderDescription={(amount) => (
             <>
-              When enabled, a flat GST fee of{" "}
-              <span className="font-medium text-foreground">₹{amount}</span> per
-              item is added to every order at checkout. Turn it off to remove
-              the flat GST fee — new orders will not be charged.
+              When enabled, a KTMONA platform fee of{" "}
+              <span className="font-medium text-foreground">₹{amount}</span> is added at checkout
+              and shown to shoppers as &quot;Platform fee&quot;. Product GST is charged separately from each
+              product&apos;s tax rate. Turn it off to charge no platform fee.
             </>
           )}
         />

@@ -50,6 +50,9 @@ interface InvoiceOrder {
     subTotalAmount: number;
     totalTaxAmount: number;
     grandTotal: number;
+    /** Platform fee, included in totalTaxAmount; printed on its own line. */
+    platformFeeAmount?: number;
+    walletAmount?: number;
     invoiceNumber: string | null;
     invoiceIssuedAt: Date | null;
     createdAt: Date;
@@ -289,13 +292,20 @@ export async function generateInvoicePDF(orderId: string): Promise<Buffer> {
     const totalsX = 380;
     doc.fontSize(9).font('Helvetica');
     drawTotalLine(doc, 'Subtotal', fmt(order.subTotalAmount), totalsX);
-    drawTotalLine(doc, 'Total Tax (GST)', fmt(order.totalTaxAmount), totalsX);
+    const platformFee = order.platformFeeAmount ?? 0;
+    drawTotalLine(doc, 'Total Tax (GST)', fmt(Math.max(0, order.totalTaxAmount - platformFee)), totalsX);
+    if (platformFee > 0) drawTotalLine(doc, 'Platform fee', fmt(platformFee), totalsX);
     drawTotalLine(doc, 'Shipping', fmt(shippingAmount), totalsX);
     doc.moveDown(0.3);
     doc.moveTo(totalsX, doc.y).lineTo(550, doc.y).stroke();
     doc.moveDown(0.3);
     doc.font('Helvetica-Bold').fontSize(11);
     drawTotalLine(doc, 'Grand Total', `Rs. ${fmt(order.grandTotal)}`, totalsX);
+    if ((order.walletAmount ?? 0) > 0) {
+        doc.font('Helvetica').fontSize(9);
+        drawTotalLine(doc, 'Paid by KTMONA cashback', `-${fmt(order.walletAmount!)}`, totalsX);
+        drawTotalLine(doc, 'Amount paid', `Rs. ${fmt(order.totalAmount)}`, totalsX);
+    }
     doc.moveDown(2);
 
     // ======== AUTHORISED SIGNATORY (one per seller) ========

@@ -113,7 +113,7 @@ export default function OffersPage() {
             <section className="space-y-2 rounded-2xl border border-border-soft bg-card p-5 text-xs leading-relaxed text-muted-foreground">
               <h2 className="text-sm font-semibold text-foreground">General offer terms</h2>
               <p>• One coupon per order. The welcome offer and referral bonus apply automatically on a first order and can be combined with a coupon.</p>
-              <p>• Discounts apply to the item price before GST; delivery and GST charges are shown separately at checkout.</p>
+              <p>• Discounts apply to the item price before GST; delivery, GST and the platform fee are shown separately at checkout.</p>
               <p>• Cashback is not credited on cancelled or returned orders. A cancelled order gets back any cashback it used.</p>
               <p>• Cashback cannot be withdrawn as cash or transferred. KTMONA may cancel rewards obtained through misuse (fake accounts, self-referrals).</p>
               <p>• Offers can change or end without notice; the price shown at checkout is final.</p>

@@ -259,7 +259,7 @@ function CartLine({
   return (
     <article className={`flex gap-4 rounded-2xl border bg-card p-4 ${unavailable ? "border-amber-300" : "border-border-soft"} ${busy ? "opacity-60" : ""}`} aria-busy={busy}>
       <Link href={`/product/${item.productId}`} className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-mist sm:h-32 sm:w-28">
-        <Image src={image} alt={item.product?.title ?? "Product"} fill sizes="112px" className="object-cover" />
+        <Image src={image} alt={item.product?.title ?? "Product"} fill sizes="112px" className="bg-white object-contain" />
       </Link>
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <Link href={`/product/${item.productId}`} className="line-clamp-2 text-sm font-medium text-foreground hover:underline">
@@ -391,7 +391,7 @@ function GuestCart() {
         {lines.map((l) => (
           <article key={l.variantId} className="flex gap-4 rounded-2xl border border-border-soft bg-card p-4">
             <Link href={`/product/${l.productId}`} className="relative h-28 w-24 shrink-0 overflow-hidden rounded-xl bg-mist">
-              <Image src={l.image ?? PLACEHOLDER} alt={l.title} fill sizes="96px" className="object-cover" />
+              <Image src={l.image ?? PLACEHOLDER} alt={l.title} fill sizes="96px" className="bg-white object-contain" />
             </Link>
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <Link href={`/product/${l.productId}`} className="line-clamp-2 text-sm font-medium hover:underline">{l.title}</Link>

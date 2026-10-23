@@ -357,7 +357,7 @@ export function Thumb({ src, alt }: { src: string | null; alt: string }) {
     <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border-soft bg-mist">
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={alt} className="h-full w-full object-cover" loading="lazy" />
+        <img src={src} alt={alt} className="h-full w-full bg-white object-contain" loading="lazy" />
       ) : (
         <span className="text-[10px] text-muted-foreground">No image</span>
       )}

@@ -481,6 +481,8 @@ model Order {
   checkoutKey          String?                @unique @map("checkout_key")
   /// Cashback wallet balance used on this order (comes off the amount to pay).
   walletAmount         Float                  @default(0) @map("wallet_amount")
+  /// Platform fee charged on this order (also included in totalTaxAmount for older reports).
+  platformFeeAmount    Float                  @default(0) @map("platform_fee_amount")
   /// Automatic discounts (welcome offer, referral bonus), included in discountAmount.
   autoDiscountAmount   Float                  @default(0) @map("auto_discount_amount")
   autoDiscountLabel    String?                @map("auto_discount_label")

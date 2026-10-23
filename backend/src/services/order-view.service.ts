@@ -168,7 +168,10 @@ export interface BuyerOrderExtras {
         autoDiscountLabel: string | null;
         /** Paid from the cashback wallet. */
         walletAmount: number;
+        /** Product GST (platform fee excluded). */
         tax: number;
+        /** KTMONA platform fee. */
+        platformFee: number;
         shipping: number;
         total: number;
     };
@@ -212,6 +215,7 @@ export async function buildBuyerOrderExtras(order: {
     autoDiscountAmount?: number | null;
     autoDiscountLabel?: string | null;
     walletAmount?: number | null;
+    platformFeeAmount?: number | null;
     items: Array<{ id: string; sellerId: string; productId: string; variantId: string; quantity: number; priceSnapshot: number }>;
 }): Promise<BuyerOrderExtras> {
     const [shipments, refunds, returns, cancellation, variants, products] = await Promise.all([
@@ -339,7 +343,8 @@ export async function buildBuyerOrderExtras(order: {
             autoDiscount,
             autoDiscountLabel: order.autoDiscountLabel ?? null,
             walletAmount,
-            tax: order.totalTaxAmount,
+            tax: Math.max(0, Math.round((order.totalTaxAmount - Number(order.platformFeeAmount ?? 0)) * 100) / 100),
+            platformFee: Number(order.platformFeeAmount ?? 0),
             shipping,
             total: order.totalAmount,
         },

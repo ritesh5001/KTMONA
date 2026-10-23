@@ -121,7 +121,7 @@ export default function ImageBulkUploadPage() {
               <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                 {images.map((url, i) => (
                   <span key={url} className="relative aspect-square overflow-hidden rounded-lg border border-border-soft bg-mist">
-                    <img src={url} alt={`Product ${i + 1}`} className="h-full w-full object-cover" />
+                    <img src={url} alt={`Product ${i + 1}`} className="h-full w-full bg-white object-contain" />
                     <span className="absolute bottom-0 left-0 rounded-tr bg-ink/75 px-1 text-[10px] text-white">P{String(i + 1).padStart(3, "0")}</span>
                     <button type="button" onClick={() => setImages((prev) => prev.filter((u) => u !== url))} className="absolute right-1 top-1 rounded-full bg-ink/70 p-0.5 text-white" aria-label="Remove image">
                       <X className="h-3 w-3" />

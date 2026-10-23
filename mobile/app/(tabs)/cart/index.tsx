@@ -151,7 +151,7 @@ export default function CartScreen() {
                 <Image
                   source={{ uri: thumbnail }}
                   style={styles.itemImage}
-                  contentFit="cover"
+                  contentFit="contain"
                   transition={150}
                   width={CART_THUMB_WIDTH}
                 />
@@ -417,7 +417,7 @@ export default function CartScreen() {
                       <View key={item.id} style={[styles.itemCard, { marginTop: spacing.sm }]}>
                         <View style={styles.itemRow}>
                           {thumb ? (
-                            <Image source={{ uri: thumb }} style={styles.savedImage} contentFit="cover" width={CART_THUMB_WIDTH} />
+                            <Image source={{ uri: thumb }} style={styles.savedImage} contentFit="contain" width={CART_THUMB_WIDTH} />
                           ) : (
                             <View style={[styles.savedImage, styles.itemImageFallback]} />
                           )}
@@ -479,7 +479,7 @@ export default function CartScreen() {
                 ) : null}
                 {quote.gstFee > 0 ? (
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>GST charges</Text>
+                    <Text style={styles.summaryLabel}>Platform fee</Text>
                     <Text style={styles.summaryValue}>{currency.format(quote.gstFee)}</Text>
                   </View>
                 ) : null}

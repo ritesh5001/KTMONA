@@ -268,7 +268,7 @@ export function QuickBuySheet({
                   <Image
                     source={{ uri: heroImage }}
                     style={styles.heroImage}
-                    contentFit="cover"
+                    contentFit="contain"
                     width={80}
                   />
                 ) : null}

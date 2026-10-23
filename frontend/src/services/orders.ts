@@ -262,6 +262,7 @@ export interface BuyerOrderDetail extends BuyerOrder {
     autoDiscountLabel?: string | null;
     walletAmount?: number;
     tax: number;
+    platformFee?: number;
     shipping: number;
     total: number;
   };

@@ -1410,7 +1410,7 @@ export default function SellerProductsClient({
                             <img
                               src={image}
                               alt={product.title}
-                              className="h-full w-full object-cover"
+                              className="h-full w-full bg-white object-contain"
                             />
                           </div>
                         ))}
@@ -1561,7 +1561,7 @@ export default function SellerProductsClient({
                                       <img
                                         src={imageUrl}
                                         alt={`${colorGroup.label} gallery`}
-                                        className="h-full w-full object-cover"
+                                        className="h-full w-full bg-white object-contain"
                                       />
                                       <button
                                         type="button"
@@ -1621,7 +1621,7 @@ export default function SellerProductsClient({
                                   alt="Product media"
                                   fill
                                   sizes="64px"
-                                  className="object-cover"
+                                  className="bg-white object-contain"
                                 />
                                 <button
                                   type="button"
@@ -1988,7 +1988,7 @@ export default function SellerProductsClient({
                                   <img
                                     src={image.url}
                                     alt="Variant preview"
-                                    className="h-full w-full object-cover"
+                                    className="h-full w-full bg-white object-contain"
                                   />
                                   <button
                                     type="button"
@@ -2343,7 +2343,7 @@ export default function SellerProductsClient({
                                 <img
                                   src={image.url}
                                   alt={`${colorGroup.label} preview`}
-                                  className="h-20 w-20 object-cover"
+                                  className="h-20 w-20 bg-white object-contain"
                                 />
                                 <button
                                   type="button"
@@ -2430,7 +2430,7 @@ export default function SellerProductsClient({
                             <img
                               src={image.url}
                               alt={image.name}
-                              className="h-20 w-full object-cover"
+                              className="h-20 w-full bg-white object-contain"
                             />
                             <button
                               type="button"

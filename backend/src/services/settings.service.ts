@@ -5,19 +5,29 @@
  * platform settings. Values are cached in-memory for a short TTL so that
  * hot paths (checkout, payment) don't hit the DB on every request.
  *
- * Currently exposes the shipping-charge and flat-GST toggles. The fee amounts
- * themselves stay code constants (DEFAULT_SHIPPING_FEE_INR / FLAT_GST_FEE_INR);
- * only whether they are applied is admin-controllable.
+ * Shipping charge and platform fee: whether each applies and how much (the
+ * constants below are only the defaults until an admin saves an amount).
  */
 
 import { prisma } from '../config/db.js';
 import { logger } from '../config/logger.js';
 
-/** Flat shipping fee (INR) applied per order when shipping is enabled. */
+/** Default shipping fee (INR) per order when shipping is enabled and no amount is saved. */
 export const DEFAULT_SHIPPING_FEE_INR = 180;
 
-/** Flat GST fee (INR) applied per unit when the flat GST charge is enabled. */
+/**
+ * Default platform fee (INR) when none is saved. Historically called the "flat
+ * GST charge"; it is a KTMONA fee, charged per item by default.
+ */
 export const FLAT_GST_FEE_INR = 180;
+
+export type PlatformFeeMode = 'PER_ITEM' | 'PER_ORDER';
+
+export interface PlatformFeeRules {
+    enabled: boolean;
+    amount: number;
+    mode: PlatformFeeMode;
+}
 
 /** Setting keys stored in the `app_settings` table. */
 export const SETTING_KEYS = {
@@ -26,7 +36,18 @@ export const SETTING_KEYS = {
     COD_ENABLED: 'cod_enabled',
     /** Orders whose subtotal (after coupon) reaches this ship free. 0 = no offer. */
     FREE_SHIPPING_MIN_ORDER: 'free_shipping_min_order',
+    /** Shipping fee amount in INR. */
+    SHIPPING_FEE_AMOUNT: 'shipping_fee_amount',
+    /** Platform fee amount in INR, and whether it is per item or per order. */
+    PLATFORM_FEE_AMOUNT: 'platform_fee_amount',
+    PLATFORM_FEE_MODE: 'platform_fee_mode',
 } as const;
+
+function parseAmount(raw: string | null, fallback: number): number {
+    if (raw === null) return fallback;
+    const n = Number(raw);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
 
 /** Orders above this total cannot be paid cash on delivery (courier cash limit). */
 export const COD_MAX_ORDER_INR = 50000;
@@ -90,7 +111,44 @@ export const settingsService = {
     async getShippingFee(hasItems: boolean): Promise<number> {
         if (!hasItems) return 0;
         const enabled = await this.isShippingChargeEnabled();
-        return enabled ? DEFAULT_SHIPPING_FEE_INR : 0;
+        return enabled ? await this.getShippingFeeAmount() : 0;
+    },
+
+    /** The shipping fee amount (INR), whether or not it is switched on. */
+    async getShippingFeeAmount(): Promise<number> {
+        return parseAmount(await readRaw(SETTING_KEYS.SHIPPING_FEE_AMOUNT), DEFAULT_SHIPPING_FEE_INR);
+    },
+
+    async setShippingFeeAmount(amount: number): Promise<number> {
+        const value = Math.max(0, Math.round(amount * 100) / 100);
+        await writeRaw(SETTING_KEYS.SHIPPING_FEE_AMOUNT, String(value));
+        settingsLogger.info({ event: 'shipping_fee_amount_set', value }, 'Shipping fee amount updated by admin');
+        return value;
+    },
+
+    /** Platform fee: on/off, amount and per-item vs per-order. */
+    async getPlatformFeeRules(): Promise<PlatformFeeRules> {
+        const [enabled, amountRaw, modeRaw] = await Promise.all([
+            this.isGstChargeEnabled(),
+            readRaw(SETTING_KEYS.PLATFORM_FEE_AMOUNT),
+            readRaw(SETTING_KEYS.PLATFORM_FEE_MODE),
+        ]);
+        return {
+            enabled,
+            amount: parseAmount(amountRaw, FLAT_GST_FEE_INR),
+            mode: modeRaw === 'PER_ORDER' ? 'PER_ORDER' : 'PER_ITEM',
+        };
+    },
+
+    async setPlatformFee(input: { amount?: number | undefined; mode?: PlatformFeeMode | undefined }): Promise<PlatformFeeRules> {
+        if (input.amount !== undefined) {
+            await writeRaw(SETTING_KEYS.PLATFORM_FEE_AMOUNT, String(Math.max(0, Math.round(input.amount * 100) / 100)));
+        }
+        if (input.mode !== undefined) {
+            await writeRaw(SETTING_KEYS.PLATFORM_FEE_MODE, input.mode);
+        }
+        settingsLogger.info({ event: 'platform_fee_set', ...input }, 'Platform fee updated by admin');
+        return this.getPlatformFeeRules();
     },
 
     /** Free-delivery threshold in INR (0 = no free-delivery offer). */
@@ -116,7 +174,7 @@ export const settingsService = {
             this.isShippingChargeEnabled(),
             this.getFreeShippingMinOrder(),
         ]);
-        return { fee: enabled ? DEFAULT_SHIPPING_FEE_INR : 0, freeAbove };
+        return { fee: enabled ? await this.getShippingFeeAmount() : 0, freeAbove };
     },
 
     /** Enable or disable the flat shipping charge for new orders. */
@@ -145,9 +203,7 @@ export const settingsService = {
      * Returns 0 when the flat GST charge is disabled or there are no units.
      */
     async getFlatGstFee(totalQty: number): Promise<number> {
-        if (totalQty <= 0) return 0;
-        const enabled = await this.isGstChargeEnabled();
-        return enabled ? FLAT_GST_FEE_INR * totalQty : 0;
+        return platformFeeFor(totalQty, await this.getPlatformFeeRules());
     },
 
     /** Enable or disable the flat GST charge for new orders. */
@@ -186,4 +242,10 @@ export function shippingFeeFor(subtotal: number, rules: { fee: number; freeAbove
     if (rules.fee <= 0) return 0;
     if (rules.freeAbove > 0 && subtotal >= rules.freeAbove) return 0;
     return rules.fee;
+}
+
+/** Platform fee for an order with `units` items under these rules. */
+export function platformFeeFor(units: number, rules: PlatformFeeRules): number {
+    if (!rules.enabled || units <= 0 || rules.amount <= 0) return 0;
+    return rules.mode === 'PER_ORDER' ? rules.amount : rules.amount * units;
 }

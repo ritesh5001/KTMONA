@@ -195,7 +195,7 @@ function CatalogUploadsPageContent() {
                     <td className="px-3 py-3">
                       <span className="relative block h-14 w-14 overflow-hidden rounded-lg border border-border-soft bg-mist">
                         {u.image ? (
-                          <img src={u.image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          <img src={u.image} alt="" className="h-full w-full bg-white object-contain" loading="lazy" />
                         ) : (
                           <ImageIcon className="m-auto mt-4 h-5 w-5 text-muted-foreground" />
                         )}
@@ -250,7 +250,7 @@ function CatalogUploadsPageContent() {
                 <li key={p.id} className="flex items-center gap-3 p-3">
                   <span className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-mist">
                     {p.image ? (
-                      <img src={p.image} alt="" className="h-full w-full object-cover" />
+                      <img src={p.image} alt="" className="h-full w-full bg-white object-contain" />
                     ) : null}
                   </span>
                   <div className="min-w-0 flex-1">

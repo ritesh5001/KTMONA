@@ -206,7 +206,7 @@ export const ProductCard = React.memo(function ProductCard({
   return (
     <Pressable onPress={() => router.push(`/product/${product.id}`)} style={[styles.card, { width }]}>
       <View style={{ width: "100%", aspectRatio: 0.82, backgroundColor: C.divider }}>
-        {image ? <CachedImage source={image} width={Math.round(width * 2)} style={FILL} contentFit="cover" /> : null}
+        {image ? <CachedImage source={image} width={Math.round(width * 2)} style={[FILL, { backgroundColor: C.white }]} contentFit="contain" /> : null}
         <Pressable
           onPress={() => void toggleWishlist(product.id)}
           hitSlop={8}

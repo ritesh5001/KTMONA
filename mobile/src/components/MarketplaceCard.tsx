@@ -174,7 +174,7 @@ function MarketplaceCardComponent({
           <Image
             source={firstImage ? { uri: firstImage } : images.productPlaceholder}
             style={styles.image}
-            contentFit="cover"
+            contentFit="contain"
             contentPosition="center"
             transition={100}
             cachePolicy="memory-disk"

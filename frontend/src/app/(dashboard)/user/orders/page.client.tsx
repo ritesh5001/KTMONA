@@ -107,11 +107,15 @@ function orderCharges(order: any) {
     0
   );
   const discount = Number(order.discountAmount ?? 0) || 0;
-  const tax = Number(order.totalTaxAmount ?? 0) || 0;
+  const platformFee = Number(order.platformFeeAmount ?? 0) || 0;
+  const tax = Math.max(0, (Number(order.totalTaxAmount ?? 0) || 0) - platformFee);
   const total = Number(order.totalAmount ?? 0) || 0;
-  // Delivery is whatever is left once items (after coupon) and GST are taken out.
-  const delivery = Math.max(0, Math.round((total - (items - discount) - tax) * 100) / 100);
-  return { items, discount, tax, delivery };
+  const grand = Number(order.grandTotal ?? 0) || 0;
+  // Delivery is what is left of the grand total once items (after discounts), GST and the platform fee are out.
+  const delivery = grand > 0
+    ? Math.max(0, Math.round((grand - (Number(order.subTotalAmount ?? 0) || 0) - (Number(order.totalTaxAmount ?? 0) || 0)) * 100) / 100)
+    : Math.max(0, Math.round((total - (items - discount) - tax - platformFee) * 100) / 100);
+  return { items, discount, tax, platformFee, delivery };
 }
 
 /** Headline status for an order card, in plain words. */
@@ -639,7 +643,7 @@ export default function UserOrdersClient({
                         {items.map((item) => (
                           <li key={item.id} className="flex gap-3">
                             <Link href={`/product/${item.productId}`} className="relative h-20 w-16 shrink-0 overflow-hidden rounded-lg bg-mist">
-                              <Image src={item.productImage ?? "/images/product-placeholder.svg"} alt="" fill sizes="64px" className="object-cover" />
+                              <Image src={item.productImage ?? "/images/product-placeholder.svg"} alt="" fill sizes="64px" className="bg-white object-contain" />
                             </Link>
                             <div className="min-w-0 flex-1 text-sm">
                               <Link href={`/product/${item.productId}`} className="line-clamp-2 font-medium text-foreground hover:underline">
@@ -662,6 +666,7 @@ export default function UserOrdersClient({
                         {charges.discount > 0 ? <ChargeFact label="Coupon" value={`−${currency.format(charges.discount)}`} /> : null}
                         <ChargeFact label="Delivery" value={charges.delivery > 0 ? currency.format(charges.delivery) : "FREE"} />
                         {charges.tax > 0 ? <ChargeFact label="GST" value={currency.format(charges.tax)} /> : null}
+                        {charges.platformFee > 0 ? <ChargeFact label="Platform fee" value={currency.format(charges.platformFee)} /> : null}
                         <ChargeFact label="Total" value={currency.format(order.totalAmount ?? 0)} strong />
                       </dl>
                     </div>

@@ -1638,7 +1638,7 @@ export default function AdminProductsClient({
                                 <img
                                   src={imageUrl}
                                   alt={`${colorGroup.label} gallery`}
-                                  className="h-full w-full object-cover"
+                                  className="h-full w-full bg-white object-contain"
                                 />
                                 <button
                                   type="button"

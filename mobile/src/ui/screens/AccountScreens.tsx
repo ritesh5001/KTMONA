@@ -310,7 +310,7 @@ function SavedProductList({ list, title, empty }: { list: "shared" | "recent"; t
         ListEmptyComponent={<EmptyState title={empty} action={<PrimaryBtn label="Continue shopping" onPress={() => router.replace("/home")} style={{ marginTop: 10 }} />} />}
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/product/${item.id}`)} style={styles.savedRow}>
-            <View style={styles.thumb}>{item.image ? <CachedImage source={item.image} style={FILL} contentFit="cover" /> : null}</View>
+            <View style={styles.thumb}>{item.image ? <CachedImage source={item.image} style={[FILL, { backgroundColor: C.white }]} contentFit="contain" /> : null}</View>
             <View style={{ flex: 1, marginLeft: 10 }}>
               <T size={13} numberOfLines={2}>{item.title}</T>
               {item.price != null ? <T w="bold" size={15} style={{ marginTop: 4 }}>{inr(item.price)}</T> : null}

@@ -111,6 +111,13 @@ class AdminQcService {
         };
     }
 
+    /** Seller picked the wrong category: move the listing before approving it. */
+    async changeCategory(productId: string, adminId: string, categoryId: string) {
+        await adminService.updateProductDetails(productId, adminId, { categoryId });
+        const category = await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true, name: true } });
+        return { productId, category };
+    }
+
     async bulkReview(adminId: string, input: { productIds: string[]; action: 'APPROVE' | 'REJECT'; reason?: string | undefined }) {
         if (input.action === 'REJECT' && !input.reason?.trim()) throw ApiError.badRequest('Pick a rejection reason');
         const results: { productId: string; ok: boolean; error?: string }[] = [];

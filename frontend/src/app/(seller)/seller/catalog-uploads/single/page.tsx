@@ -350,7 +350,7 @@ function AddSingleCatalogPageContent() {
                     aria-label={`Product ${i + 1}`}
                   >
                     {x.images[0] ? (
-                      <img src={x.images[0]} alt="" className="h-full w-full object-cover" />
+                      <img src={x.images[0]} alt="" className="h-full w-full bg-white object-contain" />
                     ) : (
                       <span className="text-xs text-muted-foreground">{i + 1}</span>
                     )}
@@ -386,7 +386,7 @@ function AddSingleCatalogPageContent() {
               <section className="rounded-2xl border border-border-soft bg-card p-5">
                 <div className="flex items-center gap-3">
                   <span className="h-12 w-12 overflow-hidden rounded-lg bg-mist">
-                    {p.images[0] ? <img src={p.images[0]} alt="" className="h-full w-full object-cover" /> : null}
+                    {p.images[0] ? <img src={p.images[0]} alt="" className="h-full w-full bg-white object-contain" /> : null}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{p.name || `Product ${active + 1}`}</p>
@@ -745,7 +745,7 @@ function ImageSlot({ label, hint, url, onChange }: { label: string; hint: string
         {uploading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : url ? (
-          <img src={url} alt="" className="h-full w-full object-cover" />
+          <img src={url} alt="" className="h-full w-full bg-white object-contain" />
         ) : (
           <ImagePlus className="h-4 w-4 text-muted-foreground" />
         )}

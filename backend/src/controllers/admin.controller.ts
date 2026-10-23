@@ -21,7 +21,7 @@ import {
 } from '../validators/admin.validation.js';
 import { refundService } from '../services/refund.service.js';
 import { commissionService } from '../services/commission.service.js';
-import { settingsService, DEFAULT_SHIPPING_FEE_INR, FLAT_GST_FEE_INR } from '../services/settings.service.js';
+import { settingsService } from '../services/settings.service.js';
 import type { RefundStatus, SettlementStatus } from '@prisma/client';
 
 function parsePositiveInt(value: unknown, fallback: number): number {
@@ -742,7 +742,7 @@ export const adminController = {
                 settingsService.isShippingChargeEnabled(),
                 settingsService.getFreeShippingMinOrder(),
             ]);
-            res.json({ enabled, amount: DEFAULT_SHIPPING_FEE_INR, freeAbove });
+            res.json({ enabled, amount: await settingsService.getShippingFeeAmount(), freeAbove });
         } catch (error) {
             next(error);
         }
@@ -755,10 +755,14 @@ export const adminController = {
      */
     async updateShippingSetting(req: Request, res: Response, next: NextFunction) {
         try {
-            const { enabled, freeAbove } = req.body ?? {};
+            const { enabled, freeAbove, amount } = req.body ?? {};
             if (enabled !== undefined && typeof enabled !== 'boolean') {
                 throw ApiError.badRequest('`enabled` must be a boolean');
             }
+            if (amount !== undefined && (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 10000)) {
+                throw ApiError.badRequest('`amount` must be between 0 and 10000');
+            }
+            if (typeof amount === 'number') await settingsService.setShippingFeeAmount(amount);
             if (freeAbove !== undefined && (typeof freeAbove !== 'number' || !Number.isFinite(freeAbove) || freeAbove < 0)) {
                 throw ApiError.badRequest('`freeAbove` must be a positive amount, or 0 for no free-delivery offer');
             }
@@ -768,7 +772,7 @@ export const adminController = {
                 settingsService.isShippingChargeEnabled(),
                 settingsService.getFreeShippingMinOrder(),
             ]);
-            res.json({ enabled: nowEnabled, amount: DEFAULT_SHIPPING_FEE_INR, freeAbove: nowFreeAbove });
+            res.json({ enabled: nowEnabled, amount: await settingsService.getShippingFeeAmount(), freeAbove: nowFreeAbove });
         } catch (error) {
             next(error);
         }
@@ -780,8 +784,7 @@ export const adminController = {
      */
     async getGstSetting(_req: Request, res: Response, next: NextFunction) {
         try {
-            const enabled = await settingsService.isGstChargeEnabled();
-            res.json({ enabled, amount: FLAT_GST_FEE_INR });
+            res.json(await settingsService.getPlatformFeeRules());
         } catch (error) {
             next(error);
         }
@@ -790,16 +793,23 @@ export const adminController = {
     /**
      * PUT /v1/admin/settings/gst
      * Start/stop the flat GST charge for new orders.
-     * Body: { enabled: boolean }
+     * Platform fee (stored under the old "GST charge" name).
+     * Body: { enabled?: boolean, amount?: number, mode?: 'PER_ITEM' | 'PER_ORDER' }
      */
     async updateGstSetting(req: Request, res: Response, next: NextFunction) {
         try {
-            const { enabled } = req.body ?? {};
-            if (typeof enabled !== 'boolean') {
+            const { enabled, amount, mode } = req.body ?? {};
+            if (enabled !== undefined && typeof enabled !== 'boolean') {
                 throw ApiError.badRequest('`enabled` must be a boolean');
             }
-            await settingsService.setGstChargeEnabled(enabled);
-            res.json({ enabled, amount: FLAT_GST_FEE_INR });
+            if (amount !== undefined && (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0 || amount > 10000)) {
+                throw ApiError.badRequest('`amount` must be between 0 and 10000');
+            }
+            if (mode !== undefined && mode !== 'PER_ITEM' && mode !== 'PER_ORDER') {
+                throw ApiError.badRequest('`mode` must be PER_ITEM or PER_ORDER');
+            }
+            if (typeof enabled === 'boolean') await settingsService.setGstChargeEnabled(enabled);
+            res.json(await settingsService.setPlatformFee({ amount, mode }));
         } catch (error) {
             next(error);
         }
